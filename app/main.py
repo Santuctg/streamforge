@@ -13095,6 +13095,74 @@ def playlist_form_context(db: Session, playlist: PlaylistProfile | None, error: 
     }
 
 
+def sync_main_channel_catalogue_order(
+    db: Session,
+    playlist_channels: list[Channel],
+    saved_category_order: list[str],
+    saved_channel_order: list[int],
+) -> None:
+    """Make the Main Channels page follow the hierarchy saved for a playlist.
+
+    The public/display ID is derived from category/channel sort_order, while the
+    DB primary key remains stable. Playlist members lead each category and any
+    channels not present in the playlist retain their relative order afterward.
+    """
+    catalogue = list(db.scalars(
+        select(Channel).options(
+            selectinload(Channel.category),
+            selectinload(Channel.categories),
+        )
+    ).all())
+    catalogue.sort(key=channel_catalogue_order_key)
+
+    playlist_by_id = {int(channel.id): channel for channel in playlist_channels}
+    ordered_playlist = [
+        playlist_by_id[channel_id]
+        for channel_id in saved_channel_order
+        if channel_id in playlist_by_id
+    ]
+
+    categories_by_key: dict[str, ChannelCategory] = {}
+    for channel in catalogue:
+        category = getattr(channel, "category", None)
+        if category is not None:
+            categories_by_key.setdefault(channel_category_key(channel), category)
+
+    existing_category_keys: list[str] = []
+    for channel in catalogue:
+        key = channel_category_key(channel)
+        if key not in existing_category_keys:
+            existing_category_keys.append(key)
+    final_category_keys = [
+        key for key in saved_category_order if key in existing_category_keys
+    ]
+    final_category_keys.extend(
+        key for key in existing_category_keys if key not in final_category_keys
+    )
+    for position, key in enumerate(final_category_keys, start=1):
+        category = categories_by_key.get(key)
+        if category is not None:
+            category.sort_order = position * 10
+
+    playlist_ids_by_category: dict[str, list[int]] = {}
+    for channel in ordered_playlist:
+        playlist_ids_by_category.setdefault(channel_category_key(channel), []).append(int(channel.id))
+
+    catalogue_by_category: dict[str, list[Channel]] = {}
+    for channel in catalogue:
+        catalogue_by_category.setdefault(channel_category_key(channel), []).append(channel)
+    for key, category_channels in catalogue_by_category.items():
+        wanted_ids = playlist_ids_by_category.get(key, [])
+        by_id = {int(channel.id): channel for channel in category_channels}
+        final_ids = [channel_id for channel_id in wanted_ids if channel_id in by_id]
+        final_ids.extend(
+            int(channel.id) for channel in category_channels
+            if int(channel.id) not in final_ids
+        )
+        for position, channel_id in enumerate(final_ids, start=1):
+            by_id[channel_id].sort_order = position * 10
+
+
 def playlist_hierarchy_context(
     playlist: PlaylistProfile,
     *,
@@ -13280,6 +13348,10 @@ def playlist_order_save(
         return response
     playlist.category_order = json.dumps(saved_categories, separators=(",", ":"))
     playlist.channel_order = json.dumps(saved_channels, separators=(",", ":"))
+    # STREAMFORGE_MAIN_PLAYLIST_CHANNEL_SERIAL_SYNC_V1211:
+    # Channels page IDs are generated from the Main catalogue order. Keep that
+    # display order in sync with the hierarchy the operator just saved.
+    sync_main_channel_catalogue_order(db, channels, saved_categories, saved_channels)
     for user in list(playlist.users):
         user.playlist_order = playlist.channel_order
     db.commit()
