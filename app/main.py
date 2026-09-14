@@ -7881,6 +7881,13 @@ def node_webplayer_manage_save(
     save_webplayer_settings(db, node.id, submitted)
     db.commit()
 
+    # STREAMFORGE_WEBPLAYER_MAIN_SAVE_PRESERVE_BRANDS_V1214:
+    # Access sync treats webplayer_brands as authoritative. Re-read the complete
+    # saved snapshot (including existing brands and shared runtime controls)
+    # instead of sending the form-only dictionary, which previously cleared all
+    # Remote Node brand host mappings after a server-level Web Player save.
+    saved_sync_settings = webplayer_settings_for_node(db, node.id)
+
     message = "Web Player settings saved"
     error = ""
     if node.node_type == "remote":
@@ -7888,9 +7895,10 @@ def node_webplayer_manage_save(
             node_controller.sync_access_settings(
                 node,
                 _sync_main_base(request),
-                webplayer_settings=submitted,
+                webplayer_settings=saved_sync_settings,
             )
-            node_controller.sync_webplayer_download(node, submitted)
+            node_controller.sync_webplayer_download(node, saved_sync_settings)
+            node_controller.sync_webplayer_brand_assets(node, saved_sync_settings)
             message += " and synced to Remote Node"
         except NodeError as exc:
             node_controller.note_control_failure(node, exc)

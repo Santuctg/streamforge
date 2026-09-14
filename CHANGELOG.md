@@ -1,3 +1,10 @@
+# StreamForge v12.14
+
+- Fixed server-level Web Player saves clearing existing Remote Node Web Player Brand host mappings.
+- Main now sends the complete saved Web Player snapshot, including all brand profiles and shared controls, instead of the form-only server settings.
+- Brand logo/favicon/download assets are re-synchronized after a server-level save.
+- Release updater advanced to `force_update_v1214.sh`.
+
 # StreamForge v12.13
 
 - Stopped Web Player Brands with blank logo/favicon/app fields from inheriting Main or Node server-level assets.
