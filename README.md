@@ -1,4 +1,4 @@
-# StreamForge v12.10
+# StreamForge v12.13
 
 ## Node playback-start latency hardening
 
