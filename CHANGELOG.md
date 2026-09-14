@@ -1,3 +1,10 @@
+# StreamForge v12.13
+
+- Stopped Web Player Brands with blank logo/favicon/app fields from inheriting Main or Node server-level assets.
+- A blank brand logo now renders the neutral player mark, a blank favicon emits no brand favicon, and a blank app hides the Download button and clears host-scoped update metadata.
+- Applied the same isolated-brand behavior to Main and Remote Node Web Players.
+- Release updater advanced to `force_update_v1213.sh`.
+
 # StreamForge v12.12
 
 - Fixed Main-managed Node logo changes not appearing in the Node Web Player.

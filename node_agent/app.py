@@ -8931,7 +8931,7 @@ def _node_favicon_link(prefix: str = "") -> str:
 
 
 def _node_web_favicon_link(prefix: str = "", request: Request | None = None) -> str:
-    """Return the host-specific brand favicon or the server fallback favicon."""
+    """Return a brand favicon, or the server favicon only outside a brand."""
     brand = _node_webplayer_brand(request) if request is not None else None
     external = str((brand or {}).get("favicon_url") or "").strip()
     if external:
@@ -8940,6 +8940,9 @@ def _node_web_favicon_link(prefix: str = "", request: Request | None = None) -> 
         clean_prefix = str(prefix or "").rstrip("/")
         href = f"{clean_prefix}/web-player/favicon"
         return '<link rel="icon" href="' + html.escape(href, quote=True) + '">'
+    # STREAMFORGE_NODE_WEBPLAYER_BRAND_ASSET_ISOLATION_V1213:
+    if brand is not None:
+        return ""
     # STREAMFORGE_NODE_WEB_PLAYER_FAVICON_LINK_V2203:
     # /panel/favicon is a Panel/API route and is blocked from a root/separate
     # Playlist/App authority. Web Player pages use /web-player/favicon instead.
@@ -15488,11 +15491,15 @@ def _node_web_brand_asset_path(brand: dict[str, Any], key: str) -> Path | None:
 
 
 def _node_web_download_snapshot(request: Request) -> tuple[Path | None, str, str, str]:
-    brand = _node_webplayer_brand(request) or {}
-    brand_path = _node_web_brand_asset_path(brand, "download_asset")
-    brand_name = Path(str(brand.get("download_name") or "")).name
-    if brand_path is not None and brand_name:
-        return (brand_path, brand_name, str(brand.get("android_version_name") or "").strip(), str(brand.get("android_description") or "").strip())
+    brand = _node_webplayer_brand(request)
+    if brand is not None:
+        brand_path = _node_web_brand_asset_path(brand, "download_asset")
+        brand_name = Path(str(brand.get("download_name") or "")).name
+        if brand_path is not None and brand_name:
+            return (brand_path, brand_name, str(brand.get("android_version_name") or "").strip(), str(brand.get("android_description") or "").strip())
+        # STREAMFORGE_NODE_WEBPLAYER_BRAND_ASSET_ISOLATION_V1213:
+        # A blank per-brand app means no app/download for that brand.
+        return (None, "", "", "")
     if manager.webplayer_download_name and WEBPLAYER_DOWNLOAD_FILE.is_file():
         return (WEBPLAYER_DOWNLOAD_FILE, Path(str(manager.webplayer_download_name)).name, str(manager.android_version_name or "").strip(), str(manager.android_description or "").strip())
     return (None, "", "", "")
@@ -15707,6 +15714,8 @@ def _node_webplayer_update_theme_snapshot(request: Request | None = None) -> dic
         logo_url = "/web-player/logo"
     elif brand_logo.startswith(("https://", "http://")):
         logo_url = brand_logo
+    elif brand:
+        logo_url = ""
     else:
         logo_url = _node_webplayer_update_logo_url()
     return {
@@ -15766,7 +15775,7 @@ def _node_web_page(user: NodeUserConfig | None, request: Request, error: str = "
     # STREAMFORGE_NODE_WEB_PLAYER_LOGIN_CENTER_V2200:
     # Use the configured Node logo on the login page when available, remove the
     # redundant subtitle/helper copy, and center the entire login shell.
-    login_logo_url = str(brand.get("logo_url") or synchronized_node_logo_url or "").strip()
+    login_logo_url = str(brand.get("logo_url") or "").strip() if brand else synchronized_node_logo_url
     if str(brand.get("logo_asset") or "").strip():
         login_logo_url = f"{prefix.rstrip('/')}/web-player/logo"
     # STREAMFORGE_NODE_WEB_PLAYER_LOGO_URL_V2202:
@@ -15945,6 +15954,9 @@ def node_web_player_favicon(request: Request):
     if brand_path is not None:
         media = {".ico":"image/x-icon", ".png":"image/png", ".jpg":"image/jpeg", ".jpeg":"image/jpeg", ".webp":"image/webp", ".gif":"image/gif"}
         return FileResponse(brand_path, media_type=media.get(brand_path.suffix.lower(), "application/octet-stream"), headers={"Cache-Control": "public, max-age=3600"})
+    # STREAMFORGE_NODE_WEBPLAYER_BRAND_ASSET_ISOLATION_V1213:
+    if brand:
+        raise HTTPException(404)
     # STREAMFORGE_NODE_WEB_PLAYER_FAVICON_ROUTE_V2203:
     # Keep the Panel favicon endpoint protected while exposing the same local
     # favicon file from a stream-role path for Web Player browser tabs.
@@ -15977,6 +15989,9 @@ def node_web_player_logo(request: Request):
     if brand_path is not None:
         media = {".png":"image/png", ".jpg":"image/jpeg", ".jpeg":"image/jpeg", ".webp":"image/webp", ".gif":"image/gif"}
         return FileResponse(brand_path, media_type=media.get(brand_path.suffix.lower(), "application/octet-stream"), headers={"Cache-Control": "public, max-age=3600"})
+    # STREAMFORGE_NODE_WEBPLAYER_BRAND_ASSET_ISOLATION_V1213:
+    if brand:
+        raise HTTPException(404)
     # STREAMFORGE_NODE_WEB_PLAYER_LOGO_ROUTE_V2202:
     # /node-logos/* belongs to the Panel role, so a root/separate Playlist/App
     # URL can block it. This endpoint exposes the same local file as stream-role

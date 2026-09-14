@@ -1248,9 +1248,13 @@ def _webplayer_effective_settings(db: Session, node_id: int, request: Request) -
             values[key] = _webplayer_color(brand.get(key), str(values.get(key) or WEBPLAYER_DEFAULTS[key]))
         for key in ("page_alpha", "panel_alpha", "accent_alpha", "text_alpha"):
             values[key] = _webplayer_alpha(brand.get(key), int(values.get(key) or 100))
-        # STREAMFORGE_WEBPLAYER_BRAND_DOWNLOAD_V1158:
-        # A brand may ship its own Player/APK. When blank it inherits the
-        # server-level download, preserving all existing installs.
+        # STREAMFORGE_WEBPLAYER_BRAND_ASSET_ISOLATION_V1213:
+        # A matched brand is an isolated identity. Missing per-brand downloads
+        # intentionally stay unavailable instead of inheriting the Main player.
+        values["download_name"] = ""
+        values["download_stored_name"] = ""
+        values["android_version_name"] = ""
+        values["android_description"] = ""
         if str(brand.get("download_stored_name") or ""):
             values["download_name"] = Path(str(brand.get("download_name") or "")).name
             values["download_stored_name"] = Path(str(brand.get("download_stored_name") or "")).name
@@ -1272,11 +1276,11 @@ def _webplayer_branding_for_request(db: Session, node_id: int, request: Request)
     values = dict(branding_settings(db))
     brand = _webplayer_brand_for_request(db, node_id, request)
     if brand:
+        # STREAMFORGE_WEBPLAYER_BRAND_ASSET_ISOLATION_V1213:
+        # Empty brand assets must not expose the Main server identity.
         values["name"] = str(brand.get("name") or values.get("name") or "StreamForge")
-        if str(brand.get("logo_url") or ""):
-            values["logo_url"] = str(brand.get("logo_url") or "")
-        if str(brand.get("favicon_url") or ""):
-            values["favicon_url"] = str(brand.get("favicon_url") or "")
+        values["logo_url"] = str(brand.get("logo_url") or "")
+        values["favicon_url"] = str(brand.get("favicon_url") or "")
     return values
 
 
@@ -14281,6 +14285,8 @@ def public_web_player_logo(request: Request, db: Session = Depends(get_db)):
             return FileResponse(path, media_type=media.get(path.suffix.lower(), "application/octet-stream"), headers={"Cache-Control": "public, max-age=3600"})
     elif brand_logo:
         return RedirectResponse(brand_logo, status_code=302, headers={"Cache-Control": "no-store"})
+    if brand is not None:
+        raise HTTPException(404)
     path = _public_web_player_logo_path(db)
     if path is None:
         raise HTTPException(404)
@@ -14305,6 +14311,8 @@ def public_web_player_favicon(request: Request, db: Session = Depends(get_db)):
             return FileResponse(path, media_type=media.get(path.suffix.lower(), "application/octet-stream"), headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0", "Pragma": "no-cache"})
     elif brand_favicon:
         return RedirectResponse(brand_favicon, status_code=302, headers={"Cache-Control": "no-store"})
+    if brand is not None:
+        raise HTTPException(404)
     favicon_url = str(branding_settings(db).get("favicon_url") or "").strip()
     if not favicon_url.startswith(BRANDING_LOGO_PREFIX):
         raise HTTPException(404)
