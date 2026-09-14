@@ -1,0 +1,9 @@
+[Unit]
+Description=Watch for StreamForge Main service/server control requests
+
+[Path]
+PathChanged=/var/lib/streamforge/main-system-runtime/request.json
+Unit=streamforge-main-system.service
+
+[Install]
+WantedBy=multi-user.target

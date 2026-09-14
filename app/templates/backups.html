@@ -1,0 +1,1110 @@
+{% extends "base.html" %}
+{% block title %}Backups · {{ branding.name }}{% endblock %}
+{% block heading %}<h1>Backups</h1><p>Main Server backup destinations, rotation, restore and saved files</p>{% endblock %}
+{% block content %}
+<div class="backups-page">
+{% if message %}<div class="alert success">{{ message }}</div>{% endif %}
+{% if error %}<div class="alert danger">{{ error }}</div>{% endif %}
+<section class="panel form-section settings-section" style="margin-top:18px">
+  <div class="panel-head"><div><h2>Backups</h2><p>Add multiple destinations. HLS segments and cache files are excluded.</p></div></div>
+
+  <div class="backup-target-list"><div class="table-wrap"><table><thead><tr><th>Name</th><th>Type</th><th>Destination</th><th>Schedule</th><th>Rotation</th><th>Last status</th><th></th></tr></thead><tbody>
+  <tr class="local-backup-row">
+    <td>{{ local_backup.name }}</td>
+    <td>LOCAL</td>
+    <td><code>{{ local_backup.destination }}</code></td>
+    <td>{% if local_backup.schedule_hours == 24 %}Daily at {{ local_backup.schedule_time or '00:00' }}{% elif local_backup.schedule_hours %}Every {{ local_backup.schedule_hours }} hour(s) from {{ local_backup.schedule_time or '00:00' }}{% else %}Manual{% endif %}</td>
+    <td>Keep {{ local_backup.rotation_keep }}</td>
+    <td>{{ local_backup.last_status }}</td>
+    <td>
+      <div class="actions">
+        <a class="button" href="/system/backups/local-files">View backups</a>
+        <button class="button" type="button" data-local-backup-edit>Edit</button>
+        <form method="post" action="/system/backups/local/run"><button class="button" type="submit">Run now</button></form>
+      </div>
+    </td>
+  </tr>
+  {% for target in backup_targets %}<tr>
+    <td>{{ target.name }}</td>
+    <td>{{ target.kind|upper }}</td>
+    <td><code>{{ target.destination }}</code></td>
+    <td>{% if target.schedule_hours == 24 %}Daily at {{ target.schedule_time or '00:00' }}{% elif target.schedule_hours %}Every {{ target.schedule_hours }} hour(s) from {{ target.schedule_time or '00:00' }}{% else %}Manual{% endif %}</td>
+    <td>Keep {{ target.rotation_keep or 20 }}</td>
+    <td>{{ target.last_status }}</td>
+    <td>
+      <div class="actions">
+        <a class="button" href="/system/backups/{{ target.id }}/files">View backups</a>
+        <button
+          class="button"
+          type="button"
+          data-backup-edit
+          data-id="{{ target.id }}"
+          data-name="{{ target.name|e }}"
+          data-kind="{{ target.kind|e }}"
+          data-destination="{{ target.destination|e }}"
+          data-schedule="{{ target.schedule_hours }}"
+          data-schedule-time="{{ target.schedule_time or '00:00' }}"
+          data-rotation="{{ target.rotation_keep or 20 }}"
+          data-key-path="{{ (target.key_path or '')|e }}"
+          data-username="{{ (target.username or '')|e }}"
+          data-domain="{{ (target.domain or '')|e }}"
+        >Edit</button>
+        <form method="post" action="/system/backups/{{ target.id }}/run"><button class="button" type="submit">Run now</button></form>
+        <form method="post" action="/system/backups/{{ target.id }}/delete" onsubmit="return confirm('Remove this backup destination?')"><button class="button danger" type="submit">Delete</button></form>
+      </div>
+    </td>
+  </tr>{% endfor %}
+  </tbody></table></div></div>
+
+  <div class="backup-edit-modal" data-local-backup-modal hidden>
+    <div class="backup-edit-modal-backdrop" data-local-backup-edit-cancel></div>
+    <div class="backup-edit-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="local-backup-edit-title">
+  <form class="local-backup-edit-panel" method="post" action="/system/backups/local/update" data-local-backup-edit-panel>
+    <div class="local-backup-edit-head">
+      <div>
+        <b id="local-backup-edit-title">Editing Main Server local backups</b>
+        <small>This built-in local backup destination cannot be deleted or moved.</small>
+      </div>
+      <button class="button small" type="button" data-local-backup-edit-cancel>Cancel edit</button>
+    </div>
+    <div class="local-backup-edit-grid">
+      <label>Name
+        <input name="name" maxlength="80" value="{{ local_backup.name }}" required>
+      </label>
+      <label>Interval
+        <input type="number" name="schedule_hours" min="0" max="8760" value="{{ local_backup.schedule_hours }}" required>
+        <small class="field-help">Hours between automatic local backups. 0 = manual only.</small>
+      </label>
+      <label>Backup time
+        <input type="time" name="schedule_time" value="{{ local_backup.schedule_time or '00:00' }}" step="60" required>
+        <small class="field-help">Server-local start time for this destination.</small>
+      </label>
+      <label>Rotation
+        <input type="number" name="rotation_keep" min="1" max="500" value="{{ local_backup.rotation_keep }}" required>
+        <small class="field-help">How many local Main Server backup files to keep.</small>
+      </label>
+      <label class="local-backup-destination">Destination
+        <input value="{{ local_backup.destination }}" disabled>
+        <small class="field-help">Built-in protected local backup location.</small>
+      </label>
+    </div>
+    <div class="form-actions">
+      <button class="button" type="button" data-local-backup-edit-cancel>Cancel</button>
+      <button class="button primary" type="submit">Update local backup</button>
+    </div>
+  </form>
+    </div>
+  </div>
+
+  <div data-backup-form-anchor></div>
+<!-- STREAMFORGE_GOOGLE_BACKUP_DESTINATION_SAVE_V3060R3 -->
+  <form class="form-grid backup-target-form" method="post" action="/system/backups/add" data-backup-target-form>
+    <input type="hidden" name="target_id" value="" data-backup-edit-id>
+    <div class="wide backup-form-mode backup-form-mode-edit" data-backup-form-mode hidden>
+      <div class="backup-edit-heading-copy">
+        <b id="backup-edit-modal-title">Editing backup destination</b>
+        <span data-backup-edit-label></span>
+        <span class="backup-edit-type" data-backup-edit-type></span>
+      </div>
+      <button class="button small backup-edit-cancel-right" type="button" data-backup-edit-cancel>Cancel edit</button>
+    </div>
+    <label class="backup-name-field backup-top-field">Name<input name="name" maxlength="80" value="" placeholder="Backup name"></label>
+    <label class="backup-type-field backup-top-field" data-backup-type-field>Type<select name="kind" data-backup-kind>
+      <option value="local">Local folder</option>
+      <option value="smb">SMB / Network share</option>
+      <option value="ssh">SSH / SFTP</option>
+      <option value="google_drive">Google Drive</option>
+    </select></label>
+
+    <label class="backup-schedule-field backup-top-field">Interval
+      <input type="number" name="schedule_hours" min="0" max="8760" value="24">
+      <small class="field-help">Hours between backups. 0 = manual only.</small>
+    </label>
+
+    <label class="backup-time-field backup-top-field">Backup time
+      <input type="time" name="schedule_time" value="00:00" step="60" required>
+      <small class="field-help">Separate server-local start time for this destination.</small>
+    </label>
+
+    <label class="backup-rotation-field backup-top-field">Rotation
+      <input type="number" name="rotation_keep" min="1" max="500" value="20" required data-backup-rotation>
+      <small class="field-help">How many backups this destination keeps. When full, the oldest backup is deleted automatically.</small>
+    </label>
+
+    <label class="backup-destination-field backup-generic-destination" data-generic-destination>Destination
+      <input name="destination" required value="" placeholder="/var/backups/streamforge" data-destination-input>
+      <small class="field-help" data-destination-help>Absolute local folder path.</small>
+    </label>
+
+    <div class="google-backup-card" data-google-backup-card hidden>
+        <div class="google-backup-header">
+          <div>
+            <b>Google Drive backup</b>
+            <small>Direct Google Drive API integration — rclone is not used.</small>
+          </div>
+          <span class="status {{ 'running' if backup_google_drive.connected else 'stopped' }}">
+            {% if backup_google_drive.connected %}Connected{% elif backup_google_drive.oauth_configured %}Ready to sign in{% else %}Setup required{% endif %}
+          </span>
+        </div>
+
+        {% if backup_google_drive.connected %}
+          <div class="google-connected-bar">
+            <div>
+              <span>Google Drive</span>
+              <b>Connected</b>
+              <small>OAuth credentials configured{% if backup_google_drive.client_id_hint %} · {{ backup_google_drive.client_id_hint }}{% endif %}</small>
+            </div>
+            <div class="google-connected-actions">
+              <button class="button" type="button" data-google-drive-test>Test connection</button>
+              <a class="button" href="/system/backups/google/connect">Reconnect</a>
+              <span data-google-drive-test-result></span>
+            </div>
+          </div>
+
+          <details class="google-advanced-setup">
+            <summary>Google connection settings</summary>
+            <div class="google-oauth-help">
+              <small>Authorized redirect URI</small>
+              <code>{{ request.url_for('system_backup_google_callback') }}</code>
+            </div>
+            <div class="google-oauth-credentials">
+              <label class="google-oauth-field">Google OAuth Client ID
+                <input name="client_id" autocomplete="off" placeholder="...apps.googleusercontent.com" data-google-oauth-input>
+              </label>
+              <label class="google-oauth-field">Google OAuth Client Secret
+                <input name="client_secret" type="password" autocomplete="new-password" placeholder="GOCSPX-..." data-google-oauth-input>
+              </label>
+              <div class="google-oauth-action">
+                <button class="button" type="submit" formaction="/system/backups/google/credentials" formmethod="post" formnovalidate>Update OAuth credentials</button>
+              </div>
+            </div>
+          </details>
+        {% else %}
+          <div class="google-oauth-help">
+            <b>One-time Google Cloud setup</b>
+            <small>Create an OAuth 2.0 <b>Web application</b>, enable Google Drive API, and register this exact Authorized redirect URI:</small>
+            <code>{{ request.url_for('system_backup_google_callback') }}</code>
+          </div>
+
+          <div class="google-oauth-credentials">
+            <label class="google-oauth-field">Google OAuth Client ID
+              <input name="client_id" autocomplete="off" placeholder="...apps.googleusercontent.com" data-google-oauth-input>
+            </label>
+            <label class="google-oauth-field">Google OAuth Client Secret
+              <input name="client_secret" type="password" autocomplete="new-password" placeholder="GOCSPX-..." data-google-oauth-input>
+            </label>
+            <div class="google-oauth-action">
+              <button class="button" type="submit" formaction="/system/backups/google/credentials" formmethod="post" formnovalidate>Save OAuth credentials</button>
+            </div>
+          </div>
+
+          {% if backup_google_drive.oauth_configured %}
+          <div class="google-signin-row">
+            <a class="button primary google-signin-button" href="/system/backups/google/connect">
+              <span class="google-g" aria-hidden="true">G</span>
+              Sign in with Google
+            </a>
+          </div>
+          {% endif %}
+        {% endif %}
+      </div>
+
+    <div class="wide backup-auth-grid" data-smb-auth-fields hidden>
+      <label>SMB username
+        <input name="username" autocomplete="username" placeholder="backupuser">
+      </label>
+      <label>SMB password
+        <input name="password" type="password" autocomplete="new-password" placeholder="Password">
+      </label>
+      <label>SMB domain (optional)
+        <input name="domain" autocomplete="off" placeholder="WORKGROUP">
+      </label>
+      <small class="field-help wide">For secure shares use //server/share/folder. Password is encrypted before it is stored. While editing, leave password blank to keep the saved password.</small>
+    </div>
+
+    <div class="wide backup-auth-grid" data-ssh-auth-fields hidden>
+      <label>SSH username override (optional)
+        <input data-ssh-user autocomplete="username" placeholder="backup">
+      </label>
+      <label>SSH/SFTP password (optional)
+        <input data-ssh-password type="password" autocomplete="new-password" placeholder="Password">
+      </label>
+      <label>SSH private key (optional)
+        <input name="key_path" placeholder="/var/lib/streamforge/.ssh/id_ed25519">
+      </label>
+      <small class="field-help wide">Use password, private key, or configured SSH agent. While editing, leave password blank to keep the saved password.</small>
+    </div>
+    <div class="form-actions wide backup-actions">
+      <button class="button" type="button" data-backup-destination-test>Test destination</button>
+      <span class="backup-test-result" data-backup-destination-test-result></span>
+      <span class="backup-action-spacer"></span>
+      <button class="button" type="submit" name="run_now" value="0" data-backup-save-button>Save backup schedule</button>
+      <button class="button primary" type="submit" name="run_now" value="1" data-backup-run-button>Save &amp; backup now</button>
+    </div>
+  </form>
+
+  <div class="backup-edit-modal" data-backup-edit-modal hidden>
+    <div class="backup-edit-modal-backdrop" data-backup-edit-cancel></div>
+    <div class="backup-edit-modal-dialog backup-edit-modal-dialog-wide" role="dialog" aria-modal="true" aria-labelledby="backup-edit-modal-title">
+      <div class="backup-edit-modal-body" data-backup-edit-modal-body></div>
+    </div>
+  </div>
+
+  <div class="backup-restore-card">
+    <div class="backup-restore-copy">
+      <b>Restore Main Server</b>
+      <small>Upload a StreamForge Main backup archive. Database, runtime STREAMFORGE_* environment snapshot, and logo are restored when present. <b>The current server's Main Panel/API and Playlist/App domain, access paths, and listener ports are preserved.</b> The Main service restarts automatically.</small>
+    </div>
+    <form method="post" action="/system/backups/restore" enctype="multipart/form-data" class="backup-restore-form" onsubmit="return confirm('Restore this Main Server backup now? Backup data/settings will be restored, but this server's current Main domain/access links will be preserved. The Main service will restart.');">
+      <label class="backup-restore-file">Backup archive
+        <input type="file" name="archive" accept=".tar.gz,.tgz,application/gzip" required>
+      </label>
+      <label class="check backup-restore-confirm">
+        <input type="checkbox" name="confirm_restore" value="yes" required>
+        <span>I understand the current Main Server data will be replaced.</span>
+      </label>
+      <button class="button danger" type="submit">Restore backup</button>
+    </form>
+  </div>
+</section>
+<style>
+.optional-label{
+  color:var(--muted);
+  font-size:11px;
+  font-weight:400;
+  margin-left:4px;
+}
+
+/* STREAMFORGE_SETTINGS_SPACING_POLISH */
+.settings-page-head{
+  margin-bottom:18px!important;
+}
+.settings-page-head h1,
+.settings-page-head h2{
+  margin-bottom:4px!important;
+}
+.settings-page-head p{
+  margin-top:0!important;
+}
+
+.form-section{
+  margin-bottom:18px!important;
+}
+.form-section + .form-section{
+  margin-top:18px!important;
+}
+.panel-head{
+  padding-top:18px!important;
+  padding-bottom:18px!important;
+}
+.panel-head h2{
+  margin:0 0 4px!important;
+}
+.panel-head p{
+  margin:0!important;
+}
+
+.form-grid{
+  row-gap:16px!important;
+  column-gap:16px!important;
+}
+.form-grid > label{
+  gap:7px!important;
+}
+.form-grid .field-help{
+  margin-top:2px!important;
+  line-height:1.35!important;
+}
+
+.form-actions{
+  margin-top:16px!important;
+}
+.settings-page-head + .alert,
+.settings-page-head + .notice,
+.settings-page-head + .flash,
+.settings-page-head + [class*="alert"]{
+  margin-top:14px!important;
+  margin-bottom:16px!important;
+}
+
+/* Give the top status/flash message breathing room without affecting sidebar. */
+main > .alert,
+main > .notice,
+main > .flash,
+main > [class*="alert"]{
+  margin-bottom:16px!important;
+}
+
+/* Keep the Settings title/content away from the viewport and sidebar edge. */
+@media(min-width:761px){
+  .settings-page-head{
+    padding-top:8px!important;
+  }
+}
+
+
+.backup-edit-modal{
+  position:fixed;
+  inset:0;
+  z-index:1000;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+}
+.backup-edit-modal[hidden]{display:none!important}
+.backup-edit-modal-backdrop{
+  position:absolute;
+  inset:0;
+  background:rgba(0,0,0,.82);
+  backdrop-filter:blur(3px);
+  -webkit-backdrop-filter:blur(3px);
+}
+.backup-edit-modal-dialog{
+  position:relative;
+  z-index:1;
+  width:min(760px,calc(100vw - 32px));
+  max-height:calc(100vh - 48px);
+  overflow:auto;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#0d1620!important;
+  background-color:#0d1620!important;
+  opacity:1!important;
+  box-shadow:0 24px 80px rgba(0,0,0,.65);
+  isolation:isolate;
+}
+.backup-edit-modal-dialog-wide{
+  width:min(1180px,calc(100vw - 32px));
+}
+.backup-edit-modal-body{min-width:0}
+body.backup-modal-open{overflow:hidden}
+.local-backup-row td{background:rgba(255,255,255,.012)}
+.local-backup-edit-panel{
+  display:grid;
+  gap:14px;
+  margin:0;
+  padding:18px;
+  background:#0d1620!important;
+}
+.local-backup-edit-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+}
+.local-backup-edit-head>div{display:grid;gap:4px}
+.local-backup-edit-head small{color:var(--muted)}
+.local-backup-edit-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+  align-items:start;
+}
+.local-backup-edit-grid label{
+  display:grid;
+  gap:6px;
+  min-width:0;
+  color:var(--text);
+}
+.local-backup-edit-grid input{
+  width:100%;
+  height:40px;
+  min-height:40px;
+  padding:0 12px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:var(--field);
+  color:var(--text);
+  font:inherit;
+  box-sizing:border-box;
+}
+.local-backup-edit-grid input:focus{
+  outline:none;
+  border-color:var(--accent);
+  box-shadow:0 0 0 1px var(--accent);
+}
+.local-backup-edit-grid input:disabled{
+  opacity:1;
+  background:var(--surface-2);
+  color:var(--muted);
+  -webkit-text-fill-color:var(--muted);
+  cursor:not-allowed;
+}
+.local-backup-edit-grid .field-help{
+  margin:0!important;
+  line-height:1.35;
+}
+.local-backup-destination{grid-column:1/-1}
+.local-backup-edit-panel .form-actions{
+  display:flex;
+  justify-content:flex-end;
+  margin-top:2px!important;
+}
+@media(max-width:760px){
+  .local-backup-edit-grid{grid-template-columns:1fr}
+  .local-backup-edit-head{flex-direction:column}
+}
+.backup-target-form{
+  display:grid!important;
+  grid-template-columns:repeat(12,minmax(0,1fr));
+  gap:14px 12px;
+  align-items:start;
+}
+.backup-target-form>label{min-width:0;display:grid;gap:6px}
+.backup-top-field{
+  grid-template-rows:auto 40px auto;
+  align-content:start;
+}
+.backup-top-field>input,
+.backup-top-field>select{
+  height:40px;
+  min-height:40px;
+  margin:0;
+}
+.backup-top-field>.field-help{
+  min-height:34px;
+  margin:0!important;
+  align-self:start;
+}
+.backup-target-form input,.backup-target-form select{width:100%;min-width:0}
+.backup-name-field{grid-column:span 3}
+.backup-type-field{grid-column:span 3}
+.backup-schedule-field{grid-column:span 2}
+.backup-time-field{grid-column:span 2}
+.backup-rotation-field{grid-column:span 2}
+.backup-destination-field{
+  grid-column:1/-1;
+  margin-top:-10px!important;
+}
+.backup-target-form.is-editing [data-backup-type-field]{display:none!important}
+.backup-target-form.is-editing .backup-name-field{grid-column:span 3}
+.backup-target-form.is-editing .backup-schedule-field{grid-column:span 3}
+.backup-target-form.is-editing .backup-time-field{grid-column:span 3}
+.backup-target-form.is-editing .backup-rotation-field{grid-column:span 3}
+.backup-target-form.is-editing .backup-destination-field{margin-top:-14px!important}
+.backup-target-form .wide{grid-column:1/-1}
+.backup-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:10px;
+  flex-wrap:wrap;
+  padding-top:2px;
+}
+.backup-auth-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:end}
+.backup-auth-grid .wide{grid-column:1/-1}
+.backup-auth-grid[hidden]{display:none!important}
+.backup-action-spacer{flex:1 1 auto}
+.backup-test-result{align-self:center;font-size:12px;color:var(--muted)}
+.backup-test-result.ok{color:#60d9b0}
+.backup-test-result.error{color:#ff7f8d}
+
+/* STREAMFORGE_GOOGLE_BACKUP_CARD_LAYOUT_V3053:
+   Google setup is a complete form section, not one cell of the 12-column
+   destination grid.  Keep every help row, credential field and action bounded
+   inside a full-width card on desktop and narrow screens. */
+.google-backup-card{
+  grid-column:1/-1!important;
+  display:grid;
+  gap:16px;
+  width:100%;
+  min-width:0;
+  max-width:100%;
+  padding:16px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:var(--surface-2);
+  box-sizing:border-box;
+  overflow:hidden;
+}
+.google-backup-card[hidden]{display:none!important}
+.google-backup-header{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+  min-width:0;
+}
+.google-backup-header>div{
+  display:grid;
+  gap:4px;
+  min-width:0;
+}
+.google-backup-header small,
+.google-connected-bar small,
+.google-oauth-help small{color:var(--muted);line-height:1.45}
+.google-backup-header>.status{flex:0 0 auto}
+.google-oauth-help{
+  display:grid;
+  gap:7px;
+  width:100%;
+  min-width:0;
+  padding:14px;
+  border:1px solid var(--line);
+  border-radius:9px;
+  background:var(--surface);
+  box-sizing:border-box;
+}
+.google-oauth-help code{
+  display:block;
+  width:100%;
+  min-width:0;
+  max-width:100%;
+  padding:10px 12px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:var(--field);
+  color:var(--text);
+  white-space:normal;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+  box-sizing:border-box;
+}
+.google-oauth-credentials{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;
+  gap:12px;
+  align-items:end;
+  width:100%;
+  min-width:0;
+}
+.google-oauth-field{
+  display:grid;
+  gap:6px;
+  min-width:0;
+}
+.google-oauth-field input{
+  width:100%!important;
+  min-width:0!important;
+  max-width:none!important;
+  height:40px;
+  min-height:40px;
+  box-sizing:border-box;
+}
+.google-oauth-action{display:flex;align-items:flex-end;min-width:0}
+.google-oauth-action .button{min-height:40px;white-space:nowrap}
+.google-signin-row{display:flex;align-items:center;justify-content:flex-start;min-width:0}
+.google-signin-button{display:inline-flex;align-items:center;gap:8px}
+.google-g{
+  display:inline-grid;
+  place-items:center;
+  width:22px;
+  height:22px;
+  border-radius:50%;
+  background:#fff;
+  color:#4285f4;
+  font-weight:800;
+}
+.google-connected-bar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  width:100%;
+  min-width:0;
+  padding:14px;
+  border:1px solid var(--line);
+  border-radius:9px;
+  background:var(--surface);
+  box-sizing:border-box;
+}
+.google-connected-bar>div:first-child{display:grid;gap:3px;min-width:0}
+.google-connected-actions{display:flex;align-items:center;justify-content:flex-end;gap:9px;flex-wrap:wrap;min-width:0}
+.google-advanced-setup{min-width:0}
+.google-advanced-setup>summary{cursor:pointer;font-weight:700}
+.google-advanced-setup[open]{display:grid;gap:14px}
+.google-advanced-setup[open]>summary{margin-bottom:0}
+
+@media(max-width:1050px){
+  .google-oauth-credentials{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .google-oauth-action{grid-column:1/-1}
+}
+
+.backup-restore-card{
+  display:grid;
+  grid-template-columns:minmax(220px,.8fr) minmax(0,1.5fr);
+  gap:18px;
+  align-items:center;
+  margin:18px;
+  padding:16px;
+  border:1px solid #5f3940;
+  border-radius:10px;
+  background:#15131a;
+}
+.backup-restore-copy{display:grid;gap:5px}
+.backup-restore-copy small{color:var(--muted);line-height:1.45}
+.backup-restore-form{
+  display:grid;
+  grid-template-columns:minmax(220px,1fr) minmax(280px,1fr) auto;
+  gap:12px;
+  align-items:end;
+}
+.backup-restore-file{display:grid;gap:6px;min-width:0}
+.backup-restore-file input{
+  width:100%;
+  min-height:40px;
+  padding:7px 9px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:var(--field);
+  color:var(--text);
+}
+.backup-restore-confirm{align-self:center}
+@media(max-width:1050px){
+  .backup-restore-card{grid-template-columns:1fr}
+  .backup-restore-form{grid-template-columns:1fr}
+  .backup-restore-form .button{justify-self:start}
+}
+
+.backup-target-list{border-bottom:1px solid var(--line)}
+.backup-empty-state{padding:18px;color:var(--muted);background:var(--surface-2)}
+.backup-target-form{padding:18px;margin:0}
+.backup-edit-modal .backup-target-form{
+  border:0;
+  border-radius:0;
+  background:#0d1620!important;
+}
+.backup-edit-modal .backup-form-mode{
+  margin-bottom:4px;
+}
+.backup-form-mode-edit{
+  display:flex!important;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.backup-form-mode-edit[hidden]{
+  display:none!important;
+}
+.backup-edit-heading-copy{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-width:0;
+  flex-wrap:wrap;
+}
+.backup-edit-heading-copy b{
+  white-space:nowrap;
+}
+.backup-edit-cancel-right{
+  flex:0 0 auto;
+  margin-left:auto;
+}
+.backup-target-form .form-actions{margin-top:2px}
+.metrics-settings-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+.backup-key-field,.backup-key-field input,.graph-span-field,.graph-span-field select{width:100%;max-width:none}
+.network-interface-field{width:min(100%,520px)}
+.metrics-settings-grid input:not([type="checkbox"]),.metrics-settings-grid select{height:40px;min-height:40px;padding-top:0;padding-bottom:0}
+.network-interface-field select[multiple]{background-image:none!important;padding-right:9px!important}
+.backup-target-list .table-wrap{border:0;border-radius:0}
+
+
+
+
+@media(max-width:1050px){.metrics-settings-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){.backup-target-form{padding:14px}.metrics-settings-grid{grid-template-columns:1fr}}
+@media(max-width:760px){
+  .backup-edit-modal{padding:10px}
+  .backup-edit-modal-dialog,.backup-edit-modal-dialog-wide{width:calc(100vw - 20px);max-height:calc(100vh - 20px)}
+}
+
+/* STREAMFORGE_BACKUPS_MOBILE_LAYOUT_FIX_V2306 */
+@media(max-width:760px){
+  .backup-target-form{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    gap:14px!important;
+    width:100%!important;
+    padding:14px!important;
+  }
+
+  .backup-target-form > *,
+  .backup-target-form > label,
+  .backup-target-form .wide,
+  .backup-target-form.is-editing .backup-name-field,
+  .backup-target-form.is-editing .backup-schedule-field,
+  .backup-target-form.is-editing .backup-time-field,
+  .backup-target-form.is-editing .backup-rotation-field{
+    grid-column:1/-1!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:none!important;
+  }
+
+  .backup-target-form .backup-top-field{
+    grid-template-rows:auto 40px auto!important;
+    align-content:start!important;
+  }
+
+  .backup-target-form .backup-destination-field,
+  .backup-target-form.is-editing .backup-destination-field{
+    margin-top:0!important;
+  }
+
+  .backup-target-form .field-help{
+    width:100%!important;
+    max-width:100%!important;
+    min-height:0!important;
+    overflow-wrap:anywhere!important;
+    word-break:normal!important;
+  }
+
+  .backup-auth-grid{
+    grid-template-columns:1fr!important;
+    width:100%!important;
+  }
+
+  .google-backup-card{
+    grid-column:1!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+    padding:14px!important;
+    gap:14px!important;
+  }
+
+  .google-backup-header,
+  .google-connected-bar{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    align-items:start!important;
+    width:100%!important;
+  }
+
+  .google-backup-header>.status{justify-self:start}
+
+  .google-oauth-credentials{
+    grid-template-columns:minmax(0,1fr)!important;
+    width:100%!important;
+  }
+
+  .google-oauth-action,
+  .google-oauth-action .button,
+  .google-signin-row,
+  .google-signin-button,
+  .google-connected-actions,
+  .google-connected-actions .button{
+    width:100%!important;
+    min-width:0!important;
+    max-width:none!important;
+  }
+
+  .google-oauth-action .button,
+  .google-signin-button,
+  .google-connected-actions .button{
+    justify-content:center!important;
+    white-space:normal!important;
+    text-align:center!important;
+  }
+
+  .google-connected-actions{display:grid!important;grid-template-columns:1fr!important}
+
+  .backup-actions{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:10px!important;
+    align-items:stretch!important;
+    justify-content:stretch!important;
+    width:100%!important;
+    padding-top:2px!important;
+  }
+
+  .backup-actions .backup-action-spacer{
+    display:none!important;
+  }
+
+  .backup-actions .backup-test-result{
+    grid-column:1/-1!important;
+    width:100%!important;
+    min-width:0!important;
+    text-align:left!important;
+  }
+
+  .backup-actions .button{
+    width:100%!important;
+    min-width:0!important;
+    max-width:none!important;
+    min-height:42px!important;
+    white-space:normal!important;
+    text-align:center!important;
+    justify-content:center!important;
+    line-height:1.25!important;
+  }
+
+  .backup-actions [data-backup-destination-test]{
+    grid-column:1/-1!important;
+  }
+
+  .backup-restore-card{
+    margin:14px!important;
+    padding:14px!important;
+  }
+
+  .backup-restore-form{
+    grid-template-columns:1fr!important;
+    width:100%!important;
+  }
+
+  .backup-restore-form .button{
+    width:100%!important;
+    justify-self:stretch!important;
+  }
+}
+
+@media(max-width:480px){
+  .backup-actions{
+    grid-template-columns:1fr!important;
+  }
+
+  .backup-actions .button,
+  .backup-actions [data-backup-destination-test],
+  .backup-actions .backup-test-result{
+    grid-column:1!important;
+  }
+}
+
+</style>
+<script>
+(() => {
+  const editButton = document.querySelector('[data-local-backup-edit]');
+  const modal = document.querySelector('[data-local-backup-modal]');
+  const panel = document.querySelector('[data-local-backup-edit-panel]');
+  const cancelButtons = Array.from(document.querySelectorAll('[data-local-backup-edit-cancel]'));
+  if (!editButton || !modal || !panel) return;
+
+  const close = () => {
+    modal.hidden = true;
+    document.body.classList.remove('backup-modal-open');
+    editButton.focus();
+  };
+  const open = () => {
+    modal.hidden = false;
+    document.body.classList.add('backup-modal-open');
+    const input = panel.querySelector('input[name="name"]');
+    window.setTimeout(() => input && input.focus(), 50);
+  };
+
+  editButton.addEventListener('click', open);
+  cancelButtons.forEach((button) => button.addEventListener('click', close));
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !modal.hidden) close();
+  });
+})();
+
+(() => {
+  const form = document.querySelector('[data-backup-target-form]');
+  const formAnchor = document.querySelector('[data-backup-form-anchor]');
+  const editModal = document.querySelector('[data-backup-edit-modal]');
+  const editModalBody = document.querySelector('[data-backup-edit-modal-body]');
+  if (!form || !formAnchor || !editModal || !editModalBody) return;
+  const kind = form.querySelector('[data-backup-kind]');
+  const genericWrap = form.querySelector('[data-generic-destination]');
+  const destination = form.querySelector('[data-destination-input]');
+  const googleCard = form.querySelector('[data-google-backup-card]');
+  const smbAuthWrap = form.querySelector('[data-smb-auth-fields]');
+  const sshAuthWrap = form.querySelector('[data-ssh-auth-fields]');
+  const keyInput = form.querySelector('input[name="key_path"]');
+  const usernameInput = form.querySelector('input[name="username"]');
+  const passwordInput = form.querySelector('input[name="password"]');
+  const domainInput = form.querySelector('input[name="domain"]');
+  const sshUserInput = form.querySelector('[data-ssh-user]');
+  const sshPasswordInput = form.querySelector('[data-ssh-password]');
+  const destinationHelp = form.querySelector('[data-destination-help]');
+  const testButton = form.querySelector('[data-backup-destination-test]');
+  const testResult = form.querySelector('[data-backup-destination-test-result]');
+  const editId = form.querySelector('[data-backup-edit-id]');
+  const editMode = form.querySelector('[data-backup-form-mode]');
+  const editLabel = form.querySelector('[data-backup-edit-label]');
+  const editType = form.querySelector('[data-backup-edit-type]');
+  const editCancel = form.querySelector('[data-backup-edit-cancel]');
+  const googleOauthInputs = Array.from(form.querySelectorAll('[data-google-oauth-input]'));
+  const saveButton = form.querySelector('[data-backup-save-button]');
+  const runButton = form.querySelector('[data-backup-run-button]');
+  const nameInput = form.querySelector('input[name="name"]');
+  const scheduleInput = form.querySelector('input[name="schedule_hours"]');
+  const scheduleTimeInput = form.querySelector('input[name="schedule_time"]');
+  const rotationInput = form.querySelector('input[name="rotation_keep"]');
+
+
+  const sync = () => {
+    const directGoogle = kind.value === 'google_drive';
+    const ssh = kind.value === 'ssh';
+    const editing = Boolean(editId.value);
+    googleCard.hidden = !directGoogle || editing;
+    googleOauthInputs.forEach((input) => {
+      input.disabled = googleCard.hidden;
+    });
+    genericWrap.hidden = false;
+    smbAuthWrap.hidden = kind.value !== 'smb';
+    sshAuthWrap.hidden = !ssh;
+    destination.required = true;
+
+    if (kind.value === 'local') {
+      destination.placeholder = '/var/backups/streamforge';
+      destinationHelp.textContent = 'Absolute folder path. StreamForge will create it if needed when the backup runs.';
+    } else if (kind.value === 'smb') {
+      destination.placeholder = '//server/share/backups';
+      destinationHelp.textContent = 'Use //server/share/folder for username/password SMB, or a pre-mounted path like /mnt/nas-backup.';
+    } else if (kind.value === 'ssh') {
+      destination.placeholder = 'backup@server:/srv/streamforge-backups';
+      destinationHelp.textContent = 'Use user@host:/absolute/path or ssh://user@host:port/path.';
+    } else if (directGoogle) {
+      destination.placeholder = 'StreamForge-Backups';
+      destinationHelp.textContent = 'Google Drive folder name/path. Example: StreamForge-Backups';
+    }
+    testResult.textContent = '';
+    testResult.className = 'backup-test-result';
+  };
+  const directGoogleValue = () => destination.value || '';
+
+  const moveFormToModal = () => {
+    editModalBody.appendChild(form);
+    editModal.hidden = false;
+    document.body.classList.add('backup-modal-open');
+  };
+
+  const restoreFormInline = () => {
+    formAnchor.insertAdjacentElement('afterend', form);
+    editModal.hidden = true;
+    document.body.classList.remove('backup-modal-open');
+  };
+
+  const setEditMode = (button) => {
+    const id = button.dataset.id || '';
+    const targetKind = button.dataset.kind || 'local';
+
+    editId.value = id;
+    form.classList.add('is-editing');
+    form.action = `/system/backups/${encodeURIComponent(id)}/update`;
+    nameInput.value = button.dataset.name || '';
+    kind.value = targetKind;
+    destination.value = button.dataset.destination || '';
+    scheduleInput.value = button.dataset.schedule || '24';
+    scheduleTimeInput.value = button.dataset.scheduleTime || '00:00';
+    rotationInput.value = button.dataset.rotation || '20';
+
+    if (keyInput) keyInput.value = button.dataset.keyPath || '';
+    if (usernameInput) usernameInput.value = button.dataset.username || '';
+    if (domainInput) domainInput.value = button.dataset.domain || '';
+    if (passwordInput) passwordInput.value = '';
+    if (sshUserInput) sshUserInput.value = targetKind === 'ssh' ? (button.dataset.username || '') : '';
+    if (sshPasswordInput) sshPasswordInput.value = '';
+
+    editMode.hidden = false;
+    editLabel.textContent = button.dataset.name || button.dataset.destination || '';
+    editType.textContent = targetKind.replace('_', ' ').toUpperCase();
+    kind.disabled = true;
+    saveButton.textContent = 'Update backup';
+    runButton.textContent = 'Update & backup now';
+
+    sync();
+    moveFormToModal();
+    window.setTimeout(() => nameInput.focus(), 50);
+  };
+
+  const clearEditMode = () => {
+    editId.value = '';
+    form.classList.remove('is-editing');
+    form.action = '/system/backups/add';
+    nameInput.value = '';
+    kind.value = 'local';
+    destination.value = '';
+    scheduleInput.value = '24';
+    scheduleTimeInput.value = '00:00';
+    rotationInput.value = '20';
+    if (keyInput) keyInput.value = '';
+    if (usernameInput) usernameInput.value = '';
+    if (passwordInput) passwordInput.value = '';
+    if (domainInput) domainInput.value = '';
+    if (sshUserInput) sshUserInput.value = '';
+    if (sshPasswordInput) sshPasswordInput.value = '';
+    editMode.hidden = true;
+    editLabel.textContent = '';
+    editType.textContent = '';
+    kind.disabled = false;
+    saveButton.textContent = 'Save backup schedule';
+    runButton.textContent = 'Save & backup now';
+    sync();
+    restoreFormInline();
+  };
+
+  document.querySelectorAll('[data-backup-edit]').forEach((button) => {
+    button.addEventListener('click', () => setEditMode(button));
+  });
+  editCancel.addEventListener('click', clearEditMode);
+  editModal.querySelectorAll('[data-backup-edit-cancel]').forEach((button) => {
+    if (button !== editCancel) button.addEventListener('click', clearEditMode);
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !editModal.hidden && editId.value) clearEditMode();
+  });
+
+  kind.addEventListener('change', sync);
+  form.addEventListener('submit', () => {
+    sync();
+    if (kind.value === 'ssh') {
+      usernameInput.value = sshUserInput ? sshUserInput.value : '';
+      passwordInput.value = sshPasswordInput ? sshPasswordInput.value : '';
+      domainInput.value = '';
+    } else if (kind.value !== 'smb') {
+      usernameInput.value = '';
+      passwordInput.value = '';
+      domainInput.value = '';
+    }
+  });
+  sync();
+
+  testButton.addEventListener('click', async () => {
+    sync();
+    testButton.disabled = true;
+    testResult.textContent = 'Testing…';
+    testResult.className = 'backup-test-result';
+    try {
+      const payload = new URLSearchParams();
+      payload.set('kind', kind.value);
+      payload.set('destination', directGoogleValue());
+      payload.set('key_path', keyInput ? keyInput.value : '');
+      if (kind.value === 'smb') {
+        payload.set('username', usernameInput ? usernameInput.value : '');
+        payload.set('password', passwordInput ? passwordInput.value : '');
+        payload.set('domain', domainInput ? domainInput.value : '');
+      } else if (kind.value === 'ssh') {
+        payload.set('username', sshUserInput ? sshUserInput.value : '');
+        payload.set('password', sshPasswordInput ? sshPasswordInput.value : '');
+      }
+      const response = await fetch('/system/backups/test-destination', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'},
+        body: payload.toString(),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || 'Destination test failed');
+      testResult.textContent = data.email ? `Connected: ${data.email}` : (data.message || 'Destination is ready');
+      testResult.className = 'backup-test-result ok';
+    } catch (error) {
+      testResult.textContent = error.message || 'Destination test failed';
+      testResult.className = 'backup-test-result error';
+    } finally {
+      testButton.disabled = false;
+    }
+  });
+
+  const button = document.querySelector('[data-google-drive-test]');
+  const result = document.querySelector('[data-google-drive-test-result]');
+  if (button && result) button.addEventListener('click', async () => {
+    button.disabled = true; result.textContent = 'Testing…'; result.className = '';
+    try {
+      const response = await fetch('/system/backups/google/test', {method:'POST'});
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) throw new Error(payload.error || 'Connection failed');
+      result.textContent = payload.email ? `Connected: ${payload.email}` : (payload.message || 'Connected');
+      result.className = 'ok';
+    } catch (error) {
+      result.textContent = error.message || 'Connection failed'; result.className = 'error';
+    } finally { button.disabled = false; }
+  });
+})();
+</script>
+</div>
+{% endblock %}

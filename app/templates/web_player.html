@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>{{ (branding.name if branding else 'StreamForge') }} · Web Player</title>
+<!-- STREAMFORGE_MAIN_WEBPLAYER_FAVICON_HEAD_V2289 -->
+{% if branding and branding.favicon_url %}
+<link rel="icon" type="image/x-icon" href="{{ prefix }}/web-player/favicon?v={{ app_version }}">
+<link rel="shortcut icon" href="{{ prefix }}/web-player/favicon?v={{ app_version }}">
+{% endif %}
+<style>
+:root{color-scheme:dark;--panel:#111b27;--panel2:#162231;--line:#28384a;--text:#eef5fb;--muted:#93a4b8;--accent:#4b8cff}
+*{box-sizing:border-box}
+body{margin:0;background:linear-gradient(180deg,#081019,#0d1520 45%,#091019);color:var(--text);font-family:Inter,system-ui,sans-serif;min-height:100vh}
+a{color:inherit;text-decoration:none}
+/* STREAMFORGE_MAIN_WEBPLAYER_INTERACTIVE_POINTER_V3047 */
+a[href],a[role="link"],button:not(:disabled),select:not(:disabled),option,input[type="checkbox"]:not(:disabled),input[type="radio"]:not(:disabled),[role="button"]:not([aria-disabled="true"]){cursor:pointer!important}
+button:disabled,select:disabled,input:disabled,[aria-disabled="true"]{cursor:not-allowed!important}
+.shell{max-width:1500px;margin:0 auto;padding:30px 26px 40px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:14px;padding:14px 16px;border:1px solid var(--line);border-radius:16px;background:var(--panel);box-shadow:0 14px 30px rgba(0,0,0,.16)}
+.brand{display:flex;align-items:center;gap:14px;min-width:0}
+.brand-copy{min-width:0}
+.mark,.brand-logo{width:44px;height:44px;border-radius:13px;flex:none}
+.mark{background:linear-gradient(135deg,#3578ff,#66a1ff);display:grid;place-items:center;font-weight:900}
+.brand-logo{background:#0a121b;border:1px solid #243244;object-fit:contain;padding:6px}
+.brand b{display:block;font-size:19px;line-height:1.08}
+.brand small{display:block;color:var(--muted);margin-top:4px;font-size:13px}
+.logout{display:inline-flex;align-items:center;justify-content:center;height:42px;border:1px solid var(--line);padding:0 16px;border-radius:12px;background:var(--panel2);font-weight:800;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
+.download-button{display:inline-flex;align-items:center;justify-content:center;min-height:42px;border:1px solid var(--accent);padding:0 16px;border-radius:12px;background:var(--accent);color:#fff;font-weight:850;white-space:nowrap;cursor:pointer;user-select:none}.download-button:hover{filter:brightness(1.08)}
+/* STREAMFORGE_MAIN_CHANNEL_HEADER_INFO_UI_V2239 */
+.header-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px;min-width:0}
+.header-buttons{display:flex;align-items:stretch;gap:10px;min-width:0}
+/* STREAMFORGE_MAIN_CHANNEL_HEADER_INFO_GROUPS_V2241 */
+.header-viewer{display:flex;align-items:stretch;gap:10px;min-width:0}
+.header-info-group{display:grid;align-content:center;gap:4px;min-height:42px;padding:7px 12px;border:1px solid var(--line);border-radius:12px;background:var(--panel2)}
+.header-info-group.user{min-width:190px}
+.header-info-group.connection{min-width:210px}
+.header-info-group div{display:flex;align-items:center;justify-content:space-between;gap:14px;font-size:12px}
+.header-info-group label{color:var(--muted);font-weight:700;white-space:nowrap}
+.header-info-group b{font-size:12px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px}
+.header-info-group .expiry{color:#8de3d3}
+
+.login-screen{display:grid;place-items:center;padding:28px}
+.login{width:min(460px,calc(100vw - 32px));margin:0 auto;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:32px;box-shadow:0 22px 80px rgba(0,0,0,.35)}
+.login .brand--login{flex-direction:column;justify-content:center;align-items:center;gap:14px;margin:0 0 18px;text-align:center}
+.login .brand--login .brand-copy{display:grid;justify-items:center}
+.login .brand--login b{font-size:31px;line-height:1.08}
+.login .brand--login .mark,.login .brand--login .brand-logo{width:74px;height:74px;border-radius:18px}
+.login .brand--login .brand-logo{padding:10px}
+.login h1{font-size:25px;margin:8px 0 18px;text-align:center}
+.login label{display:grid;gap:7px;margin:14px 0;font-size:13px;font-weight:700}
+.login form{display:grid;gap:0}
+input,select{width:100%;height:46px;border:1px solid var(--line);border-radius:12px;background:#0b141f;color:var(--text);padding:0 14px;box-shadow:inset 0 1px 0 rgba(255,255,255,.02)}
+button{height:46px;border:0;border-radius:10px;background:var(--accent);color:white;font-weight:800;padding:0 18px;cursor:pointer}
+.login button{margin-top:6px}
+/* STREAMFORGE_WEBPLAYER_QUICK_OR_MANUAL_LOGIN_V3041 */
+/* STREAMFORGE_WEBPLAYER_QUICK_LOGIN_LAYOUT_V3042 */
+/* STREAMFORGE_WEBPLAYER_QUICK_CREDENTIAL_STATE_V3043 */
+.quick-login-choice{display:grid;gap:10px}.quick-login-choice[hidden]{display:none!important}.quick-login-user button{width:100%;height:52px;padding:0 16px;display:grid;place-items:center}.quick-login-user button span{font-size:15px}.manual-login-toggle,.manual-login-back{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text)}.manual-login-form{gap:0}.manual-login-form[hidden]{display:none!important}.manual-login-actions{display:grid;grid-template-columns:1fr;gap:10px;margin-top:8px}.manual-login-actions.with-back{grid-template-columns:1fr 1fr}.manual-login-actions button{width:100%;margin-top:0}.login-divider{display:flex;align-items:center;gap:10px;margin:4px 0;color:var(--muted);font-size:12px}.login-divider:before,.login-divider:after{content:"";height:1px;flex:1;background:var(--line)}.login .alert[hidden]{display:none!important}
+.alert{background:rgba(255,107,107,.1);border:1px solid rgba(255,107,107,.35);color:#ffb0b0;padding:10px 12px;border-radius:9px;margin-bottom:14px}
+.toolbar{display:grid;grid-template-columns:minmax(260px,1fr) auto;gap:10px;align-items:center;margin-bottom:12px;padding:10px;border:1px solid var(--line);border-radius:14px;background:var(--panel);box-shadow:0 10px 24px rgba(0,0,0,.13)}
+.count{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 13px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--text);font-weight:800;white-space:nowrap;font-size:13px}
+/* STREAMFORGE_MAIN_CATEGORY_CHANNEL_PANEL_V2247 */
+.channel-library{padding:16px;border:1px solid var(--line);border-radius:18px;background:var(--sf-panel);box-shadow:0 14px 30px rgba(0,0,0,.14)}
+.category-strip{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 14px;margin-bottom:14px;border-bottom:1px solid var(--line);scrollbar-width:thin}.category-chip{height:38px;min-width:max-content;padding:0 15px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--muted);font-weight:750;cursor:pointer;transition:.15s ease}.category-chip:hover{border-color:#456489;color:var(--text);background:var(--panel2)}/* STREAMFORGE_MAIN_WEBPLAYER_CATEGORY_GLOW_FIX_V2221 */.category-chip.active{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:none}[data-channel][hidden]{display:none!important}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(245px,1fr));gap:12px}
+.card{display:flex;align-items:center;gap:12px;padding:11px 12px;background:var(--panel);border:1px solid var(--line);border-radius:13px;min-height:76px;box-shadow:0 8px 18px rgba(0,0,0,.10);transition:transform .15s ease,border-color .15s ease,background .15s ease,box-shadow .15s ease}
+.card:hover{border-color:#456489;background:var(--panel2);transform:translateY(-1px);box-shadow:0 16px 26px rgba(0,0,0,.18)}
+.logo,.fallback{width:54px;height:54px;border-radius:9px;background:#0a121b;border:1px solid #243244;flex:none}
+.logo{object-fit:contain}
+.fallback{display:grid;place-items:center;font-size:20px}
+.meta{min-width:0}
+.meta b,.meta small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meta small{color:var(--muted);margin-top:5px}
+.empty{grid-column:1/-1;padding:32px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:12px}
+@media(max-width:700px){.shell{padding:18px}.top{padding:13px 14px;flex-wrap:wrap;align-items:flex-start}.toolbar{grid-template-columns:1fr;padding:12px}.count{justify-self:start;width:100%}.category-strip{margin-left:-2px;margin-right:-2px}.category-chip{height:36px;padding:0 13px}.grid{grid-template-columns:1fr}.login{padding:28px 22px}.login .brand--login b{font-size:27px}}
+@media(max-width:860px){.top{flex-wrap:wrap;align-items:flex-start}.header-actions{width:100%;justify-content:flex-start;flex-wrap:wrap}.header-viewer{flex-wrap:wrap}}
+/* STREAMFORGE_PROJECT_MOBILE_AUDIT_WEBPLAYER_V2298 */
+@media(max-width:700px){
+  html,body{width:100%;max-width:100%;overflow-x:hidden}
+  .shell,.channel-library,.top,.toolbar,.grid,.login{max-width:100%;min-width:0}
+  /* STREAMFORGE_MAIN_WEBPLAYER_MOBILE_HEADER_LAYOUT_V3051 */
+  .top{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
+  .brand{width:100%;max-width:100%}
+  .header-actions{display:grid;grid-template-columns:minmax(0,1fr);width:100%;gap:9px}
+  .header-viewer{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%;gap:8px}
+  .header-info-group,.header-info-group.user,.header-info-group.connection{box-sizing:border-box;width:100%;min-width:0;max-width:100%}
+  .header-info-group div{gap:8px;min-width:0}.header-info-group b{min-width:0}
+  .header-buttons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%;gap:9px}
+  .header-buttons>*{box-sizing:border-box;width:100%;min-width:0;max-width:100%}
+  .header-buttons>:only-child{grid-column:1/-1}
+  .header-actions>*{max-width:100%}
+  .toolbar input,.toolbar select{width:100%;min-width:0}
+  .card,.channel-card{min-width:0;max-width:100%}
+  .card b,.channel-card b,.muted,.viewer-info-group{overflow-wrap:anywhere}
+  img,video{max-width:100%}
+}
+@media(max-width:420px){
+  .shell{padding:10px!important}
+  .top{padding:11px!important}
+  .login{padding:22px 16px!important}
+  .category-chip{max-width:85vw;overflow:hidden;text-overflow:ellipsis}
+}
+@media(max-width:380px){.header-viewer,.header-buttons{grid-template-columns:1fr}}
+
+</style>
+{% if webplayer_settings %}
+<style>
+:root{--sf-page:{{ webplayer_settings.page_rgba }};--sf-panel:{{ webplayer_settings.panel_rgba }};--sf-accent:{{ webplayer_settings.accent_rgba }};--sf-text:{{ webplayer_settings.text_rgba }}}
+/* STREAMFORGE_MAIN_WEBPLAYER_THEME_CORE_V2229 */
+/* STREAMFORGE_MAIN_VISUAL_BALANCE_V2235 */
+:root{--sf-soft-line:color-mix(in srgb,var(--sf-text) 15%,transparent);--sf-soft-fill:color-mix(in srgb,var(--sf-panel) 88%,transparent)}
+body{background:var(--sf-page)!important;color:var(--sf-text)!important}
+/* STREAMFORGE_MAIN_CHANNEL_INFO_THEME_SYNC_V2253 */
+.top,.toolbar,.login,.card,.logout,.count,input,select,.category-chip,.channel-library,.header-info-group{background:var(--sf-panel)!important;color:var(--sf-text)!important;border-color:var(--sf-soft-line)!important}
+.manual-login-toggle,.manual-login-back{background:var(--sf-panel)!important;color:var(--sf-text)!important;border-color:var(--sf-soft-line)!important}
+.top,.toolbar{box-shadow:0 14px 32px rgba(0,0,0,.16)!important}
+.logout,.count,input,select,.manual-login-toggle,.manual-login-back{background:var(--sf-soft-fill)!important}
+h1,h2,h3,.brand,.brand-copy,.brand-copy b,.brand-copy small,.meta,.meta b,.meta small,.count,.empty,label,.header-info-group,.header-info-group label,.header-info-group b{color:var(--sf-text)!important}
+.mark,button[type=submit],.category-chip.active{background:var(--sf-accent)!important;border-color:var(--sf-accent)!important;color:var(--sf-text)!important}
+.download-button{background:var(--sf-accent)!important;border-color:var(--sf-accent)!important;color:var(--sf-text)!important}
+.login-divider{color:var(--sf-text)!important}.login-divider:before,.login-divider:after{background:var(--sf-soft-line)!important}
+.logout:hover,.category-chip:hover,.card:hover{border-color:var(--sf-accent)!important}
+.card:hover{transform:translateY(-1px);box-shadow:0 15px 28px rgba(0,0,0,.18)!important}
+.category-chip.active{box-shadow:none!important}
+</style>
+{% endif %}
+</head>
+<!-- STREAMFORGE_AUTO_LOGIN_HIDE_SIGNOUT_V2226 -->
+<body class="{% if not user %}login-screen{% endif %}">
+{% if not user %}
+<!-- STREAMFORGE_WEB_PLAYER_LOGIN_CENTER_V2200 -->
+<section class="login">
+  <div class="brand brand--login">
+    {% if branding and branding.logo_url %}
+      <img class="brand-logo" src="{{ branding.logo_url|versioned_asset }}" alt="{{ branding.name if branding else 'StreamForge' }}" loading="eager">
+    {% else %}
+      <span class="mark">▶</span>
+    {% endif %}
+    <div class="brand-copy">
+      <b>{{ branding.name if branding else 'StreamForge' }}</b>
+    </div>
+  </div>
+  <h1>Sign in to watch</h1>
+  {% if error %}<div class="alert" {% if quick_login_user %}data-login-alert{% endif %}>{{ error }}</div>{% endif %}
+  {% if quick_login_user %}
+  <div class="quick-login-choice" data-quick-login-choice {% if error %}hidden{% endif %}>
+    <form class="quick-login-user" method="post" action="{{ prefix }}/web-player/quick-login">
+      <button type="submit"><span>Continue as {{ quick_login_user.name }}</span></button>
+    </form>
+    <div class="login-divider"><span>or</span></div>
+    <button class="manual-login-toggle" type="button" data-manual-login-toggle aria-expanded="{{ 'true' if error else 'false' }}">Login with username &amp; password</button>
+  </div>
+  {% endif %}
+  <form class="manual-login-form" data-manual-login-form method="post" action="{{ prefix }}/web-player/login" {% if quick_login_user and not error %}hidden{% endif %}>
+    <label>Username<input name="username" autocomplete="username" required {% if not quick_login_user or error %}autofocus{% endif %}></label>
+    <label>Password<input type="password" name="password" autocomplete="current-password" required></label>
+    <div class="manual-login-actions{% if quick_login_user %} with-back{% endif %}">
+      <button type="submit">Login</button>
+      {% if quick_login_user %}<button class="manual-login-back" type="button" data-manual-login-back>Back</button>{% endif %}
+    </div>
+  </form>
+</section>
+{% if quick_login_user %}
+<script>(()=>{const choice=document.querySelector('[data-quick-login-choice]'),toggle=document.querySelector('[data-manual-login-toggle]'),form=document.querySelector('[data-manual-login-form]'),back=document.querySelector('[data-manual-login-back]'),alert=document.querySelector('[data-login-alert]');const showManual=()=>{if(!choice||!form)return;choice.hidden=true;form.hidden=false;toggle?.setAttribute('aria-expanded','true');form.querySelector('input')?.focus()};const showChoice=()=>{if(!choice||!form)return;form.hidden=true;choice.hidden=false;toggle?.setAttribute('aria-expanded','false');form.reset();if(alert)alert.hidden=true;toggle?.focus()};toggle?.addEventListener('click',showManual);back?.addEventListener('click',showChoice)})();</script>
+{% endif %}
+{% else %}
+<main class="shell">
+  <header class="top">
+    <div class="brand">
+      {% if branding and branding.logo_url %}
+        <img class="brand-logo" src="{{ branding.logo_url|versioned_asset }}" alt="{{ branding.name if branding else 'StreamForge' }}" loading="eager">
+      {% else %}
+        <span class="mark">▶</span>
+      {% endif %}
+      <div class="brand-copy">
+        <b>{{ branding.name if branding else 'StreamForge' }} Web Player</b>
+      </div>
+    </div>
+    <div class="header-actions">
+      {% if not hide_quick_user_info %}
+      <!-- STREAMFORGE_WEBPLAYER_QUICK_USER_PRIVACY_V3056 -->
+      <div class="header-viewer">
+        {% if not webplayer_settings or webplayer_settings.show_user_info %}
+        <div class="header-info-group user">
+          <div><label>Username</label><b>{{ user.xtream_username }}</b></div>
+          <div><label>Expire</label><b class="expiry">{{ user.expires_at.strftime('%Y-%m-%d %H:%M') if user.expires_at else 'Never' }}</b></div>
+        </div>
+        {% endif %}
+        {% if webplayer_settings and webplayer_settings.show_connection_info %}
+        <div class="header-info-group connection">
+          <div><label>Max Connections</label><b>{{ 'Unlimited' if header_max_connections == 0 else header_max_connections }}</b></div>
+          <div><label>Online Use</label><b id="header-online-use">{{ header_online_use }}</b></div>
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+      {% if (webplayer_settings and webplayer_settings.download_available) or (not webplayer_settings or webplayer_settings.login_mode != "auto") %}
+      <div class="header-buttons">
+        {% if webplayer_settings and webplayer_settings.download_available %}
+        <!-- STREAMFORGE_MAIN_WEBPLAYER_HEADER_DOWNLOAD_V3045 -->
+        <a class="download-button" href="{{ prefix }}/web-player/download" download>Download</a>
+        {% endif %}
+        {% if not webplayer_settings or webplayer_settings.login_mode != "auto" %}
+        <a class="logout" href="{{ prefix }}/web-player/logout">Sign out</a>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </header>
+  {% if error %}<div class="alert">{{ error }}</div>{% endif %}
+  <!-- STREAMFORGE_WEB_PLAYER_CATEGORY_CHIPS_V2205 -->
+  <section class="toolbar"><input type="search" placeholder="Search channels…" data-search><span class="count"><span data-visible>{{ channels|length }}</span> channel(s)</span></section>
+  <section class="channel-library">
+    <nav class="category-strip" aria-label="Channel categories">
+      <button class="category-chip active" type="button" data-category-chip="" aria-pressed="true">All</button>
+      {% for item in categories %}<button class="category-chip" type="button" data-category-chip="{{ item|lower }}" aria-pressed="false">{{ item }}</button>{% endfor %}
+    </nav>
+    <section class="grid">{% for channel in channels %}{% set ns = namespace(names=[]) %}{% for cat in channel.categories or [] %}{% if cat.name and cat.name not in ns.names %}{% set ns.names = ns.names + [cat.name] %}{% endif %}{% endfor %}{% if channel.category and channel.category.name and channel.category.name not in ns.names %}{% set ns.names = [channel.category.name] + ns.names %}{% endif %}{% if not ns.names %}{% set ns.names = ['Uncategorized'] %}{% endif %}<a class="card" href="{{ prefix }}/web-player/watch/{{ channel.slug }}" data-channel data-name="{{ channel.name|lower }}" data-categories='{{ ns.names|map("lower")|list|tojson }}'>{% if channel.logo_url %}<img class="logo" src="{{ channel.logo_url|versioned_asset }}" alt="" loading="lazy" onerror="this.outerHTML='<span class=&quot;fallback&quot;>▶</span>'">{% else %}<span class="fallback">▶</span>{% endif %}<div class="meta"><b>{{ channel.name }}</b><small>{{ ns.names|join(' · ') }}{% if channel.width or channel.height %} · {{ channel.width or '?' }}×{{ channel.height or '?' }}{% endif %}</small></div></a>{% else %}<div class="empty">No online HLS channels are available for this user.</div>{% endfor %}</section>
+  </section>
+</main>
+<script>(()=>{const q=document.querySelector('[data-search]'),chips=[...document.querySelectorAll('[data-category-chip]')],items=[...document.querySelectorAll('[data-channel]')],count=document.querySelector('[data-visible]');let active='';const categories=x=>{try{return JSON.parse(x.dataset.categories||'[]')}catch(_){return[]}};const apply=()=>{const term=(q?.value||'').trim().toLowerCase();let shown=0;items.forEach(x=>{const okName=!term||(x.dataset.name||'').includes(term),okCat=!active||categories(x).includes(active),ok=okName&&okCat;x.hidden=!ok;x.style.display=ok?'':'none';if(ok)shown++});if(count)count.textContent=shown};chips.forEach(chip=>chip.addEventListener('click',()=>{active=(chip.dataset.categoryChip||'').toLowerCase();chips.forEach(x=>{const on=x===chip;x.classList.toggle('active',on);x.setAttribute('aria-pressed',on?'true':'false')});apply()}));q?.addEventListener('input',apply);apply();
+/* STREAMFORGE_MAIN_WEBPLAYER_HEADER_LIVE_ONLINE_V2246 */
+const onlineEl=document.getElementById('header-online-use'),onlineEndpoint={{ (prefix ~ '/web-player/online-use') | tojson }};let onlineBusy=false;
+async function refreshOnlineUse(){if(!onlineEl||onlineBusy)return;onlineBusy=true;try{const r=await fetch(onlineEndpoint,{cache:'no-store',credentials:'same-origin',headers:{'Accept':'application/json'}});if(r.ok){const data=await r.json();if(Number.isFinite(Number(data.online_use)))onlineEl.textContent=String(Math.max(0,Number(data.online_use)))}}catch(_){ }finally{onlineBusy=false}}
+if(onlineEl){refreshOnlineUse();setInterval(refreshOnlineUse,2000)}
+})();</script>
+{% endif %}
+<div style="position:fixed;right:10px;bottom:8px;color:#5f7186;font:10px system-ui">v{{ app_version if app_version else "" }}</div>
+{% if webplayer_settings and webplayer_settings.hide_hover_urls %}
+<!-- STREAMFORGE_MAIN_WEBPLAYER_HIDE_HOVER_URLS_V2293 -->
+<script>
+(()=>{const dest=a=>{const raw=a.getAttribute('href')||'';if(!raw||raw.startsWith('#')||raw.startsWith('javascript:')||raw.startsWith('mailto:')||raw.startsWith('tel:'))return'';try{const u=new URL(raw,location.href);return u.origin===location.origin?u.pathname+u.search+u.hash:''}catch(_){return''}};const convert=a=>{if(!(a instanceof HTMLAnchorElement)||a.dataset.sfHoverHidden==='1')return;const url=dest(a);if(!url)return;a.dataset.sfHoverHidden='1';a.dataset.sfNavUrl=url;a.removeAttribute('href');a.setAttribute('role','link');if(!a.hasAttribute('tabindex'))a.tabIndex=0;a.addEventListener('click',e=>{if(e.defaultPrevented)return;e.preventDefault();location.assign(a.dataset.sfNavUrl)});a.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();location.assign(a.dataset.sfNavUrl)}})};const bind=r=>{if(r.matches&&r.matches('a[href]'))convert(r);if(r.querySelectorAll)r.querySelectorAll('a[href]').forEach(convert)};const start=()=>{bind(document);new MutationObserver(rs=>rs.forEach(r=>r.addedNodes.forEach(n=>{if(n.nodeType===1)bind(n)}))).observe(document.documentElement,{childList:true,subtree:true})};document.readyState==='loading'?document.addEventListener('DOMContentLoaded',start,{once:true}):start()})();
+</script>{% endif %}
+</body>
+</html>

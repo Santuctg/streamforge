@@ -1,0 +1,12 @@
+[Unit]
+Description=Retry StreamForge Main delegated DNS-01 TLS reconciliation
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=2min
+RandomizedDelaySec=45
+Persistent=true
+Unit=streamforge-main-access.service
+
+[Install]
+WantedBy=timers.target

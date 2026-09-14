@@ -1,0 +1,27 @@
+[Unit]
+Description=StreamForge Remote Encoding Node Agent
+After=network-online.target redis-server.service
+Wants=network-online.target redis-server.service
+
+[Service]
+Type=simple
+User=streamforge-node
+Group=streamforge-node
+WorkingDirectory=/opt/streamforge-node
+EnvironmentFile=/etc/streamforge-node.env
+Environment=STREAMFORGE_NODE_MODE=control
+Environment=PYTHONUNBUFFERED=1
+ExecReload=/bin/kill -HUP $MAINPID
+ExecStart=/usr/bin/gunicorn app:app --bind 127.0.0.1:${STREAMFORGE_NODE_CONTROL_BACKEND_PORT} --workers 1 --worker-class uvicorn_worker.UvicornWorker --timeout 120 --graceful-timeout 30 --keep-alive 5 --backlog 65535 --error-logfile -
+Restart=always
+RestartSec=3
+LimitNOFILE=1048576
+TasksMax=infinity
+# External HTTP/TLS listeners are owned by Nginx; the control backend is loopback-only.
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

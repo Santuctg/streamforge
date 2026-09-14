@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if role and role.id else 'Add' }} Role · {{ branding.name }}{% endblock %}
+{% block heading %}<h1>{{ 'Edit role' if role and role.id else 'Add role' }}</h1><p>Select exactly what users with this role can access</p>{% endblock %}
+{% block content %}
+{% if role and role.is_system %}
+<section class="panel access-denied-panel"><div class="access-denied-icon">★</div><h2>Built-in Super Admin</h2><p>This unrestricted safety role cannot be modified. Create a custom role for granular access.</p><div class="form-actions access-denied-actions"><a class="button primary" href="/roles">Back to roles</a></div></section>
+{% else %}
+<form class="form-layout" method="post" action="{{ '/roles/' ~ role.id ~ '/edit' if role and role.id else '/roles/new' }}" data-role-form>
+  {% if error %}<div class="alert danger wide">{{ error }}</div>{% endif %}
+  <section class="panel form-section">
+    <div class="panel-head"><div><h2>Role identity</h2><p>Use a clear name such as Operator, Monitor, Playlist Manager or Encoder Admin.</p></div></div>
+    <div class="form-grid">
+      <label>Role name<input name="name" maxlength="120" value="{{ role.name if role else '' }}" required></label>
+      <label class="wide">Description<textarea name="description" rows="3" placeholder="What this role is intended for">{{ role.description or '' if role else '' }}</textarea></label>
+    </div>
+  </section>
+
+  <section class="panel form-section">
+    <div class="panel-head role-permission-head">
+      <div><h2>Permissions</h2><p>Higher-level action permissions automatically include the required view permission.</p></div>
+      <div class="head-actions"><span class="bulk-selection-count" data-role-selected-count>0 selected</span><button class="button small" type="button" data-role-select-all>Select all</button><button class="button small" type="button" data-role-clear-all>Clear all</button></div>
+    </div>
+    <div class="permission-groups">
+      {% for group_name, entries in permission_groups.items() %}
+      <section class="permission-group">
+        <header><h3>{{ group_name }}</h3><button type="button" class="link-button permission-group-toggle" data-permission-group-toggle>Select group</button></header>
+        <div class="permission-grid">
+          {% for key, label, description in entries %}
+          <label class="permission-option">
+            <input type="checkbox" name="permissions" value="{{ key }}" {% if key in selected_permissions %}checked{% endif %}>
+            <span><b>{{ label }}</b><small>{{ description }}</small><code>{{ key }}</code></span>
+          </label>
+          {% endfor %}
+        </div>
+      </section>
+      {% endfor %}
+    </div>
+  </section>
+  <div class="form-actions"><a class="button" href="/roles">Cancel</a><button class="button primary">Save role</button></div>
+</form>
+{% endif %}
+{% endblock %}

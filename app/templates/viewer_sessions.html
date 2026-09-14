@@ -1,0 +1,452 @@
+{% extends "base.html" %}
+{% block title %}Live sessions · {{ branding.name }}{% endblock %}
+{% block heading %}<h1>Live sessions</h1><p>Active playback sessions seen during the last 45 seconds</p>{% endblock %}
+{% block content %}
+{% if request.query_params.get('message') %}<div class="notice success">{{ request.query_params.get('message') }}</div>{% endif %}
+{% if request.query_params.get('error') %}<div class="notice error">{{ request.query_params.get('error') }}</div>{% endif %}
+<section class="panel">
+  <div class="panel-head">
+    <div>
+      <h2>Online sessions</h2>
+      <p data-live-session-summary>{{ sessions|length }} active session{% if sessions|length != 1 %}s{% endif %}; {{ total_online }} active playback session{% if total_online != 1 %}s{% endif %} cluster-wide.</p>
+    </div>
+    <div class="live-session-head-actions">
+      <label class="live-refresh-control">
+        <span>Auto refresh</span>
+        <select data-live-refresh-select aria-label="Online users auto refresh interval">
+          <option value="0">Off</option>
+          <option value="2">2 sec</option>
+          <option value="5">5 sec</option>
+          <option value="10">10 sec</option>
+          <option value="15">15 sec</option>
+          <option value="30">30 sec</option>
+          <option value="60">60 sec</option>
+        </select>
+      </label>
+      <span class="live-refresh-status" data-live-refresh-status aria-live="polite"></span>
+      <a class="button" href="{{ request.scope.get('root_path', '') }}/viewer-sessions">Refresh</a>
+    </div>
+  </div>
+  {# STREAMFORGE_MAIN_LIVE_SESSION_AUTO_FILTER_V47 #}
+  {# STREAMFORGE_MAIN_LIVE_SESSION_DELIVERY_FILTER_V92 #}
+  <form class="session-filter-bar" method="get" action="{{ request.scope.get('root_path', '') }}/viewer-sessions" data-live-session-filter-form>
+    <label>User<select name="user" data-live-user-filter><option value="">All online users</option>{% for name in online_user_names %}<option value="{{ name }}" {% if selected_user == name %}selected{% endif %}>{{ name }}</option>{% endfor %}</select></label>
+    <label>Node<select name="node_id" data-live-node-filter><option value="">All nodes</option>{% for node in nodes %}<option value="{{ node.id }}" {% if selected_node_id == node.id %}selected{% endif %}>{{ node.name }}</option>{% endfor %}</select></label>
+    <label>Channel<select name="channel_id" data-live-channel-filter><option value="">All channels</option>{% for channel in channels %}<option value="{{ channel.id }}" {% if selected_channel_id == channel.id %}selected{% endif %}>{{ channel.name }}</option>{% endfor %}</select></label>
+    <label>Delivery<select name="delivery" data-live-delivery-filter><option value="">All deliveries</option>{% for option in delivery_options %}<option value="{{ option.key }}" {% if selected_delivery == option.key %}selected{% endif %}>{{ option.label }}</option>{% endfor %}</select></label>
+    {% if selected_user or selected_node_id or selected_channel_id or selected_delivery %}<a class="button" href="{{ request.scope.get('root_path', '') }}/viewer-sessions">Clear</a>{% endif %}
+  </form>
+  <div class="table-wrap session-table-wrap"><table class="session-table">
+    <colgroup><col class="session-col-user"><col class="session-col-ip"><col class="session-col-network"><col class="session-col-country"><col class="session-col-channel"><col class="session-col-node"><col class="session-col-delivery"><col class="session-col-age"><col class="session-col-activity"><col class="session-col-client"><col class="session-col-action"></colgroup>
+    <thead><tr><th>User / Session</th><th>IP address</th><th>Business / ASN</th><th>Country</th><th>Channel</th><th>Node</th><th>Delivery</th><th>Session age</th><th>Last activity</th><th>Client</th><th>Action</th></tr></thead>
+    <tbody data-live-session-body>
+    {% for item in sessions %}
+      <tr>
+        <td><b>{{ item.user_name }}</b><small class="mono">{{ item.session_id }}</small></td>
+        <td class="mono nowrap">{{ item.client_ip }}</td>
+        <td><b>{{ item.business_name or 'Unknown network' }}</b><small>{{ 'AS' ~ item.asn if item.asn else 'No ASN match' }}</small></td>
+        <td><b>{{ item.country_name or 'Unknown' }}</b><small>{{ item.country_code or '' }}</small></td>
+        <td>{{ item.channel_name }}</td>
+        <td>{{ item.node_name }}</td>
+        <td class="session-delivery-cell"><span class="session-source {{ item.source_key }}">{{ item.source }}</span></td>
+        <td class="mono nowrap">{{ human_duration(item.duration_seconds) }}</td>
+        <td><b>{{ human_duration(item.idle_seconds) }} ago</b><small>{{ format_local_time(item.last_seen_at) }}</small></td>
+        <td class="session-user-agent" title="{{ item.user_agent }}">{{ item.user_agent or 'Unknown client' }}</td>
+        <td><form method="post" action="/viewer-sessions/kill" onsubmit="return confirm('Kill this online session now?')"><input type="hidden" name="session_id" value="{{ item.session_id }}"><input type="hidden" name="source_key" value="{{ item.source_key }}"><input type="hidden" name="user_id" value="{{ item.user_id or '' }}"><input type="hidden" name="node_id" value="{{ item.node_id or '' }}"><button class="button danger compact" type="submit">Kill</button></form></td>
+      </tr>
+    {% else %}<tr><td colspan="11" class="empty">{{ 'Loading live session details…' if details_pending else 'No active sessions match this filter.' }}</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</section>
+
+<style>
+.live-session-head-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.live-refresh-control{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:4px 6px 4px 10px;
+  border:1px solid #2d445d;
+  border-radius:9px;
+  background:#0c1621;
+  font-size:12px;
+  color:#9eb2c6;
+}
+.live-refresh-control>span{
+  color:#9eb2c6;
+  white-space:nowrap;
+}
+.live-refresh-control select{
+  appearance:auto!important;
+  -webkit-appearance:auto!important;
+  min-width:104px;
+  height:34px;
+  padding:0 28px 0 10px!important;
+  border:1px solid #3b5b7c!important;
+  border-radius:7px!important;
+  background:#111e2b!important;
+  color:#f0f6fc!important;
+  -webkit-text-fill-color:#f0f6fc!important;
+  color-scheme:dark!important;
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.025),
+    0 1px 0 rgba(255,255,255,.025)!important;
+  cursor:pointer;
+}
+.live-refresh-control select:hover{
+  border-color:#4e7399!important;
+  background:#142334!important;
+}
+.live-refresh-control select:focus{
+  border-color:#4fd4b4!important;
+  outline:none!important;
+  box-shadow:0 0 0 2px rgba(79,212,180,.16)!important;
+}
+.live-refresh-control select option{
+  background:#0b1118!important;
+  color:#edf4fb!important;
+}
+.live-refresh-status{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:58px;
+  height:34px;
+  padding:0 10px;
+  border:1px solid #2d445d;
+  border-radius:999px;
+  background:#0c1621;
+  font-size:12px;
+  font-variant-numeric:tabular-nums;
+  color:var(--muted);
+  white-space:nowrap
+}
+.live-refresh-status.live{color:#60d9b0;border-color:#23594d}
+.live-refresh-status.paused{color:#f0b85a;border-color:#5f4b22}
+.live-refresh-status.refreshing{color:#8dbfff;border-color:#2a4c70}
+@media(max-width:700px){
+  .live-session-head-actions{width:100%;justify-content:space-between}
+  .live-refresh-control{order:1}
+  .live-refresh-status{order:2}
+  .live-session-head-actions>.button{order:3}
+}
+</style>
+<script>
+(() => {
+  const storageKey = 'streamforge.viewerSessions.refreshSeconds';
+  // STREAMFORGE_MAIN_LIVE_SESSION_2S_REFRESH_V90R2
+  // STREAMFORGE_MAIN_LIVE_SESSION_CACHE_ONLY_REFRESH_V1123
+  const allowed = new Set(['0', '2', '5', '10', '15', '30', '60']);
+  let refreshSeconds = 2;
+  let nextRefreshAt = 0;
+  let refreshTimer = null;
+  let countdownTimer = null;
+  let refreshing = false;
+  // STREAMFORGE_MAIN_LIVE_SESSION_FAST_DETAIL_RETRY_V1126:
+  // Dashboard can know the count from a Node heartbeat a moment before the
+  // detailed row cache arrives. Retry quickly only during that short warm-up.
+  let detailsPending = {{ 'true' if details_pending else 'false' }};
+
+  const status = document.querySelector('[data-live-refresh-status]');
+  const select = document.querySelector('[data-live-refresh-select]');
+  const summary = document.querySelector('[data-live-session-summary]');
+  const body = document.querySelector('[data-live-session-body]');
+  const filterForm = document.querySelector('[data-live-session-filter-form]');
+  const userFilter = document.querySelector('[data-live-user-filter]');
+  const nodeFilter = document.querySelector('[data-live-node-filter]');
+  const channelFilter = document.querySelector('[data-live-channel-filter]');
+  const deliveryFilter = document.querySelector('[data-live-delivery-filter]');
+  if (!status || !select || !summary || !body) return;
+
+  // STREAMFORGE_MAIN_LIVE_SESSION_AUTO_FILTER_JS_V47:
+  // Filtering is immediate: changing any selector performs a normal browser
+  // navigation with only non-empty query values, so "All" never emits an
+  // empty integer query parameter.
+  const applyFilters = async () => {
+    if (!filterForm) return;
+    const params = new URLSearchParams();
+    for (const control of [userFilter, nodeFilter, channelFilter, deliveryFilter]) {
+      if (!control || !control.name) continue;
+      const value = String(control.value || '').trim();
+      if (value) params.set(control.name, value);
+    }
+    const target = `/viewer-sessions${params.size ? `?${params.toString()}` : ''}`;
+    for (const control of [userFilter, nodeFilter, channelFilter, deliveryFilter]) {
+      if (control) control.disabled = true;
+    }
+    // STREAMFORGE_MAIN_LIVE_SESSION_HIDDEN_NATIVE_FILTER_V49:
+    // Keep the real document reload requested by v4.8+, but persist the
+    // internal filter route through the hidden-route contract so the address
+    // bar remains at the configured Panel/API root.
+    window.STREAMFORGE_INTERNAL_PANEL_URL = target;
+    document.documentElement.classList.add('streamforge-native-loading');
+    window.location.reload();
+  };
+  for (const control of [userFilter, nodeFilter, channelFilter, deliveryFilter]) {
+    if (control) control.addEventListener('change', applyFilters);
+  }
+
+  const stored = window.localStorage.getItem(storageKey);
+  if (stored !== null && allowed.has(stored)) refreshSeconds = Number(stored);
+  select.value = String(refreshSeconds);
+
+  const setStatus = (text, cls = '') => {
+    status.textContent = text;
+    status.className = `live-refresh-status ${cls}`.trim();
+  };
+
+  const clearTimers = () => {
+    if (refreshTimer) window.clearTimeout(refreshTimer);
+    if (countdownTimer) window.clearInterval(countdownTimer);
+    refreshTimer = null;
+    countdownTimer = null;
+  };
+
+  const updateCountdown = () => {
+    if (refreshSeconds <= 0) {
+      setStatus('Off', 'paused');
+      return;
+    }
+    if (refreshing) {
+      setStatus('Now', 'refreshing');
+      return;
+    }
+    const remaining = Math.max(0, Math.ceil((nextRefreshAt - Date.now()) / 1000));
+    setStatus(remaining > 0 ? `${remaining}s` : 'Now', remaining > 0 ? 'live' : 'refreshing');
+  };
+
+  const el = (tag, className, text) => {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined && text !== null) node.textContent = String(text);
+    return node;
+  };
+
+  const buildRow = (item) => {
+    const tr = document.createElement('tr');
+
+    const userTd = document.createElement('td');
+    userTd.append(el('b', '', item.user_name));
+    userTd.append(el('small', 'mono', item.session_id));
+    tr.append(userTd);
+
+    tr.append(el('td', 'mono nowrap', item.client_ip));
+
+    const netTd = document.createElement('td');
+    netTd.append(el('b', '', item.business_name || 'Unknown network'));
+    netTd.append(el('small', '', item.asn ? `AS${item.asn}` : 'No ASN match'));
+    tr.append(netTd);
+
+    const countryTd = document.createElement('td');
+    countryTd.append(el('b', '', item.country_name || 'Unknown'));
+    countryTd.append(el('small', '', item.country_code || ''));
+    tr.append(countryTd);
+
+    tr.append(el('td', '', item.channel_name));
+    tr.append(el('td', '', item.node_name));
+
+    const deliveryTd = el('td', 'session-delivery-cell');
+    deliveryTd.append(el('span', `session-source ${item.source_key || ''}`, item.source));
+    tr.append(deliveryTd);
+
+    tr.append(el('td', 'mono nowrap', item.duration_text));
+
+    const activityTd = document.createElement('td');
+    activityTd.append(el('b', '', `${item.idle_text} ago`));
+    activityTd.append(el('small', '', item.last_seen_text));
+    tr.append(activityTd);
+
+    const clientTd = el('td', 'session-user-agent', item.user_agent || 'Unknown client');
+    clientTd.title = item.user_agent || '';
+    tr.append(clientTd);
+
+    const actionTd = document.createElement('td');
+    const form = document.createElement('form');
+    form.method = 'post';
+    const panelRoot = String(window.STREAMFORGE_APP_ROOT || '').replace(/\/+$/, '');
+    form.action = `${panelRoot}/viewer-sessions/kill`;
+    form.addEventListener('submit', (event) => {
+      if (!window.confirm('Kill this online session now?')) event.preventDefault();
+    });
+
+    const hidden = (name, value) => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = name;
+      input.value = value ?? '';
+      return input;
+    };
+    form.append(hidden('session_id', item.session_id));
+    form.append(hidden('source_key', item.source_key));
+    form.append(hidden('user_id', item.user_id));
+    form.append(hidden('node_id', item.node_id));
+
+    const kill = el('button', 'button danger compact', 'Kill');
+    kill.type = 'submit';
+    form.append(kill);
+    actionTd.append(form);
+    tr.append(actionTd);
+    return tr;
+  };
+
+  const updateUserOptions = (names) => {
+    if (!userFilter) return;
+    const selected = userFilter.value;
+    const values = Array.isArray(names) ? names : [];
+    userFilter.replaceChildren();
+
+    const all = document.createElement('option');
+    all.value = '';
+    all.textContent = 'All online users';
+    userFilter.append(all);
+
+    values.forEach((name) => {
+      const option = document.createElement('option');
+      option.value = name;
+      option.textContent = name;
+      if (name === selected) option.selected = true;
+      userFilter.append(option);
+    });
+
+    if (selected && !values.includes(selected)) {
+      const option = document.createElement('option');
+      option.value = selected;
+      option.textContent = selected;
+      option.selected = true;
+      userFilter.append(option);
+    }
+  };
+
+  const updateDeliveryOptions = (options) => {
+    if (!deliveryFilter) return;
+    const selected = deliveryFilter.value;
+    const values = Array.isArray(options) ? options : [];
+    deliveryFilter.replaceChildren();
+
+    const all = document.createElement('option');
+    all.value = '';
+    all.textContent = 'All deliveries';
+    deliveryFilter.append(all);
+
+    const seen = new Set();
+    values.forEach((entry) => {
+      const key = String(entry && entry.key || '').trim();
+      const label = String(entry && entry.label || key).trim();
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      const option = document.createElement('option');
+      option.value = key;
+      option.textContent = label;
+      if (key === selected) option.selected = true;
+      deliveryFilter.append(option);
+    });
+
+    if (selected && !seen.has(selected)) {
+      const option = document.createElement('option');
+      option.value = selected;
+      option.textContent = selected;
+      option.selected = true;
+      deliveryFilter.append(option);
+    }
+  };
+
+  const refreshSessions = async () => {
+    if (refreshing || document.hidden || refreshSeconds <= 0) return;
+    refreshing = true;
+    updateCountdown();
+
+    try {
+      const current = new URL(window.STREAMFORGE_INTERNAL_PANEL_URL || window.location.href, window.location.origin);
+      // STREAMFORGE_MAIN_LIVE_SESSIONS_PREFIX_AJAX_V2286:
+      const panelRoot = String(window.STREAMFORGE_APP_ROOT || '').replace(/\/+$/, '');
+      const endpoint = new URL(`${panelRoot}/viewer-sessions/live-data`, window.location.origin);
+      for (const key of ['user', 'node_id', 'channel_id', 'delivery']) {
+        const value = current.searchParams.get(key);
+        if (value) endpoint.searchParams.set(key, value);
+      }
+      endpoint.searchParams.set('_ts', Date.now().toString());
+
+      const response = await fetch(endpoint.toString(), {
+        credentials: 'same-origin',
+        cache: 'no-store',
+        headers: {
+          'Accept': 'application/json',
+          'X-StreamForge-Live-Refresh': '1'
+        }
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const data = await response.json();
+      if (!data.ok || !Array.isArray(data.sessions)) throw new Error(data.error || 'Invalid live data');
+      detailsPending = Boolean(data.details_pending);
+
+      const count = Number(data.filtered_count || 0);
+      const total = Number(data.total_online || 0);
+      summary.textContent =
+        `${count} active session${count === 1 ? '' : 's'}; ` +
+        `${total} active playback session${total === 1 ? '' : 's'} cluster-wide.`;
+
+      body.replaceChildren();
+      if (data.sessions.length) {
+        data.sessions.forEach((item) => body.append(buildRow(item)));
+      } else {
+        const tr = document.createElement('tr');
+        const td = el('td', 'empty', detailsPending ? 'Loading live session details…' : 'No active sessions match this filter.');
+        td.colSpan = 11;
+        tr.append(td);
+        body.append(tr);
+      }
+
+      updateUserOptions(data.online_user_names);
+      updateDeliveryOptions(data.delivery_options);
+    } catch (error) {
+      setStatus('Retry', 'paused');
+    } finally {
+      refreshing = false;
+    }
+  };
+
+  const scheduleNext = () => {
+    clearTimers();
+    if (refreshSeconds <= 0) {
+      nextRefreshAt = 0;
+      updateCountdown();
+      return;
+    }
+
+    const delayMs = detailsPending ? 800 : refreshSeconds * 1000;
+    nextRefreshAt = Date.now() + delayMs;
+    updateCountdown();
+    countdownTimer = window.setInterval(updateCountdown, 250);
+    refreshTimer = window.setTimeout(async () => {
+      await refreshSessions();
+      scheduleNext();
+    }, delayMs);
+  };
+
+  select.addEventListener('change', async () => {
+    const value = allowed.has(select.value) ? select.value : '5';
+    refreshSeconds = Number(value);
+    window.localStorage.setItem(storageKey, value);
+    if (refreshSeconds > 0) await refreshSessions();
+    scheduleNext();
+  });
+
+  document.addEventListener('visibilitychange', async () => {
+    if (document.hidden) {
+      clearTimers();
+      return;
+    }
+    if (refreshSeconds > 0) await refreshSessions();
+    scheduleNext();
+  });
+
+  // First paint should not wait one full refresh interval. Pull the local
+  // cache immediately, then use the normal cadence (or the short pending retry).
+  (async () => {
+    if (refreshSeconds > 0) await refreshSessions();
+    scheduleNext();
+  })();
+})();
+</script>
+{% endblock %}

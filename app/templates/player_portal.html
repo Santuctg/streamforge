@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>{{ user.name }} · {{ branding.name }} Player</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="player-body">
+  <main class="player-portal">
+    <div class="player-brand"><span class="brand-mark">SF</span><div><b>{{ branding.name }} Player</b><small>{{ user.name }}</small></div></div>
+    <h1>Available channels</h1>
+    <p>Select a channel to play it in Chrome, Edge, Firefox or Safari.</p>
+    <div class="player-channel-grid">
+      {% for channel in channels %}
+      <a class="player-channel-card" href="{{ prefix }}/watch/{{ token }}/{{ channel.slug }}">
+        {% if channel.logo_url %}<img class="player-channel-logo" src="{{ channel.logo_url|versioned_asset }}" alt="" loading="lazy" onerror="this.outerHTML='<span class=&quot;play-icon&quot;>▶</span>'">{% else %}<span class="play-icon">▶</span>{% endif %}
+        <div><b>{{ channel.name }}</b><small>{{ channel.width or 'source' }}{% if channel.height %}×{{ channel.height }}{% endif %} · {{ channel.video_codec }} / {{ channel.audio_codec }}</small></div>
+      </a>
+      {% else %}
+      <div class="alert danger">No enabled HLS channels are assigned to this user.</div>
+      {% endfor %}
+    </div>
+  </main>
+</body>
+</html>

@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>{{ error_title }} · {{ branding.name }}</title>
+  {% if branding.favicon_url %}<link rel="icon" href="{{ branding.favicon_url }}">{% endif %}
+  <style>
+    :root{color-scheme:dark}
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;background:#081018;color:#edf5fc;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    body{
+      min-height:100vh;display:grid;place-items:center;padding:24px;
+      background:
+        radial-gradient(circle at 50% -10%,rgba(42,190,164,.13),transparent 34%),
+        linear-gradient(180deg,#0a121b 0%,#081018 100%);
+    }
+    .error-shell{width:min(560px,100%);display:grid;gap:14px}
+    .brand{display:flex;align-items:center;justify-content:center;gap:11px;min-height:48px}
+    .brand-logo{
+      width:44px;height:44px;border:1px solid #26384a;border-radius:11px;
+      background:#0c1621;display:grid;place-items:center;overflow:hidden;flex:0 0 44px
+    }
+    .brand-logo img{width:100%;height:100%;object-fit:contain}
+    .brand-fallback{font-weight:800;font-size:17px;color:#50d7bc}
+    .brand-copy{display:grid;gap:2px;min-width:0}
+    .brand-name{font-weight:800;font-size:17px;line-height:1.2;overflow-wrap:anywhere}
+    .brand-subtitle{font-size:11px;color:#7890a6;line-height:1.3}
+    .error-card{
+      border:1px solid #253649;border-radius:18px;background:rgba(15,25,36,.96);
+      box-shadow:0 24px 70px rgba(0,0,0,.38);padding:30px
+    }
+    .status-icon{
+      width:58px;height:58px;border-radius:16px;display:grid;place-items:center;
+      margin:0 auto 19px;border:1px solid #805b24;background:#2c2113;color:#ffbd59
+    }
+    .status-icon svg{width:29px;height:29px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+    h1{margin:0;text-align:center;font-size:25px;line-height:1.2;letter-spacing:-.02em}
+    .message{margin:11px auto 0;max-width:440px;text-align:center;color:#b7c8d8;font-size:14px;line-height:1.55}
+    .hint{margin:8px auto 0;max-width:440px;text-align:center;color:#7790a6;font-size:12px;line-height:1.5}
+    .channel{
+      margin:21px 0 0;padding:11px 13px;border:1px solid #223447;border-radius:11px;
+      background:#0a141f;display:flex;justify-content:space-between;gap:12px;align-items:center
+    }
+    .channel span{font-size:11px;color:#71879b}
+    .channel b{font-size:12px;text-align:right;overflow-wrap:anywhere}
+    .actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:22px}
+    button,.secondary{
+      min-height:43px;border-radius:10px;border:1px solid #2d455c;padding:0 14px;
+      font:inherit;font-size:13px;font-weight:700;cursor:pointer;text-decoration:none;
+      display:flex;align-items:center;justify-content:center
+    }
+    button{background:#25a98f;border-color:#31bea1;color:#06120f}
+    button:hover{filter:brightness(1.07)}
+    .secondary{background:#121e2b;color:#d6e4ef}
+    .secondary:hover{background:#172638}
+    details{margin-top:18px;border-top:1px solid #223140;padding-top:15px}
+    summary{cursor:pointer;color:#7f95a9;font-size:11px;user-select:none}
+    .technical{
+      margin-top:10px;padding:10px 12px;border-radius:9px;background:#08111a;color:#8fa2b4;
+      font:11px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow-wrap:anywhere
+    }
+    .status-code{text-align:center;margin-top:14px;font-size:10px;color:#53687b}
+    @media(max-width:520px){
+      body{padding:14px}.error-card{padding:23px 17px;border-radius:15px}
+      h1{font-size:22px}.actions{grid-template-columns:1fr}.channel{align-items:flex-start;flex-direction:column}
+      .channel b{text-align:left}
+    }
+  </style>
+</head>
+<body>
+  <main class="error-shell">
+    <div class="brand">
+      <div class="brand-logo">
+        {% if branding.logo_url %}<img src="{{ branding.logo_url|versioned_asset }}" alt="">{% else %}<span class="brand-fallback">SF</span>{% endif %}
+      </div>
+      <div class="brand-copy">
+        <div class="brand-name">{{ branding.name }}</div>
+        {% if branding.subtitle %}<div class="brand-subtitle">{{ branding.subtitle }}</div>{% endif %}
+      </div>
+    </div>
+
+    <section class="error-card">
+      <div class="status-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M12 3 2.8 19h18.4L12 3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+      </div>
+      <h1>{{ error_title }}</h1>
+      <p class="message">{{ error_message }}</p>
+      <p class="hint">{{ error_hint }}</p>
+
+      {% if channel %}
+      <div class="channel"><span>Channel</span><b>{{ channel.name }}</b></div>
+      {% endif %}
+
+      <div class="actions">
+        <button type="button" onclick="location.reload()">Try again</button>
+        <a class="secondary" href="javascript:history.length>1?history.back():location.assign(location.pathname.replace(/\/master\.m3u8$/,''))">Back</a>
+      </div>
+
+      <details>
+        <summary>Technical details</summary>
+        <div class="technical">{{ technical_detail }}</div>
+      </details>
+      <div class="status-code">HTTP {{ status_code }} · Playback temporarily unavailable</div>
+    </section>
+  </main>
+</body>
+</html>

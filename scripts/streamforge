@@ -1,0 +1,279 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+# STREAMFORGE_RESETUSER_COMMAND_V3015:
+# Administrative entry point installed as /usr/local/bin/streamforge.  Read
+# only the database setting we need; /etc/streamforge.env follows systemd's
+# EnvironmentFile syntax and must not be sourced by a shell.
+
+usage(){
+  cat <<'EOF'
+Usage:
+  sudo streamforge resetuser
+  sudo streamforge resetdomain [http://IP-or-domain/optional-path]
+  sudo streamforge resetpanelaccess
+  sudo streamforge restorelogos /absolute/path/to/backup.tar.gz
+
+Commands:
+  resetuser   Reset or recreate an admin user and restore Super Admin access.
+  resetdomain Reset Main Panel/Playlist domain, aliases and strict URL lock.
+  resetpanelaccess Clear Main/Local Panel IP/ASN access rules after an accidental lockout.
+  restorelogos Restore only verified logo files; Main data/domain stay unchanged.
+EOF
+}
+
+[[ ${EUID} -eq 0 ]] || {
+  printf 'ERROR: Run this command with sudo/root.\n' >&2
+  exit 1
+}
+
+case "${1:-}" in
+  resetuser)
+    [[ $# -eq 1 ]] || { usage >&2; exit 2; }
+
+    APP_DIR="${STREAMFORGE_APP_DIR:-}"
+    if [[ -z "$APP_DIR" ]] && command -v systemctl >/dev/null 2>&1; then
+      APP_DIR="$(systemctl cat streamforge 2>/dev/null | awk -F= '/^[[:space:]]*WorkingDirectory=/{print $2; exit}' | xargs || true)"
+    fi
+    [[ -n "$APP_DIR" ]] || APP_DIR="/opt/streamforge"
+
+    ENV_FILE="${STREAMFORGE_ENV_FILE:-/etc/streamforge.env}"
+    DATA_DIR="${STREAMFORGE_DATA_DIR:-/var/lib/streamforge}"
+    DATABASE_URL="${STREAMFORGE_DATABASE_URL:-}"
+    if [[ -z "$DATABASE_URL" && -f "$ENV_FILE" ]]; then
+      DATABASE_URL="$(python3 - "$ENV_FILE" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+for raw in path.read_text(encoding="utf-8", errors="replace").splitlines():
+    line = raw.strip()
+    if not line or line.startswith("#") or "=" not in line:
+        continue
+    key, value = line.split("=", 1)
+    if key.strip() != "STREAMFORGE_DATABASE_URL":
+        continue
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+        value = value[1:-1]
+    print(value)
+    break
+PY
+)"
+    fi
+    [[ -n "$DATABASE_URL" ]] || DATABASE_URL="sqlite:///$DATA_DIR/streamforge.db"
+
+    [[ -f "$APP_DIR/scripts/reset_admin.py" ]] || {
+      printf 'ERROR: StreamForge reset script not found in %s.\n' "$APP_DIR" >&2
+      exit 1
+    }
+    id streamforge >/dev/null 2>&1 || {
+      printf 'ERROR: streamforge service user does not exist.\n' >&2
+      exit 1
+    }
+
+    cd "$APP_DIR"
+    exec runuser -u streamforge -- env \
+      PYTHONPATH="$APP_DIR" \
+      STREAMFORGE_DATABASE_URL="$DATABASE_URL" \
+      python3 "$APP_DIR/scripts/reset_admin.py"
+    ;;
+  resetpanelaccess)
+    # STREAMFORGE_RESETPANELACCESS_COMMAND_V107:
+    # Emergency SSH recovery for an accidental Main Panel IP/ASN lockout.
+    # Playback/catalog rules are intentionally left unchanged.
+    [[ $# -eq 1 ]] || { usage >&2; exit 2; }
+
+    APP_DIR="${STREAMFORGE_APP_DIR:-}"
+    if [[ -z "$APP_DIR" ]] && command -v systemctl >/dev/null 2>&1; then
+      APP_DIR="$(systemctl cat streamforge 2>/dev/null | awk -F= '/^[[:space:]]*WorkingDirectory=/{print $2; exit}' | xargs || true)"
+    fi
+    [[ -n "$APP_DIR" ]] || APP_DIR="/opt/streamforge"
+    ENV_FILE="${STREAMFORGE_ENV_FILE:-/etc/streamforge.env}"
+    DATA_DIR="${STREAMFORGE_DATA_DIR:-/var/lib/streamforge}"
+    DATABASE_URL="${STREAMFORGE_DATABASE_URL:-}"
+    if [[ -z "$DATABASE_URL" && -f "$ENV_FILE" ]]; then
+      DATABASE_URL="$(python3 - "$ENV_FILE" <<'PY'
+from pathlib import Path
+import sys
+for raw in Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace").splitlines():
+    line = raw.strip()
+    if not line or line.startswith("#") or "=" not in line:
+        continue
+    key, value = line.split("=", 1)
+    if key.strip() == "STREAMFORGE_DATABASE_URL":
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+            value = value[1:-1]
+        print(value)
+        break
+PY
+)"
+    fi
+    [[ -n "$DATABASE_URL" ]] || DATABASE_URL="sqlite:///$DATA_DIR/streamforge.db"
+    RESET_DOMAIN_HELPER="$APP_DIR/scripts/reset_domain.py"
+    [[ -f "$RESET_DOMAIN_HELPER" ]] || { printf 'ERROR: StreamForge database helper is missing.\n' >&2; exit 1; }
+    DB_PATH="$(python3 "$RESET_DOMAIN_HELPER" db-path "$DATABASE_URL")"
+    [[ -f "$DB_PATH" ]] || { printf 'ERROR: StreamForge database not found: %s\n' "$DB_PATH" >&2; exit 1; }
+
+    BACKUP_ROOT="${STREAMFORGE_BACKUP_ROOT:-/var/backups/streamforge}"
+    RESET_BACKUP_DIR="$BACKUP_ROOT/panel-access-reset-$(date +%Y%m%d-%H%M%S)"
+    install -d -o root -g root -m 0750 "$RESET_BACKUP_DIR"
+    RESET_BACKUP_DB="$RESET_BACKUP_DIR/streamforge.db"
+
+    python3 - "$DB_PATH" "$RESET_BACKUP_DB" <<'PY'
+import sqlite3
+import sys
+from pathlib import Path
+
+source = Path(sys.argv[1])
+backup = Path(sys.argv[2])
+required = (
+    "panel_ip_whitelist",
+    "panel_ip_blacklist",
+    "panel_asn_whitelist",
+    "panel_asn_blacklist",
+)
+with sqlite3.connect(str(source), timeout=30) as con:
+    con.row_factory = sqlite3.Row
+    columns = {row[1] for row in con.execute("PRAGMA table_info(nodes)")}
+    missing = [name for name in required if name not in columns]
+    if missing:
+        raise SystemExit("Panel access columns are missing: " + ", ".join(missing))
+    row = con.execute(
+        "SELECT id, name, panel_ip_whitelist, panel_ip_blacklist, panel_asn_whitelist, panel_asn_blacklist "
+        "FROM nodes WHERE node_type='local' ORDER BY id LIMIT 1"
+    ).fetchone()
+    if row is None:
+        raise SystemExit("Main/Local node row was not found")
+    with sqlite3.connect(str(backup)) as out:
+        con.backup(out)
+    print(f"Main/Local node: {row['name']} (id={row['id']})")
+    print("Current Panel rules:")
+    for key in required:
+        print(f"  {key}: {row[key] or '(empty)'}")
+    con.execute(
+        "UPDATE nodes SET panel_ip_whitelist=NULL, panel_ip_blacklist=NULL, "
+        "panel_asn_whitelist=NULL, panel_asn_blacklist=NULL WHERE id=?",
+        (row["id"],),
+    )
+    con.commit()
+PY
+    chown root:root "$RESET_BACKUP_DB"
+    chmod 0600 "$RESET_BACKUP_DB"
+    systemctl restart streamforge
+    ready=0
+    for _attempt in $(seq 1 45); do
+      if curl -fsS --max-time 2 http://127.0.0.1:8800/health 2>/dev/null | grep -qx ok; then
+        ready=1
+        break
+      fi
+      sleep 1
+    done
+    if [[ "$ready" -ne 1 ]]; then
+      printf 'ERROR: Panel rules were cleared, but StreamForge health check did not recover. Backup: %s\n' "$RESET_BACKUP_DB" >&2
+      exit 1
+    fi
+    printf 'Panel access rules cleared. Playback/catalog rules were not changed.\n'
+    printf 'Database backup: %s\n' "$RESET_BACKUP_DB"
+    ;;
+  resetdomain)
+    [[ $# -le 2 ]] || { usage >&2; exit 2; }
+
+    APP_DIR="${STREAMFORGE_APP_DIR:-}"
+    if [[ -z "$APP_DIR" ]] && command -v systemctl >/dev/null 2>&1; then
+      APP_DIR="$(systemctl cat streamforge 2>/dev/null | awk -F= '/^[[:space:]]*WorkingDirectory=/{print $2; exit}' | xargs || true)"
+    fi
+    [[ -n "$APP_DIR" ]] || APP_DIR="/opt/streamforge"
+    ENV_FILE="${STREAMFORGE_ENV_FILE:-/etc/streamforge.env}"
+    DATA_DIR="${STREAMFORGE_DATA_DIR:-/var/lib/streamforge}"
+    DATABASE_URL="${STREAMFORGE_DATABASE_URL:-}"
+    if [[ -z "$DATABASE_URL" && -f "$ENV_FILE" ]]; then
+      DATABASE_URL="$(python3 - "$ENV_FILE" <<'PY'
+from pathlib import Path
+import sys
+for raw in Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace").splitlines():
+    line = raw.strip()
+    if not line or line.startswith("#") or "=" not in line:
+        continue
+    key, value = line.split("=", 1)
+    if key.strip() == "STREAMFORGE_DATABASE_URL":
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+            value = value[1:-1]
+        print(value)
+        break
+PY
+)"
+    fi
+    [[ -n "$DATABASE_URL" ]] || DATABASE_URL="sqlite:///$DATA_DIR/streamforge.db"
+    RESET_HELPER="$APP_DIR/scripts/reset_domain.py"
+    [[ -f "$RESET_HELPER" ]] || { printf 'ERROR: StreamForge domain reset helper is missing.\n' >&2; exit 1; }
+    id streamforge >/dev/null 2>&1 || { printf 'ERROR: streamforge service user does not exist.\n' >&2; exit 1; }
+
+    if [[ $# -eq 2 ]]; then
+      requested_url="$2"
+    else
+      detected_ip="$(hostname -I 2>/dev/null | awk '{print $1}' || true)"
+      [[ -n "$detected_ip" ]] || detected_ip="127.0.0.1"
+      if [[ "$detected_ip" == *:* ]]; then detected_ip="[$detected_ip]"; fi
+      default_url="http://$detected_ip"
+      read -r -p "New Main URL [$default_url]: " requested_url
+      requested_url="${requested_url:-$default_url}"
+    fi
+    canonical_url="$(python3 "$RESET_HELPER" normalize "$requested_url")"
+    database_path="$(python3 "$RESET_HELPER" db-path "$DATABASE_URL")"
+
+    BACKUP_ROOT="${STREAMFORGE_BACKUP_ROOT:-/var/backups/streamforge}"
+    APPLY_MAIN_ACCESS_BIN="${STREAMFORGE_APPLY_MAIN_ACCESS_BIN:-/usr/local/sbin/streamforge-apply-main-access}"
+    SYSTEMCTL_BIN="${STREAMFORGE_SYSTEMCTL_BIN:-systemctl}"
+    CURL_BIN="${STREAMFORGE_CURL_BIN:-curl}"
+    [[ -x "$APPLY_MAIN_ACCESS_BIN" ]] || { printf 'ERROR: Main access apply command is missing.\n' >&2; exit 1; }
+
+    env_backup_dir="$BACKUP_ROOT/domain-reset-$(date +%Y%m%d-%H%M%S)"
+    install -d -o root -g root -m 0750 "$env_backup_dir"
+    [[ -f "$ENV_FILE" ]] && install -o root -g root -m 0600 "$ENV_FILE" "$env_backup_dir/streamforge.env"
+
+    runuser -u streamforge -- env \
+      PYTHONPATH="$APP_DIR" \
+      python3 "$RESET_HELPER" database "$canonical_url" "$DATABASE_URL"
+    python3 "$RESET_HELPER" environment "$canonical_url" "$ENV_FILE"
+
+    STREAMFORGE_DATABASE_PATH="$database_path" \
+      STREAMFORGE_MAIN_ACCESS_RUNTIME_DIR="$DATA_DIR/main-access-runtime" \
+      "$APPLY_MAIN_ACCESS_BIN"
+    "$SYSTEMCTL_BIN" restart streamforge
+    ready=0
+    for _attempt in $(seq 1 45); do
+      if "$CURL_BIN" -fsS --max-time 2 http://127.0.0.1:8800/health 2>/dev/null | grep -qx ok; then
+        ready=1
+        break
+      fi
+      sleep 1
+    done
+    [[ "$ready" -eq 1 ]] || { printf 'ERROR: StreamForge did not become healthy after domain reset.\n' >&2; exit 1; }
+    printf 'Domain reset complete: %s\n' "$canonical_url"
+    printf 'Environment backup: %s\n' "$env_backup_dir/streamforge.env"
+    ;;
+  restorelogos)
+    [[ $# -eq 2 ]] || { usage >&2; exit 2; }
+    APP_DIR="${STREAMFORGE_APP_DIR:-/opt/streamforge}"
+    DATA_DIR="${STREAMFORGE_DATA_DIR:-/var/lib/streamforge}"
+    ENV_FILE="${STREAMFORGE_ENV_FILE:-/etc/streamforge.env}"
+    RESTORE_HELPER="$APP_DIR/scripts/restore_logos.py"
+    [[ -f "$RESTORE_HELPER" ]] || { printf 'ERROR: StreamForge logo-only restore helper is missing.\n' >&2; exit 1; }
+    exec python3 "$RESTORE_HELPER" "$2" \
+      --database "$DATA_DIR/streamforge.db" \
+      --env-file "$ENV_FILE" \
+      --app-dir "$APP_DIR" \
+      --data-dir "$DATA_DIR"
+    ;;
+  -h|--help|help|"")
+    usage
+    ;;
+  *)
+    printf 'ERROR: Unknown command: %s\n' "$1" >&2
+    usage >&2
+    exit 2
+    ;;
+esac

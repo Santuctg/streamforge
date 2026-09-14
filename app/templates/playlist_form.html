@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if playlist and playlist.id else 'Add' }} Playlist · {{ branding.name }}{% endblock %}
+{% block heading %}<h1>{{ 'Edit playlist' if playlist and playlist.id else 'Create playlist' }}</h1><p>Select channels and assign the playlist to multiple users</p>{% endblock %}
+{% block content %}
+{% set all_enabled_mode = playlist and playlist.all_enabled_channels %}
+<form class="form-layout" method="post" action="{{ '/playlists/' ~ playlist.id ~ '/edit' if playlist and playlist.id else '/playlists/new' }}">
+{% if error %}<div class="alert danger wide">{{ error }}</div>{% endif %}
+<section class="panel form-section"><div class="panel-head"><div><h2>Playlist profile</h2><p>The same playlist can be assigned to any number of users.</p></div></div>
+<div class="form-grid">
+<label>Name<input name="name" value="{{ playlist.name if playlist else '' }}" required></label>
+<label>Playlist logo URL<input type="url" name="logo_url" value="{{ playlist.logo_url or '' if playlist else '' }}" placeholder="https://example.com/playlist-logo.png"></label>
+<label class="wide">Description<textarea name="description" rows="3">{{ playlist.description or '' if playlist else '' }}</textarea></label>
+<label>Content<select name="content_mode" data-main-playlist-content-mode>
+  <option value="custom" {% if not all_enabled_mode %}selected{% endif %}>Custom channel selection</option>
+  <option value="all" {% if all_enabled_mode %}selected{% endif %}>All enabled Main channels</option>
+</select><small>All enabled mode updates automatically when Main channels are enabled or disabled.</small></label>
+</div></section>
+<section class="panel form-section" data-playlist-channel-section data-main-playlist-custom-channels {% if all_enabled_mode %}hidden aria-hidden="true"{% else %}aria-hidden="false"{% endif %}><div class="panel-head user-channel-head"><div><h2>Channels</h2><p>Select the channels included in this playlist.</p></div><div class="user-channel-tools"><span data-user-channel-count>0 selected</span><button class="button small" type="button" data-user-select-all>Select all channels</button><button class="button small" type="button" data-user-clear-all>Clear all</button></div></div>
+<div class="channel-list-search"><input type="search" data-user-channel-search placeholder="Search by name, ID, slug, category or output" autocomplete="off"><span data-user-channel-search-count></span></div>
+<div class="channel-checks" data-user-channel-list>
+{% for channel in channels %}{% set auto_checked = all_enabled_mode and channel.enabled and channel.output_type|lower == 'hls' %}<label data-channel-name="{{ channel.name }}" data-channel-enabled="{{ 1 if channel.enabled else 0 }}" data-channel-search="{{ (channel.id|string ~ ' ' ~ channel.name ~ ' ' ~ channel.slug ~ ' ' ~ channel_category_names(channel) ~ ' ' ~ channel.output_type ~ ' ' ~ ('enabled' if channel.enabled else 'disabled'))|lower }}"><input type="checkbox" name="channel_ids" value="{{ channel.id }}" data-channel-enabled="{{ 1 if channel.enabled else 0 }}" {% if auto_checked or (playlist and channel in playlist.channels) %}checked{% endif %}><span><b>{{ channel.name }}</b><small>{{ channel_category_names(channel) }} · {{ channel.output_type|upper }} · {{ 'Enabled' if channel.enabled else 'Disabled' }}</small></span></label>{% else %}<p class="empty">Create channels first.</p>{% endfor %}
+</div>
+<p class="empty playlist-channel-search-empty" data-user-channel-search-empty hidden>No channels match this search.</p>
+</section>
+{% if playlist and playlist.id %}
+<section class="panel playlist-global-order-note main-playlist-order-note"><div><b>Custom playlist hierarchy</b><small>Set this profile's own category order and channel order without changing the global Categories page.</small></div><a class="button small" href="/playlists/{{ playlist.id }}/order">Edit hierarchy</a></section>
+{% else %}
+<section class="panel playlist-global-order-note main-playlist-order-note"><div><b>Custom playlist hierarchy</b><small>Save the playlist first, then arrange its categories and channels.</small></div></section>
+{% endif %}
+<div class="form-actions"><a class="button" href="/users">Cancel</a><button class="button primary">Save playlist</button></div>
+</form>
+{% endblock %}

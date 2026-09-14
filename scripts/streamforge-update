@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+FORCE=0
+PACKAGE=""
+
+usage(){
+  cat <<'EOF'
+Usage: sudo streamforge-update [--force] [PACKAGE.zip]
+
+Without PACKAGE, the newest streamforge_v*.zip in the current directory,
+/root, /tmp or /var/tmp is selected automatically.
+EOF
+}
+
+for arg in "$@"; do
+  case "$arg" in
+    --force) FORCE=1 ;;
+    -h|--help) usage; exit 0 ;;
+    -*) printf 'ERROR: unknown option: %s\n' "$arg" >&2; exit 2 ;;
+    *)
+      [[ -z "$PACKAGE" ]] || { echo "ERROR: pass only one package" >&2; exit 2; }
+      PACKAGE="$arg"
+      ;;
+  esac
+done
+
+[[ ${EUID} -eq 0 ]] || { echo "ERROR: run with sudo/root" >&2; exit 1; }
+for command in unzip python3; do
+  command -v "$command" >/dev/null 2>&1 || { echo "ERROR: $command not found" >&2; exit 1; }
+done
+
+if [[ -z "$PACKAGE" ]]; then
+  mapfile -t candidates < <(
+    find "$PWD" /root /tmp /var/tmp -maxdepth 1 -type f -name 'streamforge_v*.zip' -printf '%f\t%p\n' 2>/dev/null \
+      | awk -F '\t' '!seen[$2]++' \
+      | sort -V -k1,1 \
+      | cut -f2-
+  )
+  ((${#candidates[@]})) || {
+    echo "ERROR: no streamforge_v*.zip package found; pass its full path" >&2
+    exit 1
+  }
+  PACKAGE="${candidates[-1]}"
+fi
+
+PACKAGE="$(readlink -f "$PACKAGE")"
+[[ -f "$PACKAGE" ]] || { echo "ERROR: package not found: $PACKAGE" >&2; exit 1; }
+unzip -tq "$PACKAGE" >/dev/null || { echo "ERROR: invalid ZIP package: $PACKAGE" >&2; exit 1; }
+
+WORK_DIR="$(mktemp -d /tmp/streamforge-update-XXXXXXXX)"
+cleanup(){ rm -rf -- "$WORK_DIR"; }
+trap cleanup EXIT
+unzip -q "$PACKAGE" -d "$WORK_DIR"
+
+SOURCE_DIR="$WORK_DIR"
+if [[ ! -f "$SOURCE_DIR/VERSION" ]]; then
+  mapfile -t version_files < <(find "$WORK_DIR" -mindepth 2 -maxdepth 2 -type f -name VERSION -print)
+  [[ ${#version_files[@]} -eq 1 ]] || { echo "ERROR: package VERSION file missing or ambiguous" >&2; exit 1; }
+  SOURCE_DIR="$(dirname "${version_files[0]}")"
+fi
+
+PACKAGE_VERSION="$(tr -d '[:space:]' < "$SOURCE_DIR/VERSION")"
+[[ "$PACKAGE_VERSION" =~ ^[0-9]+([.][0-9]+){1,2}$ ]] || { echo "ERROR: invalid package version" >&2; exit 1; }
+INSTALLED_VERSION=""
+if [[ -f /opt/streamforge/VERSION ]]; then
+  INSTALLED_VERSION="$(tr -d '[:space:]' < /opt/streamforge/VERSION)"
+fi
+VERSION_TAG="${PACKAGE_VERSION//./}"
+UPDATER="$SOURCE_DIR/scripts/force_update_v${VERSION_TAG}.sh"
+[[ -x "$UPDATER" ]] || UPDATER="$SOURCE_DIR/scripts/update.sh"
+[[ -x "$UPDATER" ]] || { echo "ERROR: updater missing from package" >&2; exit 1; }
+
+printf '[StreamForge Update] Using package: %s\n' "$PACKAGE"
+printf '[StreamForge Update] Installed version: %s\n' "${INSTALLED_VERSION:-not installed}"
+printf '[StreamForge Update] Package version:   %s\n' "$PACKAGE_VERSION"
+printf '[StreamForge Update] Selected updater: %s\n' "$(basename "$UPDATER")"
+
+if [[ "$FORCE" -ne 1 && -n "$INSTALLED_VERSION" && "$INSTALLED_VERSION" == "$PACKAGE_VERSION" ]]; then
+  echo "Already on v$PACKAGE_VERSION. Use --force to reinstall this package."
+  exit 0
+fi
+
+bash "$UPDATER"

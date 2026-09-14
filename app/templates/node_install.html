@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+{% block title %}Auto Install Node · {{ branding.name }}{% endblock %}
+{% block heading %}<h1>Auto install remote node</h1><p>Same Node configuration as Add manually, plus SSH installation</p>{% endblock %}
+{% block content %}
+<style>
+/* STREAMFORGE_AUTO_INSTALL_WORKFLOW_GAP_V307 */
+[data-node-install-status]{margin:0 0 16px!important}
+@media(max-width:760px){[data-node-install-status]{margin-bottom:13px!important}}
+/* STREAMFORGE_AUTO_INSTALL_LIMITS_THREE_COLUMNS_V2292 */
+.node-install-limits-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:14px;
+  align-items:start;
+}
+.node-install-limits-grid > label{
+  display:grid;
+  gap:7px;
+  min-width:0;
+  margin:0;
+}
+.node-install-limits-grid input{width:100%}
+@media(max-width:1100px){
+  .node-install-limits-grid{grid-template-columns:1fr}
+}
+/* STREAMFORGE_AUTO_INSTALL_FIVE_OPTIONS_STYLE_V2296 */
+.node-install-five-options-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;align-items:stretch}
+.node-install-five-options-grid>.node-install-option-card{display:grid!important;align-content:start!important;gap:7px!important;min-width:0!important;margin:0!important;padding:12px!important;border:1px solid var(--line)!important;border-radius:10px!important;background:var(--surface-2)!important}
+.node-install-option-checkline{display:grid!important;grid-template-columns:18px minmax(0,1fr)!important;gap:8px!important;align-items:start!important}
+.node-install-option-checkline>input{width:16px!important;height:16px!important;margin:2px 0 0!important;accent-color:var(--accent)}
+.node-install-option-checkline>b{line-height:1.3}
+@media(max-width:1500px){.node-install-five-options-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:900px){.node-install-five-options-grid{grid-template-columns:1fr}}
+
+
+/* STREAMFORGE_AUTO_OPTION_TRUE_VERTICAL_CENTER_V2300 */
+.node-install-five-options-grid>.node-install-option-card.node-install-option-check{
+  display:flex!important;
+  flex-direction:column!important;
+  justify-content:center!important;
+  align-items:flex-start!important;
+  gap:10px!important;
+  text-align:left!important;
+  min-height:126px!important;
+  cursor:pointer!important;
+  padding-block:16px!important;
+}
+.node-install-five-options-grid .node-install-option-checkline{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  gap:9px!important;
+  width:100%!important;
+  text-align:left!important;
+  margin:0!important;
+}
+.node-install-five-options-grid .node-install-option-checkline>input{
+  flex:0 0 auto!important;
+  width:16px!important;
+  height:16px!important;
+  margin:0!important;
+}
+.node-install-five-options-grid .node-install-option-check>.field-help{
+  width:100%!important;
+  margin:0!important;
+  text-align:left!important;
+  line-height:1.45!important;
+}
+
+
+</style>
+
+<!-- STREAMFORGE_AUTO_INSTALL_PREFIX_AWARE_LIVE_WORKFLOW_V65R12 -->
+<!-- STREAMFORGE_AUTO_INSTALL_LIVE_WORKFLOW_UI_V306 -->
+<section class="panel form-section node-update-live" data-node-install-status hidden>
+  <div class="panel-head"><div><h2>Live install workflow</h2><p>Real SSH connection, upload, remote installation, verification and synchronization progress.</p></div><span class="node-update-state queued" data-install-state>queued</span></div>
+  <div class="node-update-live-body">
+    <div class="node-update-progress-head"><div><b data-install-message>Preparing Auto Install…</b><small data-install-time></small></div><strong data-install-percent>0%</strong></div>
+    <div class="node-update-progress"><span data-install-progress style="width:0%"></span></div>
+    <ol class="node-update-steps" data-install-steps>
+      {% for key, label in [('validating','Validate'),('packaging','Package'),('connecting','Connect'),('uploading','Upload'),('installing','Install'),('verifying','Verify'),('saving','Save'),('syncing','Sync'),('done','Complete')] %}
+      <li data-install-step="{{ key }}"><span></span><b>{{ label }}</b></li>
+      {% endfor %}
+    </ol>
+    <div class="node-update-error" data-install-error hidden></div>
+    <details class="node-update-log-box" open>
+      <summary>Live install log</summary>
+      <pre data-install-log>Waiting for Auto Install to start…</pre>
+    </details>
+  </div>
+</section>
+
+<form class="form-layout" method="post" enctype="multipart/form-data" action="{{ app_root }}/nodes/install" autocomplete="off" data-node-install-form>
+<input type="hidden" name="install_job_id" value="{{ install_job_id }}" data-install-job-id>
+{% if error %}<div class="alert danger wide">{{ error }}</div>{% endif %}
+<section class="panel form-section">
+  <div class="panel-head"><div><h2>Node connection</h2><p>The same settings as Add manually are stored. SSH is used only to install/configure the Node Agent automatically.</p></div></div>
+  <div class="form-grid">
+    <label>Name<input name="name" value="{{ form_data.name or '' }}" placeholder="Encoding Node 2" required></label>
+
+    <label class="wide">Node Panel/API access URLs
+      <textarea name="api_url" rows="3" placeholder="http://panel.example.com/admin&#10;http://192.168.1.10/admin" required>{{ form_data.api_url or '' }}</textarea>
+      <small class="field-help">One full URL per line, exactly like Add manually. The first URL is used for the initial SSH install; additional aliases are synchronized afterwards.</small>
+    </label>
+
+    <label>API token<input name="api_token" value="{{ form_data.api_token or suggested_token }}" required><small class="field-help">The same token is installed remotely and saved in this Node record.</small></label>
+    <label class="check"><input type="checkbox" name="enabled" {% if form_data.enabled is not defined or form_data.enabled %}checked{% endif %}><span>Enabled</span></label>
+    <label class="check"><input type="checkbox" name="verify_tls" {% if form_data.verify_tls is not defined or form_data.verify_tls %}checked{% endif %}><span>Verify HTTPS certificate</span></label>
+
+    <label>SSH host<input name="ssh_host" value="{{ form_data.ssh_host or '' }}" placeholder="192.168.253.30" required></label>
+    <label>SSH port<input type="number" name="ssh_port" min="1" max="65535" value="{{ form_data.ssh_port or 22 }}" required></label>
+    <label>SSH user<input name="ssh_user" value="{{ form_data.ssh_user or 'root' }}" required></label>
+    <label>SSH password<input type="password" name="ssh_password" autocomplete="new-password" required></label>
+    <label class="check wide"><input type="checkbox" name="save_ssh_password" {% if form_data.save_ssh_password %}checked{% endif %}><span>Encrypt and save the new SSH password for API-update fallback</span></label>
+
+    <label>Node logo URL
+      <input type="url" name="logo_url" value="{{ form_data.logo_url or '' }}" placeholder="https://example.com/node-logo.png">
+      <small class="field-help">Use a direct PNG, JPG, WEBP or GIF URL.</small>
+    </label>
+    <label>Upload node logo
+      <input type="file" name="logo_file" accept="image/png,image/jpeg,image/webp,image/gif">
+      <small class="field-help">Uploaded file has priority. Maximum 2 MB.</small>
+    </label>
+
+    <label class="wide">Playlist/App access URLs
+      <textarea name="playlist_url" rows="3" placeholder="http://stream.example.com/stream&#10;http://192.168.1.10/stream" required>{{ form_data.playlist_url or '' }}</textarea>
+      <small class="field-help">One full URL per line, exactly like Add manually. The first URL is installed remotely; additional aliases are synchronized afterwards.</small>
+    </label>
+
+    <!-- STREAMFORGE_AUTO_INSTALL_VIEWER_TTL_V2292 -->
+    <!-- STREAMFORGE_AUTO_INSTALL_FIVE_OPTIONS_V2296 -->
+    <div class="wide node-install-five-options-grid">
+      <label class="node-install-option-card">Node-local channel limit
+        <input type="number" min="0" max="100000" name="local_channel_limit" value="{{ form_data.local_channel_limit or 0 }}">
+        <small class="field-help">Maximum channels that may be added locally on this Node.</small>
+      </label>
+      <label class="node-install-option-card">Total max connections
+        <input type="number" min="0" max="1000000" name="total_max_connections" value="{{ form_data.total_max_connections or 0 }}">
+        <small class="field-help">Maximum concurrent viewer sessions. 0 = unlimited.</small>
+      </label>
+      <label class="node-install-option-card">Online session timeout (seconds)
+        <input type="number" min="5" max="3600" name="node_viewer_session_timeout_seconds" value="{{ form_data.node_viewer_session_timeout_seconds|default(5) }}">
+        <small class="field-help">How long a viewer remains Online after its last heartbeat.</small>
+      </label>
+      <label class="node-install-option-card node-install-option-check">
+        <span class="node-install-option-checkline"><input type="checkbox" name="node_hide_panel_hover_urls" value="1" {% if form_data.node_hide_panel_hover_urls is not defined or form_data.node_hide_panel_hover_urls %}checked{% endif %}><b>Hide Panel & Web Player URLs</b></span>
+        <small class="field-help">Hides same-origin URL previews on this Node Panel and Web Player.</small>
+      </label>
+      <label class="node-install-option-card node-install-option-check">
+        <span class="node-install-option-checkline"><input type="checkbox" name="sync_main_users" {% if form_data.sync_main_users %}checked{% endif %}><b>Independent Node mode</b></span>
+        <small class="field-help">Keeps this Node's own channel and playlist-user catalogue.</small>
+      </label>
+    </div>
+
+    <label class="wide">Strict client IP prefixes
+      <textarea name="client_prefixes" rows="5" placeholder="10.20.0.0/16&#10;192.168.50.0/24&#10;2001:db8:10::/48">{{ form_data.client_prefixes or '' }}</textarea>
+      <small class="field-help">One CIDR per line. A matching client prefers this server first. If it is offline or not playback-ready, StreamForge automatically falls back to another eligible assigned Node.</small>
+    </label>
+
+    <div class="wide settings-divider"><h3>Panel access rules</h3><p>Independent browser Panel policy. All four configured rules are enforced together.</p></div>
+    <div class="wide access-policy-grid access-policy-row">
+      <label>Panel IP whitelist<textarea name="panel_ip_whitelist" rows="4" placeholder="IP or CIDR per line">{{ form_data.panel_ip_whitelist or '' }}</textarea></label>
+      <label>Panel IP blacklist<textarea name="panel_ip_blacklist" rows="4" placeholder="IP or CIDR per line">{{ form_data.panel_ip_blacklist or '' }}</textarea></label>
+      <label>Panel ASN whitelist<textarea name="panel_asn_whitelist" rows="4" placeholder="AS13335&#10;AS15169">{{ form_data.panel_asn_whitelist or '' }}</textarea></label>
+      <label>Panel ASN blacklist<textarea name="panel_asn_blacklist" rows="4" placeholder="AS64500">{{ form_data.panel_asn_blacklist or '' }}</textarea></label>
+    </div>
+    <div class="wide settings-divider"><h3>Playback & catalog access rules</h3><p>Playlist, Xtream, Web Player catalogue and playback policy. All four configured rules are enforced together.</p></div>
+    <div class="wide access-policy-grid access-policy-row">
+      <label>Playback IP whitelist
+        <textarea name="ip_whitelist" rows="5" placeholder="One IP or CIDR per line">{{ form_data.ip_whitelist or '' }}</textarea>
+      </label>
+      <label>Playback IP blacklist
+        <textarea name="ip_blacklist" rows="5" placeholder="One IP or CIDR per line">{{ form_data.ip_blacklist or '' }}</textarea>
+      </label>
+      <label>ASN whitelist
+        <textarea name="asn_whitelist" rows="4" placeholder="AS13335&#10;AS15169">{{ form_data.asn_whitelist or '' }}</textarea>
+      </label>
+      <label>ASN blacklist
+        <textarea name="asn_blacklist" rows="4" placeholder="AS64500">{{ form_data.asn_blacklist or '' }}</textarea>
+      </label>
+    </div>
+  </div>
+</section>
+<div class="alert warning">The first Panel/API and Playlist/App URL must be HTTP for the initial direct Node install. HTTPS aliases can be used after TLS/reverse proxy is configured.</div>
+<div class="form-actions"><a class="button" href="/nodes">Cancel</a><button class="button primary" type="submit">Install and add node</button></div>
+</form>
+{% endblock %}
+
+{% block scripts %}<script>
+(() => {
+  const form = document.querySelector('[data-node-install-form]');
+  const box = document.querySelector('[data-node-install-status]');
+  if (!form || !box || !window.fetch || !window.FormData) return;
+  const jobInput = form.querySelector('[data-install-job-id]');
+  const panelRoot = String(window.STREAMFORGE_APP_ROOT || '').replace(/\/+$/, '');
+  const statusUrl = () => `${panelRoot}/nodes/install/status/${encodeURIComponent(jobInput.value)}?_=${Date.now()}`;
+  const stateNode = box.querySelector('[data-install-state]');
+  const messageNode = box.querySelector('[data-install-message]');
+  const errorNode = box.querySelector('[data-install-error]');
+  const percentNode = box.querySelector('[data-install-percent]');
+  const bar = box.querySelector('[data-install-progress]');
+  const logNode = box.querySelector('[data-install-log]');
+  const timeNode = box.querySelector('[data-install-time]');
+  const steps = Array.from(box.querySelectorAll('[data-install-step]'));
+  const order = ['validating','packaging','connecting','uploading','installing','verifying','saving','syncing','done'];
+  let polling = false;
+  let lastLog = '';
+  const render = (data) => {
+    const state = String(data.state || 'idle');
+    const phase = String(data.phase || state);
+    const progress = Math.max(0, Math.min(100, Number(data.progress) || 0));
+    stateNode.textContent = state;
+    stateNode.className = `node-update-state ${state}`;
+    messageNode.textContent = data.message || 'Auto Install is running…';
+    percentNode.textContent = `${Math.round(progress)}%`;
+    bar.style.width = `${progress}%`;
+    timeNode.textContent = data.updated_at ? `Updated ${new Date(data.updated_at).toLocaleTimeString()}` : '';
+    errorNode.textContent = data.error || '';
+    errorNode.hidden = !data.error;
+    const currentIndex = order.includes(phase) ? order.indexOf(phase) : 0;
+    steps.forEach((step, index) => {
+      step.classList.toggle('complete', ['done','warning'].includes(state) || index < currentIndex);
+      step.classList.toggle('active', index === currentIndex && ['queued','running'].includes(state));
+      step.classList.toggle('failed', state === 'error' && index === currentIndex);
+    });
+    const logText = Array.isArray(data.logs) && data.logs.length ? data.logs.join('\n') : 'Waiting for installer output…';
+    if (logText !== lastLog) {
+      const follow = logNode.scrollTop + logNode.clientHeight >= logNode.scrollHeight - 25;
+      logNode.textContent = logText;
+      if (follow) logNode.scrollTop = logNode.scrollHeight;
+      lastLog = logText;
+    }
+  };
+  const poll = async () => {
+    if (!polling) return;
+    try {
+      const response = await fetch(statusUrl(), {cache:'no-store', credentials:'same-origin'});
+      if (response.ok) render(await response.json());
+    } catch (_) {}
+    if (polling) setTimeout(poll, 650);
+  };
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!form.reportValidity()) return;
+    box.hidden = false;
+    box.scrollIntoView({behavior:'smooth', block:'start'});
+    form.querySelectorAll('button[type="submit"]').forEach(button => { button.disabled = true; });
+    polling = true;
+    render({state:'queued', phase:'validating', progress:1, message:'Starting Auto Install…', logs:['Submitting installation request']});
+    poll();
+    try {
+      const response = await fetch(form.action, {method:'POST', body:new FormData(form), credentials:'same-origin'});
+      if (response.redirected) {
+        try {
+          const status = await fetch(statusUrl(), {cache:'no-store', credentials:'same-origin'});
+          if (status.ok) render(await status.json());
+        } catch (_) {}
+        polling = false;
+        setTimeout(() => window.location.assign(response.url), 900);
+        return;
+      }
+      polling = false;
+      const page = await response.text();
+      document.open(); document.write(page); document.close();
+    } catch (error) {
+      polling = false;
+      render({state:'error', phase:'validating', progress:100, message:'Auto Install request failed', error:String(error), logs:[String(error)]});
+      form.querySelectorAll('button[type="submit"]').forEach(button => { button.disabled = false; });
+    }
+  });
+})();
+</script>{% endblock %}

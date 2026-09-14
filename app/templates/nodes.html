@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Nodes · {{ branding.name }}{% endblock %}
+{% block heading %}<h1>Encoding nodes</h1><p>Run channels on this server or distribute them to remote FFmpeg nodes</p>{% endblock %}
+{% block content %}
+<div class="nodes-page-content">
+{% if error %}<div class="alert danger">{{ error }}</div>{% endif %}
+{% if message %}<div class="alert success">{{ message }}</div>{% endif %}
+<section class="panel node-cluster-panel">
+  <div class="panel-head">
+    <div><h2>Node cluster</h2><p>Remote nodes use the StreamForge Node Agent and an authenticated internal API.</p></div>
+    <div class="head-actions nodes-head-actions"><input type="search" class="channel-inline-search" data-node-card-search placeholder="Type to filter servers">{% if can('nodes.install') %}<a class="button success" href="/nodes/install">Auto install via SSH</a>{% endif %}{% if can('nodes.create') %}<a class="button primary" href="/nodes/new">+ Add manually</a>{% endif %}</div>
+  </div>
+  <div class="node-grid">
+  {% for node in nodes %}
+    {% set initial_metrics = node_initial_metrics.get(node.id, {}) %}
+    <article class="node-card" data-node-card data-node-id="{{ node.id }}" data-node-status-endpoint="{{ app_root }}/nodes/{{ node.id }}/status.json" data-node-card-search="{{ ((('Main Server ' if node.node_type == 'local' else '') ~ node.name ~ ' ' ~ node.node_type ~ ' ' ~ (node.dns_name or '') ~ ' ' ~ (node.api_url or '')))|lower }}">
+      <header>
+        <div>{% if node.logo_url %}<img class="node-card-logo" src="{{ node.logo_url|versioned_asset }}" alt="{{ node.name }} logo" onerror="this.outerHTML='<span class=&quot;node-icon&quot;>{{ 'L' if node.node_type == 'local' else 'N' }}</span>'">{% else %}<span class="node-icon">{{ 'L' if node.node_type == 'local' else 'N' }}</span>{% endif %}<div><h3>{{ 'Main Server' if node.node_type == 'local' else node.name }}</h3><small>{{ node_panel_urls.get(node.id) }}</small></div></div>
+        <span class="status {{ 'running' if node.node_type == 'local' or node.status == 'online' else ('error' if node.status in ['offline','error'] else 'stopped') }}" data-node-status>{{ 'online' if node.node_type == 'local' else node.status }}</span>
+      </header>
+      <div class="node-metrics">
+        <div><span>Channels</span><b data-node-channels>{{ node_counts.get(node.id, {}).get('total', 0) }}</b></div><div><span>Up</span><b class="node-up-count" data-node-up>{{ node_counts.get(node.id, {}).get('up', 0) }}</b></div><div><span>Down</span><b class="node-down-count" data-node-down>{{ node_counts.get(node.id, {}).get('down', 0) }}</b></div>
+        <div><span>Online users</span><a class="viewer-count-link node-viewer-link" href="/viewer-sessions?node_id={{ node.id }}"><b data-node-online-users>{{ viewer_by_node.get(node.id, 0) }}</b></a></div>
+        <div><span>Uptime</span><b data-node-uptime>{{ human_duration(initial_metrics.get('uptime_seconds')) if initial_metrics.get('uptime_seconds') is not none else '—' }}</b></div>
+        <div><span>CPU</span><b data-node-cpu>{{ ('%.1f%%'|format(initial_metrics.get('cpu_percent'))) if initial_metrics.get('cpu_percent') is not none else '—' }}</b></div>
+        <div><span>Memory</span><b data-node-memory>{{ ('%.1f%%'|format(initial_metrics.get('memory_percent'))) if initial_metrics.get('memory_percent') is not none else '—' }}</b></div>
+        <div><span>Download</span><b data-node-download>{{ ('%.2f Mb/s'|format(initial_metrics.get('download_mbps'))) if initial_metrics.get('download_mbps') is not none else '—' }}</b></div><div><span>Upload</span><b data-node-upload>{{ ('%.2f Mb/s'|format(initial_metrics.get('upload_mbps'))) if initial_metrics.get('upload_mbps') is not none else '—' }}</b></div>
+      </div>
+      <div class="node-detail"><span>Type</span><b>{{ node.node_type|title }}</b></div><div class="node-detail"><span>Version</span><b data-node-version>{{ app_version if node.node_type == 'local' else (node.agent_version or 'checking…') }}</b></div>{% if node_panel_urls.get(node.id) %}<div class="node-detail"><span>Panel/API</span><b class="mono">{{ node_panel_urls.get(node.id) }}</b></div>{% endif %}{% if node.playlist_url %}<div class="node-detail"><span>Playlist/App</span><b class="mono">{{ node_public_urls.get(node.id) }}</b></div>{% endif %}{% if node.node_type == 'remote' %}<div class="node-detail"><span>Node-local channels</span><b>{{ node.local_channel_limit if node.local_channel_limit else ('Unlimited' if node.sync_main_users else 'Disabled') }}</b></div><div class="node-detail"><span>Total connections</span><b data-node-capacity>{{ node.total_max_connections if node.total_max_connections else 'Unlimited' }}</b></div>{% endif %}{% if node.client_prefixes %}<div class="node-detail node-prefix-detail"><span>Strict prefixes</span><b class="mono">{{ node.client_prefixes|replace("\n", ", ") }}</b></div>{% endif %}
+      {% if node.last_seen_at %}<div class="node-detail"><span>Last seen</span><b data-node-last-seen>{{ node.last_seen_at }}</b></div>{% endif %}
+      {% if node.last_error %}<p class="node-error" data-node-error>{{ node.last_error }}</p>{% else %}<p class="node-error" data-node-error hidden></p>{% endif %}
+      <footer>
+        <a class="button small" href="/channels?node={{ node.id }}">Channels</a>
+        {% if node_panel_urls.get(node.id) %}<a class="button small" href="{{ node_panel_urls.get(node.id) }}" target="_blank" rel="noopener">Open panel</a>{% endif %}
+        {% if can('nodes.test') %}<form method="post" action="/nodes/{{ node.id }}/test"><button class="button small">Test &amp; Sync</button></form>{% endif %}
+        <a class="button small" href="/nodes/{{ node.id }}/asn">GeoIP</a>
+        {% if (node.node_type == 'local' and can('main_access.edit')) or (node.node_type != 'local' and can('nodes.edit')) %}<a class="button small" href="/nodes/{{ node.id }}/web-player">Web Player Manage</a>{% endif %}
+        {% if can('nodes.update') and node.node_type == 'remote' %}<a class="button small restart-button" href="/nodes/{{ node.id }}/update">Update</a>{% endif %}
+        {% if can('main_system.service_restart') and node.node_type == 'local' %}<form method="post" action="/nodes/{{ node.id }}/main-service-restart" onsubmit="return confirm('Restart the StreamForge Main service? The panel and active stream supervision will be unavailable briefly.')"><button class="button small restart-button">Restart service</button></form>{% endif %}{% if can('main_system.reboot') and node.node_type == 'local' %}<form method="post" action="/nodes/{{ node.id }}/main-reboot" onsubmit="return confirm('Reboot the complete Main Server? All local streams and panel access will stop temporarily.')"><button class="button danger small">Reboot server</button></form>{% endif %}
+        {% if can('nodes.service_restart') and node.node_type == 'remote' %}<form method="post" action="/nodes/{{ node.id }}/service-restart" onsubmit="return confirm('Restart the StreamForge Node service on {{ node.name }}?')"><button class="button small restart-button">Restart service</button></form>{% endif %}{% if can('nodes.reboot') and node.node_type == 'remote' %}<form method="post" action="/nodes/{{ node.id }}/reboot" onsubmit="return confirm('Reboot the complete server {{ node.name }}? Active streams will stop temporarily.')"><button class="button danger small">Reboot server</button></form>{% endif %}
+        {% if (node.node_type == 'local' and can('main_access.edit')) or (node.node_type != 'local' and can('nodes.edit')) %}<a class="button small" href="/nodes/{{ node.id }}/edit">Edit</a>{% endif %}{% if can('nodes.delete') and node.node_type != 'local' %}<form method="post" action="/nodes/{{ node.id }}/delete" onsubmit="return confirm('Delete this node? Assigned channels will move to Local Node. If the Node is offline, only its Main registration can be removed and remote files may remain.')"><button class="button ghost-danger small">Delete</button></form>{% endif %}
+      </footer>
+    </article>
+  {% endfor %}
+  </div>
+</section>
+<section class="panel node-agent-help">
+  <div class="panel-head"><div><h2>Install a remote node</h2><p>Use Auto install via SSH, or copy the v1.11.0 package and run the agent installer manually.</p></div></div>
+  <div class="node-install-body">
+    <pre>unzip streamforge_v1.11.0_channel_switch_geoip.zip
+cd streamforge_mvp
+sudo bash scripts/install_node_agent.sh --token YOUR_SECURE_TOKEN --port 80 --hostname panel-node1.example.com --dns-only --playlist-host stream-node1.example.com --public-port 80 --playlist-dns-only --panel-url https://panel.example.com --node-slug node-1</pre>
+    <p>Then add <span class="mono">http://node1.example.com:80</span> and the same token. DNS-only mode rejects ordinary requests made through the server IP.</p>
+  </div>
+</section>
+
+<style>
+.nodes-page-content{
+  display:grid;
+  gap:18px;
+}
+.nodes-page-content>.alert{
+  margin:0!important;
+}
+.nodes-page-content>.panel{
+  margin:0!important;
+}
+.nodes-page-content>.alert + .panel{
+  margin-top:2px!important;
+}
+@media(max-width:760px){
+  .nodes-page-content{
+    gap:14px;
+  }
+}
+</style>
+</div>
+{% endblock %}

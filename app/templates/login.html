@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Login · {{ branding.name }}{% endblock %}
+{% block guest %}
+<div class="login-wrap">
+  <form class="login-card" method="post" action="/login">
+    <div class="brand login-brand">{% if branding.logo_url %}<img class="brand-logo" src="{{ branding.logo_url|versioned_asset }}" alt="{{ branding.name }} logo">{% else %}<span class="brand-mark">{{ branding.name[:2]|upper }}</span>{% endif %}<div class="brand-copy"><b>{{ branding.name }}</b><small>{{ branding.subtitle }}</small></div></div>
+    {% if error %}<div class="alert danger">{{ error }}</div>{% endif %}
+    <label>Username<input name="username" autocomplete="username" required autofocus></label>
+    <label>Password<input type="password" name="password" autocomplete="current-password" required></label>
+    <button class="button primary full">Sign in</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if panel_user and panel_user.id else 'Add' }} Panel User · {{ branding.name }}{% endblock %}
+{% block heading %}<h1>{{ 'Edit panel user' if panel_user and panel_user.id else 'Add panel user' }}</h1><p>Create one login for the Main Panel and selected remote-node panels</p>{% endblock %}
+{% block content %}
+
+<style>
+/* STREAMFORGE_PANEL_USER_REMOTE_NODE_THREE_COLUMN_SPACING_V2274 */
+.remote-node-access-list {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  align-items: stretch !important;
+  padding: 14px !important;
+  box-sizing: border-box !important;
+}
+.remote-node-access-list > .remote-node-access-card {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  min-height: 60px !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 12px 14px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 10px !important;
+}
+.remote-node-access-card input[type="checkbox"] {
+  flex: 0 0 auto !important;
+  margin: 0 !important;
+}
+.remote-node-access-card > span {
+  display: block !important;
+  min-width: 0 !important;
+  flex: 1 1 auto !important;
+  overflow: hidden !important;
+}
+.remote-node-access-card b {
+  display: block !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  margin-bottom: 4px !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+}
+.remote-node-access-card small {
+  display: block !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+}
+@media (max-width: 1100px) {
+  .remote-node-access-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+@media (max-width: 760px) {
+  .remote-node-access-list {
+    grid-template-columns: 1fr !important;
+    padding: 12px !important;
+  }
+}
+</style>
+
+<form class="form-layout" method="post" action="{{ '/admin-users/' ~ panel_user.id ~ '/edit' if panel_user and panel_user.id else '/admin-users/new' }}">
+  {% if error %}<div class="alert danger wide">{{ error }}</div>{% endif %}
+  <section class="panel form-section">
+    <div class="panel-head"><div><h2>Account</h2><p>The password hash and role permissions are synchronized to selected nodes; the plain password is never sent or stored there.</p></div></div>
+    <div class="form-grid">
+      <label>Username<input name="username" minlength="3" maxlength="80" pattern="[A-Za-z0-9_.-]+" value="{{ panel_user.username if panel_user else '' }}" required><small class="field-help">Letters, numbers, dot, underscore and dash only.</small></label>
+      <label>Role<select name="role_id" required><option value="">Select role</option>{% for role in roles %}<option value="{{ role.id }}" {% if panel_user and panel_user.role_id == role.id %}selected{% endif %}>{{ role.name }}{% if role.is_system %} — unrestricted{% endif %}</option>{% endfor %}</select><small class="field-help">Only Super Admin accounts can assign the built-in Super Admin role. <a class="inline-link" href="/roles" target="_blank">Manage roles and permissions</a></small></label>
+      <label>Password<input type="password" name="password" minlength="8" {% if not panel_user or not panel_user.id %}required{% endif %} autocomplete="new-password" placeholder="{{ 'Leave blank to keep current password' if panel_user and panel_user.id else 'Minimum 8 characters' }}"></label>
+      <label>Confirm password<input type="password" name="password_confirm" minlength="8" {% if not panel_user or not panel_user.id %}required{% endif %} autocomplete="new-password"></label>
+      <label class="check"><input type="checkbox" name="is_active" {% if not panel_user or panel_user.is_active %}checked{% endif %}><span>Active account</span></label>
+      <label class="check"><input type="checkbox" name="main_panel_access" {% if not panel_user or panel_user.main_panel_access %}checked{% endif %}><span>Main Panel access</span></label>
+    </div>
+  </section>
+  <section class="panel form-section">
+    <div class="panel-head user-channel-head"><div><h2>Remote node panel access</h2><p>The same username, password and role permissions can be used at <span class="mono">NODE_URL/panel</span>. Every login and active session is authorized live by the Main Panel. If Main is unreachable, Node Panel access is disabled.</p></div><div class="user-channel-tools"><span data-panel-node-count>0 nodes selected</span><button class="button small" type="button" data-panel-node-select-all>Select all nodes</button><button class="button small" type="button" data-panel-node-clear-all>Clear all</button></div></div>
+    <div class="channel-checks compact-node-checks remote-node-access-list" data-panel-node-list>
+      {% for node in nodes %}<label class="remote-node-access-card"><input type="checkbox" name="node_ids" value="{{ node.id }}" {% if panel_user and node in panel_user.nodes %}checked{% endif %}><span><b>{{ node.name }}</b><small>{{ node.api_url }}{% if node.dns_only %} · DNS only{% endif %}</small></span></label>{% else %}<p class="empty">No enabled remote node is available.</p>{% endfor %}
+    </div>
+  </section>
+  <div class="form-actions"><a class="button" href="/admin-users">Cancel</a><button class="button primary">Save panel user</button></div>
+</form>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Access denied · {{ branding.name }}{% endblock %}
+{% block heading %}<h1>Access denied</h1><p>Your role does not allow this operation</p>{% endblock %}
+{% block content %}
+<section class="panel access-denied-panel">
+  <div class="access-denied-icon">!</div>
+  <h2>Permission required</h2>
+  <p>This panel account does not have permission to access the requested page or action.</p>
+  <code>{{ permission }}</code>
+  <div class="form-actions access-denied-actions">
+    <a class="button" href="javascript:history.back()">Go back</a>
+    {% if can('dashboard.view') %}<a class="button primary" href="/">Overview</a>
+    {% elif can('channels.view') %}<a class="button primary" href="/channels">Channels</a>
+    {% elif can('panel_users.view') %}<a class="button primary" href="/admin-users">Panel users</a>{% endif %}
+  </div>
+</section>
+{% endblock %}

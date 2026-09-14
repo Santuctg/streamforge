@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% block title %}Logs · {{ branding.name }}{% endblock %}
+{% block heading %}<h1>Logs</h1><p>System, channel, node, authentication and update events</p>{% endblock %}
+{% block content %}
+{# STREAMFORGE_CONTEXTUAL_LOG_FILTERS_V106: fixed-scope tabs hide redundant Scope controls/columns; options are tab-specific. #}
+{# STREAMFORGE_LOG_SEARCH_UI_V1035: server-side search spans every page and selected source. #}
+{# STREAMFORGE_LOG_AUTO_SEARCH_UI_V1037: typing searches automatically; no Search button is required. #}
+{# STREAMFORGE_LOG_LIVE_AJAX_SEARCH_UI_V1038: search/filter/sort/page updates in place without a full-page reload or focus loss. #}
+{# STREAMFORGE_LOG_PRIVATE_ADDRESSBAR_V1039: inherited privacy guard. #}
+{# STREAMFORGE_LOG_FIXED_CANONICAL_ADDRESSBAR_V1040: Logs search/filter/sort/page never writes any route/query into the browser bar; the global hidden-panel canonical URL remains untouched. #}
+{% set fixed_scope_tab = selected_log_type in ['access','client'] %}
+{% set scope_options = ['channel','user','playlist','backup'] if selected_log_type == 'activity' else (['system','node','update','settings'] if selected_log_type == 'system' else []) %}
+{% macro sort_head(key, label) -%}
+<button type="button" class="log-sort-button{% if selected_sort == key %} active{% endif %}" data-log-sort="{{ key }}" title="Sort by {{ label }}">{{ label }}{% if selected_sort == key %}<span aria-hidden="true">{{ '▲' if selected_order == 'asc' else '▼' }}</span>{% endif %}</button>
+{%- endmacro %}
+{% if error %}<div class="alert danger">{{ error }}</div>{% endif %}
+{% if message %}<div class="alert success">{{ message }}</div>{% endif %}
+<section class="panel main-log-panel">
+  <nav class="log-type-tabs" aria-label="Log type" data-main-log-tabs>
+    {% for value, label in [('activity','Activity log'),('access','Access log'),('client','Client log'),('system','System log')] %}<a class="button {% if selected_log_type == value %}primary{% endif %}" href="/logs?log_type={{ value }}">{{ label }}</a>{% endfor %}
+  </nav>
+  <div class="panel-head" data-main-log-summary><div><h2>Log viewer</h2><p>Main panel logs load immediately. Choose All sources or a Remote Node when you want to query remote logs.</p><p><b>Total logs:</b> {{ total_count }} · <b>Showing:</b> {% if total_count %}{{ shown_from }}–{{ shown_to }}{% else %}0{% endif %}{% if selected_search %} · <b>Search:</b> {{ selected_search }}{% endif %}</p></div>{% if can('logs.clear') %}<form method="post" action="/logs/clear" onsubmit="return confirm('Clear only the logs shown by this tab and selected filters?')"><input type="hidden" name="log_type" value="{{ selected_log_type }}"><input type="hidden" name="source" value="{{ selected_source }}"><input type="hidden" name="scope" value="{{ selected_scope }}"><input type="hidden" name="level" value="{{ selected_level }}"><input type="hidden" name="channel_id" value="{{ selected_channel_id }}"><input type="hidden" name="node_id" value="{{ selected_node_id }}"><input type="hidden" name="q" value="{{ selected_search }}"><button class="button ghost-danger">{{ 'Clear search results' if selected_search else 'Clear selected logs' }}</button></form>{% endif %}</div>
+  <form class="log-filter-bar" method="get" action="/logs" data-main-log-filter-form>
+    <input type="hidden" name="log_type" value="{{ selected_log_type }}">
+    <input type="hidden" name="sort" value="{{ selected_sort }}" data-main-log-sort>
+    <input type="hidden" name="order" value="{{ selected_order }}" data-main-log-order>
+    <label class="log-search-field">Search<input type="search" name="q" value="{{ selected_search }}" placeholder="IP, user, message, channel/node, details…" autocomplete="off" data-main-log-search></label>
+    <label>Source<select name="source"><option value="all" {% if selected_source == 'all' %}selected{% endif %}>All sources</option><option value="local" {% if selected_source == 'local' %}selected{% endif %}>Main panel</option>{% for node in remote_nodes %}<option value="node:{{ node.id }}" {% if selected_source == 'node:' ~ node.id %}selected{% endif %}>{{ node.name }}</option>{% endfor %}</select></label>
+    {% if scope_options %}<label>Scope<select name="scope"><option value="">All relevant scopes</option>{% for value in scope_options %}<option value="{{ value }}" {% if selected_scope == value %}selected{% endif %}>{{ value|title }}</option>{% endfor %}</select></label>{% else %}<input type="hidden" name="scope" value="">{% endif %}
+    <label>Level<select name="level"><option value="">All levels</option>{% for value in ['info','warning','error'] %}<option value="{{ value }}" {% if selected_level == value %}selected{% endif %}>{{ value|title }}</option>{% endfor %}</select></label>
+    <label>Channel<select name="channel_id"><option value="">All channels</option>{% for channel in channels %}<option value="{{ channel.id }}" {% if selected_channel_id == channel.id|string %}selected{% endif %}>{{ channel.name }}</option>{% endfor %}</select></label>
+    <label>Node<select name="node_id"><option value="">All nodes</option>{% for node in nodes %}<option value="{{ node.id }}" {% if selected_node_id == node.id|string %}selected{% endif %}>{{ node.name }}</option>{% endfor %}</select></label>
+    <label>Show<select name="limit">{% for value in ['10','20','50','100','200','500','1000','all'] %}<option value="{{ value }}" {% if selected_limit == value %}selected{% endif %}>{{ 'ALL' if value == 'all' else value }}</option>{% endfor %}</select></label>
+    <a class="button" href="/logs">Reset</a>
+  </form>
+  {# STREAMFORGE_MAIN_LOG_PAGINATION_SORT_V93 #}
+  {# STREAMFORGE_CLIENT_LOG_USER_NO_DETAILS_V99R17 #}
+  {# STREAMFORGE_CLIENT_LOG_DURATION_COLUMN_V1045: Remote Node client sessions show duration from the Node viewer SID. #}
+  {# STREAMFORGE_CLIENT_LOG_SESSION_AGE_PERSIST_V1046: final Session age remains visible after the viewer disconnects. #}
+  {% if selected_log_type == 'client' %}
+  <div class="table-wrap main-log-table-wrap" data-main-log-results><table class="log-table"><colgroup><col class="main-log-col-time"><col class="main-log-col-source"><col class="main-log-col-level"><col class="main-log-col-subject"><col class="main-log-col-ip"><col class="main-log-col-user"><col class="main-log-col-duration"><col class="main-log-col-message"></colgroup><thead><tr><th>{{ sort_head('time','Time') }}</th><th>{{ sort_head('source','Source') }}</th><th>{{ sort_head('level','Level') }}</th><th>{{ sort_head('subject','Channel/Node') }}</th><th>{{ sort_head('ip','IP') }}</th><th>{{ sort_head('user','User') }}</th><th>Session age</th><th>{{ sort_head('message','Message') }}</th></tr></thead><tbody>
+  {% elif selected_log_type == 'access' %}
+  <div class="table-wrap main-log-table-wrap" data-main-log-results><table class="log-table"><colgroup><col class="main-log-col-time"><col class="main-log-col-source"><col class="main-log-col-level"><col class="main-log-col-subject"><col class="main-log-col-ip"><col class="main-log-col-message"><col class="main-log-col-details"><col class="main-log-col-actor"></colgroup><thead><tr><th>{{ sort_head('time','Time') }}</th><th>{{ sort_head('source','Source') }}</th><th>{{ sort_head('level','Level') }}</th><th>{{ sort_head('subject','Channel/Node') }}</th><th>{{ sort_head('ip','IP') }}</th><th>{{ sort_head('message','Message') }}</th><th>{{ sort_head('details','Details') }}</th><th>{{ sort_head('actor','Actor') }}</th></tr></thead><tbody>
+  {% else %}
+  <div class="table-wrap main-log-table-wrap" data-main-log-results><table class="log-table"><colgroup><col class="main-log-col-time"><col class="main-log-col-source"><col class="main-log-col-level"><col class="main-log-col-scope"><col class="main-log-col-subject"><col class="main-log-col-ip"><col class="main-log-col-message"><col class="main-log-col-details"><col class="main-log-col-actor"></colgroup><thead><tr><th>{{ sort_head('time','Time') }}</th><th>{{ sort_head('source','Source') }}</th><th>{{ sort_head('level','Level') }}</th><th>{{ sort_head('scope','Scope') }}</th><th>{{ sort_head('subject','Channel/Node') }}</th><th>{{ sort_head('ip','IP') }}</th><th>{{ sort_head('message','Message') }}</th><th>{{ sort_head('details','Details') }}</th><th>{{ sort_head('actor','Actor') }}</th></tr></thead><tbody>
+  {% endif %}
+  {# STREAMFORGE_MAIN_LOG_DIRECT_DETAILS_IP_V72 #}
+  {# STREAMFORGE_MAIN_LOG_MOBILE_NODE_LAYOUT_V73 #}
+  {# STREAMFORGE_MAIN_LOG_LIMIT_SELECTOR_V84 #}
+  {# STREAMFORGE_MAIN_LOG_AUTO_FILTER_EXTENDED_LIMIT_V85 #}
+  {% for item in items %}
+    {% if selected_log_type == 'client' %}<tr class="log-level-{{ item.level }}"><td class="mono nowrap">{{ item.time }}</td><td>{{ item.source }}</td><td><span class="log-level {{ item.level }}">{{ item.level }}</span></td><td>{{ item.subject or '—' }}</td><td class="mono nowrap log-ip-cell">{{ item.ip or '—' }}</td><td>{{ item.user or 'Guest' }}</td><td class="mono nowrap client-log-duration">{{ item.duration or '—' }}</td><td><b>{{ item.message }}</b></td></tr>
+    {% elif selected_log_type == 'access' %}<tr class="log-level-{{ item.level }}"><td class="mono nowrap">{{ item.time }}</td><td>{{ item.source }}</td><td><span class="log-level {{ item.level }}">{{ item.level }}</span></td><td>{{ item.subject or '—' }}</td><td class="mono nowrap log-ip-cell">{{ item.ip or '—' }}</td><td><b>{{ item.message }}</b></td><td><div class="log-details-direct">{{ item.details or '—' }}</div></td><td>{{ item.actor or '—' }}</td></tr>
+    {% else %}<tr class="log-level-{{ item.level }}"><td class="mono nowrap">{{ item.time }}</td><td>{{ item.source }}</td><td><span class="log-level {{ item.level }}">{{ item.level }}</span></td><td>{{ item.scope }}</td><td>{{ item.subject or '—' }}</td><td class="mono nowrap log-ip-cell">{{ item.ip or '—' }}</td><td><b>{{ item.message }}</b></td><td><div class="log-details-direct">{{ item.details or '—' }}</div></td><td>{{ item.actor or '—' }}</td></tr>{% endif %}
+  {% else %}<tr><td colspan="{{ 8 if selected_log_type == 'client' else (8 if selected_log_type == 'access' else 9) }}" class="empty">No logs match the selected filters.</td></tr>{% endfor %}
+  </tbody></table></div>
+  <div data-main-log-pagination-host>
+  {% if selected_limit != 'all' and page_count > 1 %}
+  <nav class="log-pagination" aria-label="Log pages">
+    <a class="button{% if selected_page <= 1 %} disabled{% endif %}" {% if selected_page > 1 %}href="/logs?{{ pagination_query }}&page={{ prev_page }}"{% else %}aria-disabled="true"{% endif %}>Previous</a>
+    <div class="log-page-numbers">{% for number in page_numbers %}<a class="button compact{% if number == selected_page %} primary{% endif %}" href="/logs?{{ pagination_query }}&page={{ number }}">{{ number }}</a>{% endfor %}</div>
+    <span>Page <b>{{ selected_page }}</b> of <b>{{ page_count }}</b></span>
+    <a class="button{% if selected_page >= page_count %} disabled{% endif %}" {% if selected_page < page_count %}href="/logs?{{ pagination_query }}&page={{ next_page }}"{% else %}aria-disabled="true"{% endif %}>Next</a>
+  </nav>
+  {% endif %}
+  </div>
+</section>
+<style>
+.log-search-field{flex:1 1 300px}.log-filter-bar .log-search-field input[type="search"]{min-width:280px;width:100%;height:40px;border:1px solid #304156;background:#0b1118;color:var(--text);border-radius:7px;padding:8px 10px}.log-sort-button{appearance:none;border:0;background:transparent;color:inherit;font:inherit;font-weight:inherit;text-transform:inherit;letter-spacing:inherit;padding:0;cursor:pointer;display:inline-flex;align-items:center;gap:5px}.log-sort-button:hover,.log-sort-button.active{color:#dcecff}.log-sort-button span{color:#55d6b3;font-size:10px}.log-pagination{display:flex;align-items:center;justify-content:center;gap:12px;padding:14px 16px;border-top:1px solid var(--line)}.log-pagination span{color:var(--muted);font-size:12px}.log-page-numbers{display:flex;align-items:center;gap:5px}.log-pagination .disabled{pointer-events:none;opacity:.45}.main-log-panel.log-live-loading .main-log-table-wrap{opacity:.72}.main-log-col-duration{width:145px}.client-log-duration{color:#8ee8d1;font-weight:700;font-variant-numeric:tabular-nums}
+@media(max-width:760px){.log-filter-bar .log-search-field{grid-column:1/-1}.log-filter-bar .log-search-field input[type="search"]{min-width:0;width:100%}}
+</style>
+<script>
+(() => {
+  // STREAMFORGE_LOG_AUTO_SEARCH_JS_V1037: inherited automatic-search feature marker; v10.38 replaces its submit/debounce implementation.
+  // STREAMFORGE_LOG_LIVE_AJAX_SEARCH_JS_V1038: every search keystroke
+  // immediately requests the full server-side result set and swaps only the
+  // log result fragments. The search input itself is never replaced, so its
+  // focus/caret stays where the operator is typing. Superseded requests are
+  // aborted instead of being allowed to paint stale results.
+  const panel = document.querySelector('.main-log-panel');
+  const form = panel?.querySelector('[data-main-log-filter-form]');
+  if (!panel || !form) return;
+  const sortInput = form.querySelector('[data-main-log-sort]');
+  const orderInput = form.querySelector('[data-main-log-order]');
+  const searchInput = form.querySelector('[data-main-log-search]');
+  let requestController = null;
+  let requestSequence = 0;
+
+  const buildUrl = (page = 1) => {
+    const params = new URLSearchParams(new FormData(form));
+    params.set('page', String(page));
+    return form.action + '?' + params.toString();
+  };
+
+  const swapFragment = (doc, selector) => {
+    const current = panel.querySelector(selector);
+    const incoming = doc.querySelector(selector);
+    if (!current || !incoming) return false;
+    current.replaceWith(incoming);
+    return true;
+  };
+
+  // STREAMFORGE_LOG_PRIVATE_ADDRESSBAR_JS_V1039
+  // STREAMFORGE_LOG_FIXED_CANONICAL_ADDRESSBAR_JS_V1040:
+  // Do not mutate browser history from the Logs live UI. The
+  // global panel router owns the visible address bar and keeps it at the
+  // configured canonical Panel/API root while internal log state stays in
+  // fetch URLs and form controls only.
+
+  const loadUrl = async (url) => {
+    if (requestController) requestController.abort();
+    const controller = new AbortController();
+    requestController = controller;
+    const sequence = ++requestSequence;
+    panel.classList.add('log-live-loading');
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        credentials: 'same-origin',
+        cache: 'no-store',
+        headers: {'X-StreamForge-Partial': 'logs'},
+        signal: controller.signal,
+      });
+      const text = await response.text();
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const doc = new DOMParser().parseFromString(text, 'text/html');
+      if (!doc.querySelector('[data-main-log-results]')) {
+        location.assign(response.url || url);
+        return;
+      }
+      if (sequence !== requestSequence) return;
+      swapFragment(doc, '[data-main-log-tabs]');
+      swapFragment(doc, '[data-main-log-summary]');
+      swapFragment(doc, '[data-main-log-results]');
+      swapFragment(doc, '[data-main-log-pagination-host]');
+    } catch (error) {
+      if (error?.name !== 'AbortError') console.error('StreamForge live log search failed', error);
+    } finally {
+      if (sequence === requestSequence) panel.classList.remove('log-live-loading');
+    }
+  };
+
+  const liveSearch = () => loadUrl(buildUrl(1));
+  searchInput?.addEventListener('input', liveSearch);
+  searchInput?.addEventListener('search', liveSearch);
+  searchInput?.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') event.preventDefault();
+  });
+
+  form.querySelectorAll('select').forEach((select) => {
+    select.addEventListener('change', () => loadUrl(buildUrl(1)));
+  });
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    loadUrl(buildUrl(1));
+  });
+
+  panel.addEventListener('click', (event) => {
+    const sortButton = event.target.closest('[data-log-sort]');
+    if (sortButton) {
+      event.preventDefault();
+      const key = String(sortButton.dataset.logSort || 'time');
+      const same = sortInput.value === key;
+      sortInput.value = key;
+      orderInput.value = same ? (orderInput.value === 'asc' ? 'desc' : 'asc') : (key === 'time' ? 'desc' : 'asc');
+      loadUrl(buildUrl(1));
+      return;
+    }
+    const pageLink = event.target.closest('[data-main-log-pagination-host] a[href]');
+    if (pageLink && !pageLink.classList.contains('disabled')) {
+      event.preventDefault();
+      loadUrl(pageLink.href);
+    }
+  });
+})();
+</script>
+{% endblock %}

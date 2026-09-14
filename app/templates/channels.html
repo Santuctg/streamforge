@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% block title %}Channels · {{ branding.name }}{% endblock %}
+{% block heading %}<h1>Channels</h1><p>Inputs, categories, codecs and outputs</p>{% endblock %}
+{% block content %}
+{# STREAMFORGE_MAIN_ACTIVE_INPUT_SOURCE_V87 #}
+{% set show_bulk = can('channels.start') or can('channels.stop') or can('channels.restart') or can('channels.delete') or can('channels.assign_node') or can('channels.edit') %}
+{% if message %}<div class="alert success channel-page-alert">{{ message }}</div>{% endif %}
+{% if error %}<div class="alert warning channel-page-alert">Saved with warning: {{ error }}</div>{% endif %}
+{# STREAMFORGE_BULK_NODE_ASSIGNMENT_AJAX_NOTICE_V1125 #}
+<div class="alert success channel-page-alert" data-channel-bulk-result hidden></div>
+<section class="panel">
+  <div class="panel-head channel-panel-head">
+    <div><h2>Encoder channels</h2><p>UDP, RTP, HTTP/HLS and SRT inputs are accepted by FFmpeg.</p></div>
+    <div class="head-actions">
+      {% if can('imports.view') %}<a class="button" href="/channels/import">Import streams</a>{% endif %}
+      {% if can('nodes.view') %}<a class="button" href="/nodes">Nodes</a>{% endif %}
+      {% if can('categories.view') %}<a class="button" href="/categories">Categories</a>{% endif %}
+      {% if can('channels.create') %}<a class="button primary" href="/channels/new">+ Add channel</a>{% endif %}
+    </div>
+  </div>
+
+  <div class="channel-filter-bar">
+    <form method="get" action="/channels" class="filter-form channel-search-form" data-live-channel-filter-form>
+      <label class="channel-search-label">Search
+        <input type="search" name="q" value="{{ search_query or '' }}" placeholder="Type to filter name, category, server or source" data-live-channel-search autocomplete="off">
+      </label>
+      <label>Category
+        <select name="category" data-auto-submit-filter>
+          <option value="" {% if not selected_category %}selected{% endif %}>All categories</option>
+          <option value="uncategorized" {% if selected_category == 'uncategorized' %}selected{% endif %}>Uncategorized</option>
+          {% for category in categories %}<option value="{{ category.id }}" {% if selected_category == category.id|string %}selected{% endif %}>{{ category.name }} ({{ category_counts.get(category.id, 0) }})</option>{% endfor %}
+        </select>
+      </label>
+      <label>Server
+        <select name="node" data-auto-submit-filter>
+          <option value="" {% if not selected_node %}selected{% endif %}>All servers</option>
+          {% for node in nodes %}<option value="{{ node.id }}" {% if selected_node == node.id|string %}selected{% endif %}>{{ 'Main Server' if node.node_type == 'local' else node.name }} ({{ node_counts.get(node.id, 0) }})</option>{% endfor %}
+        </select>
+      </label>
+      <label>Status
+        <select name="status" data-channel-status-filter>
+          <option value="" {% if not selected_status %}selected{% endif %}>All status</option>
+          <option value="up" {% if selected_status == 'up' %}selected{% endif %}>Up</option>
+          <option value="waiting" {% if selected_status == 'waiting' %}selected{% endif %}>Waiting</option>
+          <option value="down" {% if selected_status == 'down' %}selected{% endif %}>Down</option>
+        </select>
+      </label>
+      {# STREAMFORGE_CHANNEL_LIST_LIMIT_SELECTOR_V85 #}
+      <label>Show
+        <select name="limit" data-channel-limit-filter>
+          {% for value in ['10','20','50','100','200','500','all'] %}<option value="{{ value }}" {% if selected_channel_limit == value %}selected{% endif %}>{{ 'ALL' if value == 'all' else value }}</option>{% endfor %}
+        </select>
+      </label>
+      <span class="live-filter-result" data-live-filter-result>{{ [10, channels|length]|min }} of {{ channels|length }} channels</span>
+      <button class="button small" type="button" data-live-filter-clear{% if not search_query and not selected_category and not selected_node and not selected_status %} hidden{% endif %}>Clear filters</button>
+    </form>
+  </div>
+
+  {% if show_bulk %}
+  <form id="channel-bulk-form" class="channel-bulk-toolbar" method="post" action="/channels/bulk">
+    <div class="bulk-action-group" data-global-actions>
+      <span class="bulk-label">All channels</span>
+      {% if can('channels.start') %}<button class="button success small" type="submit" name="action" value="start_all">Start all</button>{% endif %}
+      {% if can('channels.restart') %}<button class="button restart-button small" type="submit" name="action" value="restart_all" data-confirm="Restart every live channel?">Restart all live</button>{% endif %}
+      {% if can('channels.stop') %}<button class="button danger small" type="submit" name="action" value="stop_all" data-confirm="Stop all channels?">Stop all</button>{% endif %}
+    </div>
+    <div class="bulk-action-group selected-actions" data-selected-actions hidden>
+      <div class="bulk-selected-primary">
+        <span class="bulk-selection-count" data-selected-count>0 selected</span>
+        {% if can('channels.start') %}<button class="button success small" type="submit" name="action" value="start_selected" data-selected-action disabled>Start selected</button>{% endif %}
+        {% if can('channels.restart') %}<button class="button restart-button small" type="submit" name="action" value="restart_selected" data-selected-action data-confirm-selected="Restart the selected channels?" disabled>Restart selected</button>{% endif %}
+        {% if can('channels.stop') %}<button class="button danger small" type="submit" name="action" value="stop_selected" data-selected-action disabled>Stop selected</button>{% endif %}
+        {% if can('channels.delete') %}<button class="button ghost-danger small" type="submit" name="action" value="delete_selected" data-selected-action data-confirm-selected="Delete the selected channels permanently?" disabled>Delete selected</button>{% endif %}
+      </div>
+      {% if can('channels.assign_node') %}
+      <div class="bulk-node-tools">
+        <span class="bulk-node-label">Node assignment</span>
+        <select name="bulk_node_ids" multiple size="3" aria-label="Nodes for selected channels">
+          {% for node in nodes %}<option value="{{ node.id }}">{{ 'Main Server' if node.node_type == 'local' else node.name }}</option>{% endfor %}
+        </select>
+        <button class="button small" type="submit" name="action" value="nodes_add" data-selected-action disabled>Add nodes</button>
+        <button class="button small" type="submit" name="action" value="nodes_remove" data-selected-action data-confirm-selected="Remove the chosen nodes from selected channels?" disabled>Remove nodes</button>
+        <button class="button restart-button small" type="submit" name="action" value="nodes_set" data-selected-action data-confirm-selected="Replace node assignment for selected channels?" disabled>Set nodes</button>
+        <button class="button success small" type="submit" name="action" value="relay_set" data-selected-action data-confirm-selected="Use the Local Node HLS relay on the chosen remote nodes? Missing Local/remote assignments will be added automatically." disabled>Use Local relay</button>
+        <button class="button small" type="submit" name="action" value="relay_clear" data-selected-action data-confirm-selected="Restore original/main input on the chosen remote nodes?" disabled>Use original input</button>
+      </div>
+      {% endif %}
+      {% if can('channels.edit') %}
+      <details class="bulk-profile-tools" data-bulk-profile-v1025>
+        <summary>Encoding profile</summary>
+        <div class="bulk-profile-grid">
+          <label>Video codec<select name="bulk_video_codec">
+            <option value="keep">Keep current</option><option value="copy">Copy</option><option value="auto">H.264 AUTO</option><option value="h264_nvenc">NVIDIA H.264 NVENC</option><option value="auto_hevc">H.265 AUTO</option>
+          </select></label>
+          <label>Video bitrate<input name="bulk_video_bitrate" placeholder="Keep current, e.g. 2500k"></label>
+          <label>Resolution<select name="bulk_resolution">
+            <option value="keep">Keep current</option><option value="source">Source / no scaling</option><option value="1920x1080">1920×1080</option><option value="1280x720">1280×720</option><option value="1024x576">1024×576</option><option value="854x480">854×480</option><option value="640x360">640×360</option>
+          </select></label>
+          <label>Audio codec<select name="bulk_audio_codec">
+            <option value="keep">Keep current</option><option value="copy">Copy / Passthrough</option><option value="aac">AAC-LC</option><option value="ac3">AC-3</option><option value="eac3">E-AC-3</option><option value="mp2">MP2</option><option value="libmp3lame">MP3</option><option value="libopus">Opus</option><option value="flac">FLAC</option><option value="libvorbis">Vorbis</option><option value="pcm_s16le">PCM 16-bit</option>
+          </select></label>
+          <label>Audio bitrate<input name="bulk_audio_bitrate" placeholder="Keep current, e.g. 128k"></label>
+          <label>HLS segment seconds<select name="bulk_hls_segment_time">
+            <option value="keep">Keep current</option><option value="inherit">Use channel default</option>{% for seconds in range(1, 21) %}<option value="{{ seconds }}">{{ seconds }} second{{ '' if seconds == 1 else 's' }}</option>{% endfor %}
+          </select></label>
+          <button class="button primary small bulk-profile-apply" type="submit" name="action" value="profile_update" data-selected-action data-confirm-selected="Apply this encoding profile to selected channels? Only affected running replicas will restart; stopped replicas stay stopped." disabled>Apply profile</button>
+        </div>
+        {# STREAMFORGE_BULK_PROFILE_NODE_TARGET_UI_V1027 #}
+        <div class="bulk-hls-node-targets">
+          <label><span>Encoding target nodes</span><select name="bulk_profile_node_ids" multiple size="3" aria-label="Nodes receiving this encoding profile">
+            {% for node in nodes %}<option value="{{ node.id }}">{{ 'Main Server' if node.node_type == 'local' else node.name }}</option>{% endfor %}
+          </select></label>
+          <small>Select node(s) to change only those node overrides. Leave all unselected to change the channel default for every inheriting node.</small>
+        </div>
+      </details>
+      {% endif %}
+    </div>
+  </form>
+  {% endif %}
+
+  <div class="table-wrap channel-control-wrap"><table class="channel-control-table main-channel-control-table">
+  <colgroup>{% if show_bulk %}<col class="main-col-select">{% endif %}<col class="main-col-id"><col class="main-col-id"><col class="main-col-channel"><col class="main-col-server"><col class="main-col-online"><col class="main-col-status"><col class="main-col-controls"><col class="main-col-stream"><col class="main-col-video"><col class="main-col-audio"><col class="main-col-speed"><col class="main-col-fps"><col class="main-col-more"></colgroup>
+  {# STREAMFORGE_CHANNEL_TABLE_SORT_HEADERS_V65R10 #}
+  <thead><tr>{% if show_bulk %}<th class="select-column"><input type="checkbox" data-select-all aria-label="Select all channels"></th>{% endif %}<th class="channel-id-column" data-channel-sort-header><button type="button" class="channel-sort-button" data-channel-sort-key="displayId" data-channel-sort-type="number">ID <span class="channel-sort-indicator" aria-hidden="true">↕</span></button></th><th class="channel-id-column" data-channel-sort-header><button type="button" class="channel-sort-button" data-channel-sort-key="dbId" data-channel-sort-type="number">DB <span class="channel-sort-indicator" aria-hidden="true">↕</span></button></th><th class="main-head-channel" data-channel-sort-header><button type="button" class="channel-sort-button channel-sort-left" data-channel-sort-key="channel" data-channel-sort-type="text">Channel <span class="channel-sort-indicator" aria-hidden="true">↕</span></button></th><th class="main-head-server" data-channel-sort-header><button type="button" class="channel-sort-button channel-sort-left" data-channel-sort-key="server" data-channel-sort-type="text">Servers <span class="channel-sort-indicator" aria-hidden="true">↕</span></button></th><th class="main-head-center" data-channel-sort-header><button type="button" class="channel-sort-button" data-channel-sort-key="online" data-channel-sort-type="number">Online <span class="channel-sort-indicator" aria-hidden="true">↕</span></button></th><th class="main-head-center" data-channel-sort-header><button type="button" class="channel-sort-button" data-channel-sort-key="status" data-channel-sort-type="status">Status / uptime <span class="channel-sort-indicator" aria-hidden="true">↕</span></button></th><th class="main-head-center">Controls</th><th class="main-head-center" data-channel-sort-header><button type="button" class="channel-sort-button" data-channel-sort-key="bitrate" data-channel-sort-type="number">Stream info <span class="channel-sort-indicator" aria-hidden="true">↕</span></button></th><th class="main-head-center" data-channel-sort-header><button type="button" class="channel-sort-button" data-channel-sort-key="video" data-channel-sort-type="text">Video <span class="channel-sort-indicator" aria-hidden="true">↕</span></button></th><th class="main-head-center" data-channel-sort-header><button type="button" class="channel-sort-button" data-channel-sort-key="audio" data-channel-sort-type="text">Audio <span class="channel-sort-indicator" aria-hidden="true">↕</span></button></th><th class="main-head-center" data-channel-sort-header><button type="button" class="channel-sort-button" data-channel-sort-key="speed" data-channel-sort-type="number">Speed <span class="channel-sort-indicator" aria-hidden="true">↕</span></button></th><th class="main-head-center" data-channel-sort-header><button type="button" class="channel-sort-button" data-channel-sort-key="fps" data-channel-sort-type="number">FPS <span class="channel-sort-indicator" aria-hidden="true">↕</span></button></th><th class="main-head-center" aria-label="More actions"></th></tr></thead>
+  <tbody data-live-channel-rows>
+  {% for channel in channels %}
+  {% set primary_node = channel.nodes[0] if channel.nodes else channel.node %}
+  {% set assigned_count = channel.nodes|length if channel.nodes else (1 if channel.node else 0) %}
+  {% set initial_runtime = initial_channel_runtime.get(channel.id, {}) %}
+  {% set initial_process_status = initial_runtime.get('process_status', channel.status|lower) %}
+  {% set initial_delivery_status = initial_runtime.get('status', 'waiting' if channel.enabled and (channel.desired_running or initial_process_status in ['running','starting','restarting','degraded']) else 'down') %}
+  {% set initial_uptime_seconds = initial_runtime.get('uptime_seconds', 0) %}
+  {% set active_source = channel_active_source_endpoint(channel, initial_runtime) %}
+  <tr class="channel-control-row" data-channel-id="{{ channel.id }}" data-runtime-status="{{ initial_delivery_status }}" data-process-status="{{ initial_process_status }}" data-sort-display-id="{{ channel_display_ids[channel.id] }}" data-sort-db-id="{{ channel.id }}" data-sort-channel="{{ channel.name|lower }}" data-sort-server="{{ ('Main Server' if not primary_node or primary_node.node_type == 'local' else primary_node.name)|lower }}" data-sort-online="{{ viewer_by_channel.get(channel.id, 0) }}" data-sort-status="{{ initial_delivery_status }}" data-sort-uptime="{{ initial_uptime_seconds }}" data-sort-bitrate="{{ channel.live_bitrate_kbps or 0 }}" data-sort-video="{{ (channel.video_codec or '')|lower }}" data-sort-audio="{{ (channel.audio_codec or '')|lower }}" data-sort-speed="0" data-sort-fps="{{ channel.fps or 0 }}" {% if can('channels.playback') and channel.output_type == 'hls' %}data-http-url="{{ http_outputs[channel.id]['hls'] }}"{% endif %} data-channel-category-id="{{ channel.category.id if channel.category else 0 }}" data-channel-category-ids="{{ channel_category_list(channel)|map(attribute='id')|join(',') }}" data-channel-node-ids="{{ channel.nodes|map(attribute='id')|join(',') if channel.nodes else (channel.node.id if channel.node else '') }}" data-channel-search="{{ (channel_display_ids[channel.id]|string ~ ' ' ~ channel.id|string ~ ' ' ~ channel.name ~ ' ' ~ channel.slug ~ ' ' ~ channel.input_url ~ ' ' ~ (channel.backup_inputs or '') ~ ' ' ~ (channel_category_names(channel)) ~ ' ' ~ (channel.nodes|map(attribute='name')|join(' ')) ~ ' ' ~ (channel.node.name if channel.node else '') ~ ' ' ~ ('Main Server' if ((channel.nodes and channel.nodes[0].node_type == 'local') or (not channel.nodes and channel.node and channel.node.node_type == 'local')) else ''))|lower }}">
+    {% if show_bulk %}<td class="select-column channel-select-cell" data-label="Select"><input class="channel-select" type="checkbox" name="channel_ids" value="{{ channel.id }}" form="channel-bulk-form" aria-label="Select {{ channel.name }}"></td>{% endif %}
+    <td class="channel-id-cell mono" data-label="ID">{{ channel_display_ids[channel.id] }}</td>
+    <td class="channel-id-cell mono" data-label="DB">{{ channel.id }}</td>
+    <td class="channel-identity-cell" data-label="Channel">
+      <div class="channel-name-cell">{% if channel.logo_url %}<img class="channel-logo channel-control-logo" src="{{ channel.logo_url|versioned_asset }}" alt="" loading="lazy" onerror="this.remove()">{% endif %}<div class="channel-name-meta"><b>{{ channel.name }}</b><small>{{ channel_category_names(channel) }} · {{ channel.output_type|upper }}</small>{% if not channel.enabled %}<span class="muted-tag">disabled</span>{% endif %}</div></div>
+    </td>
+    <td class="server-cluster-cell" data-label="Server">
+      {% if primary_node %}
+        {% if assigned_count > 1 %}<details class="server-cluster main-server-cluster"><summary><span class="server-primary"><b>{{ 'Main Server' if primary_node.node_type == 'local' else primary_node.name }}</b><small{% if primary_node.node_type == 'local' %} data-active-source{% endif %}>{{ active_source if primary_node.node_type == 'local' else (primary_node.dns_name or primary_node.api_url or 'Remote server') }}</small></span><span class="server-extra">+{{ assigned_count - 1 }}</span></summary><div class="server-cluster-menu">
+          {% for node in channel.nodes %}<a href="/channels?node={{ node.id }}"><b>{{ 'Main Server' if node.node_type == 'local' else node.name }}</b><small{% if node.node_type == 'local' %} data-active-source{% endif %}>{{ active_source if node.node_type == 'local' else (node.dns_name or node.api_url or 'Remote server') }}</small></a>{% endfor %}
+        </div></details>
+        {% else %}<a class="server-primary single" href="/channels?node={{ primary_node.id }}"><b>{{ 'Main Server' if primary_node.node_type == 'local' else primary_node.name }}</b><small{% if primary_node.node_type == 'local' %} data-active-source{% endif %}>{{ active_source if primary_node.node_type == 'local' else (primary_node.dns_name or primary_node.api_url or 'Remote server') }}</small></a>{% endif %}
+      {% else %}<span class="server-primary single"><b>Main Server</b><small data-active-source>{{ active_source }}</small></span>{% endif %}
+    </td>
+    <td class="main-online-cell" data-label="Online"><a class="channel-online-badge" data-online-users href="/viewer-sessions?channel_id={{ channel.id }}">{{ viewer_by_channel.get(channel.id, 0) }}</a></td>
+    <td class="main-status-cell" data-label="Status"><div class="channel-runtime"><details class="runtime-alert-menu" data-runtime-alert-menu><summary class="runtime-alert-dot {% if channel.last_error and channel.status in ['error','degraded','starting','restarting'] %}has-error{% else %}idle{% endif %}" data-runtime-alert data-has-error="{{ 1 if channel.last_error and channel.status in ['error','degraded','starting','restarting'] else 0 }}"{% if channel.last_error and channel.status in ['error','degraded','starting','restarting'] %} data-tooltip="Error detected · click for details"{% endif %} aria-label="{{ channel.last_error if channel.last_error and channel.status in ['error','degraded','starting','restarting'] else initial_delivery_status|capitalize }}" data-error-endpoint="/channels/{{ channel.id }}/errors.json" data-clear-endpoint="/channels/{{ channel.id }}/errors/clear" data-channel-name="{{ channel.name }}"><span>{% if channel.last_error and channel.status in ['error','degraded','starting','restarting'] %}!{% endif %}</span></summary></details><span class="status {{ initial_delivery_status }}" data-status>{{ initial_delivery_status }}</span><b class="runtime-uptime" data-uptime>{{ human_duration(initial_uptime_seconds) if initial_uptime_seconds else '—' }}</b></div></td>
+    <td class="main-controls-cell" data-label="Controls"><div class="channel-control-actions" data-http-slot>
+      {# STREAMFORGE_MAIN_CHANNEL_ACTION_BUTTON_STATE_V2251 #}
+      {# STREAMFORGE_MAIN_CHANNEL_ACTION_VISIBILITY_FIX_V2252 #}
+      {% set runtime_up = channel.status in ['running','starting','restarting','degraded'] %}
+      {% if can('channels.start') %}<form method="post" action="/channels/{{ channel.id }}/start" data-channel-runtime-action="start"{% if runtime_up %} hidden aria-hidden="true" style="display:none"{% else %} aria-hidden="false"{% endif %}><button class="channel-icon-button play" title="Start channel" aria-label="Start channel"><span class="button-glyph">▶</span></button></form>{% endif %}
+      {% if can('channels.stop') %}<form method="post" action="/channels/{{ channel.id }}/stop" data-channel-runtime-action="stop"{% if not runtime_up %} hidden aria-hidden="true" style="display:none"{% else %} aria-hidden="false"{% endif %}><button class="channel-icon-button stop" title="Stop channel" aria-label="Stop channel"><span class="button-glyph">⏹</span></button></form>{% endif %}
+      {% if can('channels.restart') %}<form method="post" action="/channels/{{ channel.id }}/restart" data-channel-runtime-action="restart"{% if not runtime_up %} hidden aria-hidden="true" style="display:none"{% else %} aria-hidden="false"{% endif %}><button class="channel-icon-button restart" title="Restart channel" aria-label="Restart channel"><span class="button-glyph">↻</span></button></form>{% endif %}
+      {% if can('channels.playback') and channel.output_type == 'hls' %}<a class="channel-icon-button http{% if not http_ready.get(channel.id, false) %} http-action-hidden{% endif %}" data-http-action data-http-url="{{ http_outputs[channel.id]['hls'] }}" href="{{ http_outputs[channel.id]['hls'] }}" target="_blank" rel="noopener" title="Open HTTP output"{% if not http_ready.get(channel.id, false) %} hidden aria-hidden="true"{% else %} aria-hidden="false"{% endif %}><span class="button-glyph">H</span></a>{% endif %}
+    </div></td>
+    <td class="stream-summary-cell" data-label="Stream"><b data-resolution>{{ (channel.width|string ~ ' × ' ~ channel.height|string) if channel.width and channel.height else 'Source' }}</b><small data-bitrate>{{ channel.live_bitrate_kbps }} kb/s</small></td>
+    <td class="codec-cell" data-label="Video"><span class="metric-icon video" aria-hidden="true">V</span><b>{{ channel.video_codec }}</b><small>{{ channel.video_bitrate }}</small></td>
+    <td class="codec-cell" data-label="Audio"><span class="metric-icon audio" aria-hidden="true">A</span><b>{{ channel.audio_codec }}</b><small>{{ channel.audio_bitrate }}</small></td>
+    <td class="mono channel-speed" data-label="Speed"><span class="metric-icon speed" aria-hidden="true">×</span><b data-speed>—</b></td>
+    <td class="mono nowrap fps-cell" data-label="FPS"><span class="metric-icon fps" aria-hidden="true">F</span><b data-fps>{{ channel.fps or '—' }}</b><small>FPS</small></td>
+    <td class="channel-more-cell" data-label="More"><details class="channel-more-menu"><summary class="channel-icon-button more" title="More actions" aria-label="More actions"><span class="button-glyph">⋯</span></summary><div class="channel-more-popover"><button type="button" data-channel-log-open data-error-endpoint="/channels/{{ channel.id }}/errors.json" data-clear-endpoint="/channels/{{ channel.id }}/errors/clear" data-channel-name="{{ channel.name }}">Stream logs</button>{% if can('channels.info') %}<a href="/channels/{{ channel.id }}/info">Info</a>{% endif %}{% if can('channels.edit') %}<a href="/channels/{{ channel.id }}/edit">Edit</a>{% endif %}{% if can('channels.delete') %}<form method="post" action="/channels/{{ channel.id }}/delete" onsubmit="return confirm('Delete this channel?')"><button class="danger-link">Delete</button></form>{% endif %}</div></details></td>
+  </tr>
+  {% else %}<tr><td colspan="{{ 13 if show_bulk else 12 }}" class="empty">No channels found.</td></tr>{% endfor %}
+  <tr class="live-filter-empty" data-live-filter-empty hidden><td colspan="{{ 13 if show_bulk else 12 }}" class="empty">No channel matches this search.</td></tr>
+  </tbody></table></div>
+  {# STREAMFORGE_MAIN_CHANNEL_LIVE_PAGINATION_V1122: no document navigation. #}
+  <nav class="channel-list-pagination" data-channel-pagination aria-label="Channel pages" hidden>
+    <button class="button" type="button" data-channel-page-prev>Previous</button>
+    <div class="channel-list-page-numbers" data-channel-page-numbers></div>
+    <span data-channel-page-summary></span>
+    <button class="button" type="button" data-channel-page-next>Next</button>
+  </nav>
+</section>
+{% endblock %}

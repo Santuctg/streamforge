@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+{% block title %}Web Player Manage · {{ branding.name }}{% endblock %}
+{% block heading %}<h1>Web Player Manage</h1><p>{{ 'Main Server' if node.node_type == 'local' else node.name }} Web Player appearance and viewer information</p>{% endblock %}
+{% block content %}
+{% if error %}<div class="alert danger">{{ error }}</div>{% endif %}
+{% if message %}<div class="alert success">{{ message }}</div>{% endif %}
+<section class="panel">
+  <div class="panel-head">
+    <div><h2>{{ 'Main Server' if node.node_type == 'local' else node.name }}</h2><p>These settings affect only this server's browser Web Player. The video canvas remains black.</p></div>
+    <div class="head-actions"><a class="button" href="/nodes">Back to nodes</a></div>
+  </div>
+  <form method="post" action="/nodes/{{ node.id }}/web-player" class="form-grid" enctype="multipart/form-data">
+    <div class="wide login-mode-card">
+      <span class="field-title">Login system</span>
+      <div class="login-mode-options">
+        <label class="mode-option"><input type="radio" name="login_mode" value="manual" {% if settings.login_mode == 'manual' %}checked{% endif %}><span><b>Manual Login</b><small>Viewer signs in with Playlist/Xtream username and password.</small></span></label>
+        <label class="mode-option"><input type="radio" name="login_mode" value="auto" {% if settings.login_mode == 'auto' %}checked{% endif %}><span><b>Auto Login</b><small>Open this server's Web Player directly with the selected user. No login page is shown.</small></span></label>
+        <!-- STREAMFORGE_WEBPLAYER_QUICK_OR_MANUAL_LOGIN_V3041 -->
+        <label class="mode-option"><input type="radio" name="login_mode" value="quick" {% if settings.login_mode == 'quick' %}checked{% endif %}><span><b>Quick User + Manual Login</b><small>Show one selected user for one-click login, plus a separate username and password option.</small></span></label>
+      </div>
+      <label class="auto-user-row" data-auto-user-row {% if settings.login_mode == 'manual' %}hidden{% endif %}>
+        <span data-selected-user-label>Auto Login User</span>
+        {% if node.node_type == 'remote' %}
+        <select name="auto_user_token">
+          <option value="">Select Node user</option>
+          {% for item in webplayer_users %}<option value="{{ item.token }}" {% if settings.auto_user_token == item.token %}selected{% endif %}>{{ item.name }}{% if item.username %} · {{ item.username }}{% endif %}</option>{% endfor %}
+        </select>
+        <input type="hidden" name="auto_user_id" value="0">
+        {% else %}
+        <select name="auto_user_id">
+          <option value="0">Select Main user</option>
+          {% for item in webplayer_users %}<option value="{{ item.id }}" {% if settings.auto_user_id == item.id %}selected{% endif %}>{{ item.name }}{% if item.xtream_username %} · {{ item.xtream_username }}{% endif %}</option>{% endfor %}
+        </select>
+        <input type="hidden" name="auto_user_token" value="">
+        {% endif %}
+        <small class="field-help" data-selected-user-help>{% if node.node_type == 'local' %}Only active Main Server users are listed.{% else %}Only active users created for this Remote Node are listed. Main Server users are not shown.{% endif %}</small>
+      </label>
+    </div>
+
+    <!-- STREAMFORGE_WEBPLAYER_DOWNLOAD_MANAGE_UI_V3045 -->
+    <div class="wide webplayer-download-card">
+      <span class="field-title">Player download</span>
+      <label>
+        <span>Upload download file</span>
+        <input type="file" name="download_file">
+        <small class="field-help">Maximum 100 MB. The Download buttons appear only while a file is uploaded.</small>
+      </label>
+      {% if settings.download_available %}
+      <div class="download-current"><b>Current file</b><span class="mono">{{ settings.download_name }}</span><label class="toggle-row"><input type="checkbox" name="remove_download" value="1">Remove this download</label></div>
+      {% endif %}
+      <!-- STREAMFORGE_ANDROID_UPDATE_MANAGE_UI_V3061 -->
+      <div class="android-update-grid">
+        <label><span>Android app version</span><input name="android_version_name" maxlength="64" value="{{ settings.android_version_name }}" placeholder="5.2"><small class="field-help">Set a version only when the uploaded Player download is an .apk. update.json always exposes this server's Web Player colors; Android update fields are populated only when an APK version is configured.</small></label>
+        <label class="wide"><span>Update description</span><textarea name="android_description" maxlength="2000" rows="3" placeholder="Bug fixes and performance improvements">{{ settings.android_description }}</textarea></label>
+        {% if update_json_url %}<label class="wide"><span>Android update JSON URL</span><div class="copy-field"><input class="mono" value="{{ update_json_url }}" readonly><button class="button" type="button" data-copy>Copy</button></div><small class="field-help">This URL always returns this server's own Web Player colors. When an Android APK is configured, update_url is also generated automatically from this server's Playlist/App URL and uploaded APK filename.</small></label>{% endif %}
+      </div>
+    </div>
+
+    <div class="wide viewer-info-card">
+      <span class="field-title">Viewer information</span>
+      <!-- STREAMFORGE_VIEWER_INFORMATION_SIDE_BY_SIDE_V2290 -->
+      <div class="viewer-info-options">
+        <label class="viewer-info-option">
+          <span class="toggle-row"><input type="checkbox" name="show_user_info" value="1" {% if settings.show_user_info %}checked{% endif %}><b>Show Username and Expire under the player</b></span>
+          <small class="field-help">Turn this off to hide both Username and Expire from this server's player.</small>
+        </label>
+        <!-- STREAMFORGE_WEBPLAYER_CONNECTION_INFO_MANAGE_V2238 -->
+        <label class="viewer-info-option">
+          <span class="toggle-row"><input type="checkbox" name="show_connection_info" value="1" {% if settings.show_connection_info %}checked{% endif %}><b>Show Max Connections and Online Use under the player</b></span>
+          <small class="field-help">Turn this off to hide both Max Connections and Online Use from this server's player.</small>
+        </label>
+      </div>
+    </div>
+
+    <label>
+      <span>Page background</span>
+      <div class="color-setting">
+        <input type="color" value="{{ settings.page_color }}" data-color-picker="page_color">
+        <input class="mono" name="page_color" value="{{ settings.page_color }}" maxlength="7" pattern="#[0-9A-Fa-f]{6}" data-color-text="page_color" required>
+        <div class="alpha-setting"><input type="range" min="0" max="100" step="1" name="page_alpha" value="{{ settings.page_alpha }}" data-alpha="page_alpha"><output data-alpha-output="page_alpha">{{ settings.page_alpha }}%</output></div>
+      </div>
+    </label>
+    <label>
+      <span>Panel / card color</span>
+      <div class="color-setting">
+        <input type="color" value="{{ settings.panel_color }}" data-color-picker="panel_color">
+        <input class="mono" name="panel_color" value="{{ settings.panel_color }}" maxlength="7" pattern="#[0-9A-Fa-f]{6}" data-color-text="panel_color" required>
+        <div class="alpha-setting"><input type="range" min="0" max="100" step="1" name="panel_alpha" value="{{ settings.panel_alpha }}" data-alpha="panel_alpha"><output data-alpha-output="panel_alpha">{{ settings.panel_alpha }}%</output></div>
+      </div>
+    </label>
+    <label>
+      <span>Accent color</span>
+      <div class="color-setting">
+        <input type="color" value="{{ settings.accent_color }}" data-color-picker="accent_color">
+        <input class="mono" name="accent_color" value="{{ settings.accent_color }}" maxlength="7" pattern="#[0-9A-Fa-f]{6}" data-color-text="accent_color" required>
+        <div class="alpha-setting"><input type="range" min="0" max="100" step="1" name="accent_alpha" value="{{ settings.accent_alpha }}" data-alpha="accent_alpha"><output data-alpha-output="accent_alpha">{{ settings.accent_alpha }}%</output></div>
+      </div>
+      <small class="field-help">Used for active category, active channel border and highlights.</small>
+    </label>
+    <label>
+      <span>Text color</span>
+      <div class="color-setting">
+        <input type="color" value="{{ settings.text_color }}" data-color-picker="text_color">
+        <input class="mono" name="text_color" value="{{ settings.text_color }}" maxlength="7" pattern="#[0-9A-Fa-f]{6}" data-color-text="text_color" required>
+        <div class="alpha-setting"><input type="range" min="0" max="100" step="1" name="text_alpha" value="{{ settings.text_alpha }}" data-alpha="text_alpha"><output data-alpha-output="text_alpha">{{ settings.text_alpha }}%</output></div>
+      </div>
+    </label>
+
+    <div class="wide webplayer-preview" style="--preview-page:{{ settings.page_rgba }};--preview-panel:{{ settings.panel_rgba }};--preview-accent:{{ settings.accent_rgba }};--preview-text:{{ settings.text_rgba }}">
+      <div class="preview-player">Video</div>
+      <div class="preview-panel"><b>LIVE STREAMS</b><span class="preview-chip">All</span><div class="preview-card">Channel</div></div>
+    </div>
+    <div class="wide form-actions"><button class="button primary" type="submit">Save Web Player</button></div>
+  </form>
+</section>
+
+<!-- STREAMFORGE_WEBPLAYER_MULTI_BRAND_UI_V1155 -->
+<section class="panel webplayer-brands-panel" style="margin-top:18px">
+  <div class="panel-head">
+    <div><h2>Web Player Brands</h2><p>Run multiple names/themes on the same server. Saving a brand automatically activates its URL as a Playlist/App alias. Bare domains/IPs use HTTP; enter a full https:// URL when TLS is required.</p></div>
+  </div>
+  <!-- STREAMFORGE_WEBPLAYER_BRAND_FULL_SETTINGS_UI_V1159 -->
+  <div class="brand-profile-list">
+    {% for brand in brands %}
+    <form method="post" action="/nodes/{{ node.id }}/web-player/brand" class="brand-profile-card brand-settings-form" enctype="multipart/form-data" data-brand-settings>
+      <input type="hidden" name="brand_id" value="{{ brand.id }}">
+      <div class="brand-profile-grid">
+        <label><span>Brand name</span><input name="brand_name" maxlength="120" value="{{ brand.name }}" required></label>
+        <label class="wide"><span>Domains / IPs / URLs</span><textarea name="brand_domains" rows="2" required>{{ (brand.access_urls or brand.domains)|join('\n') }}</textarea><small class="field-help">One per line. Bare host/IP = HTTP. Example: 103.1.2.3 or https://player.example.com</small></label>
+        <!-- STREAMFORGE_WEBPLAYER_BRAND_ASSET_SINGLE_ROW_LAYOUT_V1163 -->
+        <div class="wide brand-assets-inline-field">
+          <div class="brand-assets-inline-grid">
+            <div class="brand-asset-inline-card">
+              <div class="brand-asset-upload-row">
+                <span class="brand-asset-upload-label">Logo</span>
+                <input type="file" name="brand_logo_file" accept="image/png,image/jpeg,image/webp,image/gif">
+                {% if brand.logo_url %}
+                <div class="brand-asset-current" title="Current brand logo">
+                  <img src="{{ brand.logo_url|versioned_asset }}" alt="{{ brand.name }} logo" onerror="this.hidden=true">
+                  <label class="toggle-row brand-asset-remove"><input type="checkbox" name="remove_brand_logo" value="1"><span>Remove current brand logo</span></label>
+                </div>
+                {% endif %}
+              </div>
+              <small class="field-help">Upload PNG/JPG/WEBP/GIF up to 2 MB.</small>
+            </div>
+            <div class="brand-asset-inline-card">
+              <div class="brand-asset-upload-row">
+                <span class="brand-asset-upload-label">Favicon</span>
+                <input type="file" name="brand_favicon_file" accept="image/x-icon,image/png,image/jpeg,image/webp,image/gif">
+                {% if brand.favicon_url %}
+                <div class="brand-asset-current" title="Current brand favicon">
+                  <img src="{{ brand.favicon_url|versioned_asset }}" alt="{{ brand.name }} favicon" onerror="this.hidden=true">
+                  <label class="toggle-row brand-asset-remove"><input type="checkbox" name="remove_brand_favicon" value="1"><span>Remove current favicon</span></label>
+                </div>
+                {% endif %}
+              </div>
+              <small class="field-help">Upload ICO/PNG/JPG/WEBP/GIF up to 2 MB.</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="wide login-mode-card brand-login-card">
+          <span class="field-title">Login system</span>
+          <div class="login-mode-options">
+            <label class="mode-option"><input type="radio" name="brand_login_mode" value="manual" {% if brand.login_mode == 'manual' %}checked{% endif %}><span><b>Manual Login</b><small>Viewer signs in with Playlist/Xtream username and password.</small></span></label>
+            <label class="mode-option"><input type="radio" name="brand_login_mode" value="auto" {% if brand.login_mode == 'auto' %}checked{% endif %}><span><b>Auto Login</b><small>Open this brand directly with the selected user. No login page is shown.</small></span></label>
+            <label class="mode-option"><input type="radio" name="brand_login_mode" value="quick" {% if brand.login_mode == 'quick' %}checked{% endif %}><span><b>Quick User + Manual Login</b><small>Show one selected user for one-click login plus manual username/password.</small></span></label>
+          </div>
+          <label class="auto-user-row" data-brand-auto-user-row {% if brand.login_mode == 'manual' %}hidden{% endif %}>
+            <span data-brand-selected-user-label>{{ 'Quick Login User' if brand.login_mode == 'quick' else 'Auto Login User' }}</span>
+            {% if node.node_type == 'remote' %}
+            <select name="brand_auto_user_token"><option value="">Select Node user</option>{% for item in webplayer_users %}<option value="{{ item.token }}" {% if brand.auto_user_token == item.token %}selected{% endif %}>{{ item.name }}{% if item.username %} · {{ item.username }}{% endif %}</option>{% endfor %}</select><input type="hidden" name="brand_auto_user_id" value="0">
+            {% else %}
+            <select name="brand_auto_user_id"><option value="0">Select Main user</option>{% for item in webplayer_users %}<option value="{{ item.id }}" {% if brand.auto_user_id == item.id %}selected{% endif %}>{{ item.name }}{% if item.xtream_username %} · {{ item.xtream_username }}{% endif %}</option>{% endfor %}</select><input type="hidden" name="brand_auto_user_token" value="">
+            {% endif %}
+            <small class="field-help">This selection belongs only to this brand/domain.</small>
+          </label>
+        </div>
+
+        <div class="wide brand-download-box webplayer-download-card"><span class="field-title">Player download</span><label><span>Upload download file</span><input type="file" name="brand_download_file"><small class="field-help">Optional per-brand Player/APK, maximum 100 MB. Blank inherits the server-level Player download.</small></label>{% if brand.download_stored_name %}<div class="download-current"><b>Current file</b><span class="mono">{{ brand.download_name }}</span><label class="toggle-row"><input type="checkbox" name="remove_brand_download" value="1">Remove brand download</label></div>{% endif %}<div class="android-update-grid"><label><span>Android app version</span><input name="brand_android_version_name" maxlength="64" value="{{ brand.android_version_name }}" placeholder="5.2"><small class="field-help">Set a version only when this brand has an uploaded .apk Player download.</small></label><label class="wide"><span>Update description</span><textarea name="brand_android_description" maxlength="2000" rows="3" placeholder="Bug fixes and performance improvements">{{ brand.android_description }}</textarea></label>{% if brand.access_urls %}<label class="wide"><span>Android update JSON URL</span><div class="copy-field"><input class="mono" value="{{ brand.access_urls[0] }}/update.json" readonly><button class="button" type="button" data-copy>Copy</button></div><small class="field-help">Host-scoped update.json returns this brand's logo, colors and APK.</small></label>{% endif %}</div></div>
+
+        <!-- STREAMFORGE_WEBPLAYER_BRAND_VIEWER_INFO_CARD_PARITY_V1163 -->
+        <div class="wide viewer-info-card">
+          <span class="field-title">Viewer information</span>
+          <div class="viewer-info-options">
+            <label class="viewer-info-option brand-viewer-info-option"><input type="checkbox" name="brand_show_user_info" value="1" {% if brand.show_user_info %}checked{% endif %}><span><b>Show Username and Expire under the player</b><small>Turn this off to hide both Username and Expire from this brand's player.</small></span></label>
+            <label class="viewer-info-option brand-viewer-info-option"><input type="checkbox" name="brand_show_connection_info" value="1" {% if brand.show_connection_info %}checked{% endif %}><span><b>Show Max Connections and Online Use under the player</b><small>Turn this off to hide both Max Connections and Online Use from this brand's player.</small></span></label>
+          </div>
+        </div>
+
+        {% for key,label in [('page','Page background'),('panel','Panel / card color'),('accent','Accent color'),('text','Text color')] %}
+        <label><span>{{ label }}</span><div class="color-setting"><input type="color" value="{{ brand[key ~ '_color'] }}" data-brand-color-picker="{{ key }}"><input class="mono" name="brand_{{ key }}_color" value="{{ brand[key ~ '_color'] }}" maxlength="7" pattern="#[0-9A-Fa-f]{6}" data-brand-color-text="{{ key }}" required><div class="alpha-setting"><input type="range" min="0" max="100" step="1" name="brand_{{ key }}_alpha" value="{{ brand[key ~ '_alpha'] }}" data-brand-alpha="{{ key }}"><output data-brand-alpha-output="{{ key }}">{{ brand[key ~ '_alpha'] }}%</output></div></div>{% if key == 'accent' %}<small class="field-help">Used for active category, active channel border and highlights.</small>{% endif %}</label>
+        {% endfor %}
+
+        <div class="wide webplayer-preview brand-webplayer-preview" data-brand-preview style="--preview-page:{{ brand.page_rgba }};--preview-panel:{{ brand.panel_rgba }};--preview-accent:{{ brand.accent_rgba }};--preview-text:{{ brand.text_rgba }}"><div class="preview-player">Video</div><div class="preview-panel"><b>LIVE STREAMS</b><span class="preview-chip">All</span><div class="preview-card">Channel</div></div></div>
+      </div>
+      <div class="brand-profile-actions"><button class="button primary" type="submit">Save Brand</button><button class="button danger" type="submit" name="delete_brand" value="1" onclick="return confirm('Delete this Web Player brand?')">Delete</button></div>
+    </form>
+    {% endfor %}
+
+    <form method="post" action="/nodes/{{ node.id }}/web-player/brand" class="brand-profile-card add-brand-card brand-settings-form" enctype="multipart/form-data" data-brand-settings>
+      <div class="brand-profile-grid">
+        <label><span>New brand name</span><input name="brand_name" maxlength="120" placeholder="TS Live" required></label>
+        <label class="wide"><span>Domains / IPs / URLs</span><textarea name="brand_domains" rows="2" placeholder="103.171.232.22&#10;https://player.example.com" required></textarea><small class="field-help">Bare host/IP = HTTP. Use a full https:// URL when this brand should use TLS.</small></label>
+        <div class="wide brand-assets-inline-field">
+          <div class="brand-assets-inline-grid">
+            <div class="brand-asset-inline-card">
+              <div class="brand-asset-upload-row">
+                <span class="brand-asset-upload-label">Logo</span>
+                <input type="file" name="brand_logo_file" accept="image/png,image/jpeg,image/webp,image/gif">
+              </div>
+              <small class="field-help">Upload PNG/JPG/WEBP/GIF up to 2 MB.</small>
+            </div>
+            <div class="brand-asset-inline-card">
+              <div class="brand-asset-upload-row">
+                <span class="brand-asset-upload-label">Favicon</span>
+                <input type="file" name="brand_favicon_file" accept="image/x-icon,image/png,image/jpeg,image/webp,image/gif">
+              </div>
+              <small class="field-help">Upload ICO/PNG/JPG/WEBP/GIF up to 2 MB.</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="wide login-mode-card brand-login-card"><span class="field-title">Login system</span><div class="login-mode-options"><label class="mode-option"><input type="radio" name="brand_login_mode" value="manual" {% if settings.login_mode == 'manual' %}checked{% endif %}><span><b>Manual Login</b><small>Viewer signs in with Playlist/Xtream username and password.</small></span></label><label class="mode-option"><input type="radio" name="brand_login_mode" value="auto" {% if settings.login_mode == 'auto' %}checked{% endif %}><span><b>Auto Login</b><small>Open this brand directly with the selected user.</small></span></label><label class="mode-option"><input type="radio" name="brand_login_mode" value="quick" {% if settings.login_mode == 'quick' %}checked{% endif %}><span><b>Quick User + Manual Login</b><small>Selected one-click user plus manual login.</small></span></label></div><label class="auto-user-row" data-brand-auto-user-row {% if settings.login_mode == 'manual' %}hidden{% endif %}><span data-brand-selected-user-label>{{ 'Quick Login User' if settings.login_mode == 'quick' else 'Auto Login User' }}</span>{% if node.node_type == 'remote' %}<select name="brand_auto_user_token"><option value="">Select Node user</option>{% for item in webplayer_users %}<option value="{{ item.token }}" {% if settings.auto_user_token == item.token %}selected{% endif %}>{{ item.name }}{% if item.username %} · {{ item.username }}{% endif %}</option>{% endfor %}</select><input type="hidden" name="brand_auto_user_id" value="0">{% else %}<select name="brand_auto_user_id"><option value="0">Select Main user</option>{% for item in webplayer_users %}<option value="{{ item.id }}" {% if settings.auto_user_id == item.id %}selected{% endif %}>{{ item.name }}{% if item.xtream_username %} · {{ item.xtream_username }}{% endif %}</option>{% endfor %}</select><input type="hidden" name="brand_auto_user_token" value="">{% endif %}</label></div>
+
+        <div class="wide brand-download-box webplayer-download-card"><span class="field-title">Player download</span><label><span>Upload download file</span><input type="file" name="brand_download_file"><small class="field-help">Optional per-brand Player/APK, maximum 100 MB. Blank inherits the server-level download.</small></label><div class="android-update-grid"><label><span>Android app version</span><input name="brand_android_version_name" maxlength="64" placeholder="5.2"></label><label class="wide"><span>Update description</span><textarea name="brand_android_description" maxlength="2000" rows="3"></textarea></label></div></div>
+
+        <div class="wide viewer-info-card"><span class="field-title">Viewer information</span><div class="viewer-info-options"><label class="viewer-info-option brand-viewer-info-option"><input type="checkbox" name="brand_show_user_info" value="1" {% if settings.show_user_info %}checked{% endif %}><span><b>Show Username and Expire under the player</b><small>Turn this off to hide both Username and Expire from this brand's player.</small></span></label><label class="viewer-info-option brand-viewer-info-option"><input type="checkbox" name="brand_show_connection_info" value="1" {% if settings.show_connection_info %}checked{% endif %}><span><b>Show Max Connections and Online Use under the player</b><small>Turn this off to hide both Max Connections and Online Use from this brand's player.</small></span></label></div></div>
+
+        {% for key,label in [('page','Page background'),('panel','Panel / card color'),('accent','Accent color'),('text','Text color')] %}<label><span>{{ label }}</span><div class="color-setting"><input type="color" value="{{ settings[key ~ '_color'] }}" data-brand-color-picker="{{ key }}"><input class="mono" name="brand_{{ key }}_color" value="{{ settings[key ~ '_color'] }}" maxlength="7" pattern="#[0-9A-Fa-f]{6}" data-brand-color-text="{{ key }}" required><div class="alpha-setting"><input type="range" min="0" max="100" step="1" name="brand_{{ key }}_alpha" value="{{ settings[key ~ '_alpha'] }}" data-brand-alpha="{{ key }}"><output data-brand-alpha-output="{{ key }}">{{ settings[key ~ '_alpha'] }}%</output></div></div></label>{% endfor %}
+        <div class="wide webplayer-preview brand-webplayer-preview" data-brand-preview style="--preview-page:{{ settings.page_rgba }};--preview-panel:{{ settings.panel_rgba }};--preview-accent:{{ settings.accent_rgba }};--preview-text:{{ settings.text_rgba }}"><div class="preview-player">Video</div><div class="preview-panel"><b>LIVE STREAMS</b><span class="preview-chip">All</span><div class="preview-card">Channel</div></div></div>
+      </div>
+      <div class="brand-profile-actions"><button class="button primary" type="submit">Add Brand</button></div>
+    </form>
+  </div>
+</section>
+<style>
+.webplayer-brands-panel{overflow:visible}.brand-profile-list{padding:18px;display:grid;gap:14px}.brand-profile-card{border:1px solid var(--line);border-radius:12px;background:var(--panel2);padding:16px}.brand-profile-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.brand-profile-grid label{display:grid;gap:7px}.brand-profile-grid .wide{grid-column:1/-1}.brand-profile-grid input:not([type=color]),.brand-profile-grid textarea{width:100%;border:1px solid #304156;background:#0b1118;color:var(--text);border-radius:7px;padding:10px 11px}.brand-profile-grid input[type=color]{width:100%;height:42px;border:1px solid #304156;background:#0b1118;border-radius:7px;padding:4px}.brand-download-box{display:grid;gap:10px;padding:12px;border:1px solid var(--line);border-radius:10px;background:#0b1118}.brand-download-box input[type=file]{padding:8px}.brand-profile-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:14px}.add-brand-card{border-style:dashed}@media(max-width:900px){.brand-profile-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:620px){.brand-profile-grid{grid-template-columns:1fr}.brand-profile-grid .wide{grid-column:auto}}
+/* STREAMFORGE_WEBPLAYER_SELECTOR_HIDDEN_V3042 */
+.login-mode-card{display:grid;gap:12px}.field-title{font-weight:800}.login-mode-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.mode-option{display:flex;gap:10px;align-items:flex-start;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--panel2)}.mode-option input{width:auto;margin-top:3px}.mode-option span{display:grid;gap:4px}.mode-option small{color:var(--muted)}.auto-user-row{display:grid;gap:7px}.auto-user-row[hidden]{display:none!important}.auto-user-row select{width:100%}@media(max-width:900px){.login-mode-options{grid-template-columns:1fr}}
+/* STREAMFORGE_WEBPLAYER_BRAND_ASSET_SINGLE_ROW_LAYOUT_CSS_V1163 */
+.brand-assets-inline-field{display:grid;gap:10px}.brand-assets-inline-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.brand-asset-inline-card{display:grid;gap:7px}.brand-asset-upload-row{display:grid;grid-template-columns:74px minmax(160px,1fr) auto;align-items:center;gap:12px}.brand-asset-upload-label{font-weight:700;color:#c7d5e3}.brand-asset-upload-row>input[type=file]{min-width:0;margin:0}.brand-asset-current{display:flex;align-items:center;gap:10px;min-width:0}.brand-asset-current img{width:54px;height:42px;object-fit:contain;border:1px solid var(--line);border-radius:8px;background:#0b1118;padding:3px;flex:0 0 auto}.brand-asset-remove{min-height:42px!important;white-space:nowrap;margin:0}.brand-asset-remove input[type=checkbox]{width:auto!important}.brand-asset-remove span{display:inline!important}@media(max-width:1180px){.brand-assets-inline-grid{grid-template-columns:1fr}.brand-asset-upload-row{grid-template-columns:74px minmax(220px,1fr) auto}}@media(max-width:760px){.brand-asset-upload-row{grid-template-columns:1fr}.brand-asset-current{justify-content:flex-start;flex-wrap:wrap}.brand-asset-remove{white-space:normal}}
+.toggle-row{display:flex;align-items:center;gap:10px;min-height:42px}.toggle-row input{width:auto}.viewer-info-card{display:grid;gap:10px}.viewer-info-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.viewer-info-option{display:grid;align-content:start;gap:6px;margin:0;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--panel2)}.brand-viewer-info-option{display:flex;align-items:flex-start;gap:12px}.brand-viewer-info-option input{width:auto!important;flex:0 0 auto;margin-top:4px}.brand-viewer-info-option span{display:grid;gap:4px;min-width:0}.brand-viewer-info-option small{color:var(--muted);margin:0}.viewer-info-option .field-help{margin:0}@media(max-width:800px){.viewer-info-options{grid-template-columns:1fr}}
+.webplayer-download-card{display:grid;gap:12px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--panel2)}.android-update-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.android-update-grid .wide{grid-column:1/-1}.android-update-grid textarea{width:100%;resize:vertical}.android-update-grid .copy-field{display:flex;gap:8px}.android-update-grid .copy-field input{flex:1;min-width:0}@media(max-width:760px){.android-update-grid{grid-template-columns:1fr}.android-update-grid .wide{grid-column:auto}.android-update-grid .copy-field{flex-direction:column}}.download-current{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.download-current .toggle-row{margin-left:auto}
+.color-setting{display:grid;grid-template-columns:52px minmax(0,1fr) minmax(150px,1fr);gap:8px;align-items:center}.alpha-setting{display:grid;grid-template-columns:minmax(90px,1fr) 52px;gap:8px;align-items:center}.alpha-setting input{width:100%}.alpha-setting output{text-align:right;font-variant-numeric:tabular-nums}
+.color-setting input[type=color]{width:52px;height:42px;padding:2px;border-radius:9px}
+.webplayer-preview{display:grid;grid-template-columns:minmax(0,2fr) minmax(190px,1fr);gap:12px;background:var(--preview-page);padding:16px;border-radius:16px}
+.preview-player{display:grid;place-items:center;min-height:180px;background:#000;border-radius:12px;color:#64748b}
+.preview-panel{background:var(--preview-panel);color:var(--preview-text);padding:14px;border-radius:12px;display:grid;gap:10px;align-content:start}
+.preview-chip{background:var(--preview-accent);color:#fff;padding:7px 14px;border-radius:999px;width:max-content}
+.preview-card{border:1px solid var(--preview-accent);padding:18px 10px;border-radius:10px;text-align:center}
+@media(max-width:700px){.webplayer-preview{grid-template-columns:1fr}}
+</style>
+<script>
+/* STREAMFORGE_WEBPLAYER_BRAND_FULL_SETTINGS_JS_V1159 */
+document.querySelectorAll('[data-brand-settings]').forEach(form=>{
+  const preview=form.querySelector('[data-brand-preview]');
+  const autoRow=form.querySelector('[data-brand-auto-user-row]');
+  const userLabel=form.querySelector('[data-brand-selected-user-label]');
+  const updateLoginMode=()=>{const mode=form.querySelector('input[name="brand_login_mode"]:checked')?.value||'manual';if(autoRow)autoRow.hidden=!['auto','quick'].includes(mode);if(userLabel)userLabel.textContent=mode==='quick'?'Quick Login User':'Auto Login User'};
+  form.querySelectorAll('input[name="brand_login_mode"]').forEach(input=>input.addEventListener('change',updateLoginMode));updateLoginMode();
+  const rgba=(hex,a)=>{const h=(hex||'#000000').replace('#',''),r=parseInt(h.slice(0,2),16)||0,g=parseInt(h.slice(2,4),16)||0,b=parseInt(h.slice(4,6),16)||0;return `rgba(${r},${g},${b},${Math.max(0,Math.min(100,Number(a)||0))/100})`};
+  const css={page:'--preview-page',panel:'--preview-panel',accent:'--preview-accent',text:'--preview-text'};
+  const refresh=k=>{const t=form.querySelector(`[data-brand-color-text="${k}"]`),a=form.querySelector(`[data-brand-alpha="${k}"]`);if(preview&&t&&a&&/^#[0-9a-fA-F]{6}$/.test(t.value))preview.style.setProperty(css[k],rgba(t.value,a.value))};
+  form.querySelectorAll('[data-brand-color-picker]').forEach(p=>{const k=p.dataset.brandColorPicker,t=form.querySelector(`[data-brand-color-text="${k}"]`);p.addEventListener('input',()=>{if(t)t.value=p.value;refresh(k)});t?.addEventListener('input',()=>{if(/^#[0-9a-fA-F]{6}$/.test(t.value)){p.value=t.value;refresh(k)}})});
+  form.querySelectorAll('[data-brand-alpha]').forEach(a=>{const k=a.dataset.brandAlpha,o=form.querySelector(`[data-brand-alpha-output="${k}"]`);a.addEventListener('input',()=>{if(o)o.value=`${a.value}%`;refresh(k)})});
+});
+</script>
+<script>
+(()=>{const preview=document.querySelector('.webplayer-preview');const autoRow=document.querySelector('[data-auto-user-row]');const userLabel=document.querySelector('[data-selected-user-label]');const updateLoginMode=()=>{const mode=document.querySelector('input[name="login_mode"]:checked')?.value||'manual';if(autoRow)autoRow.hidden=!['auto','quick'].includes(mode);if(userLabel)userLabel.textContent=mode==='quick'?'Quick Login User':'Auto Login User'};document.querySelectorAll('input[name="login_mode"]').forEach(input=>input.addEventListener('change',updateLoginMode));updateLoginMode();const rgba=(hex,a)=>{const h=(hex||'#000000').replace('#',''),r=parseInt(h.slice(0,2),16)||0,g=parseInt(h.slice(2,4),16)||0,b=parseInt(h.slice(4,6),16)||0;return `rgba(${r},${g},${b},${Math.max(0,Math.min(100,Number(a)||0))/100})`};const map={page_color:['--preview-page','page_alpha'],panel_color:['--preview-panel','panel_alpha'],accent_color:['--preview-accent','accent_alpha'],text_color:['--preview-text','text_alpha']};const refresh=k=>{const t=document.querySelector(`[data-color-text="${k}"]`),m=map[k];if(!t||!m)return;const a=document.querySelector(`[data-alpha="${m[1]}"]`);if(preview&&a&&/^#[0-9a-fA-F]{6}$/.test(t.value))preview.style.setProperty(m[0],rgba(t.value,a.value))};document.querySelectorAll('[data-color-picker]').forEach(p=>{const k=p.dataset.colorPicker,t=document.querySelector(`[data-color-text="${k}"]`);p.addEventListener('input',()=>{t.value=p.value;refresh(k)});t.addEventListener('input',()=>{if(/^#[0-9a-fA-F]{6}$/.test(t.value)){p.value=t.value;refresh(k)}})});document.querySelectorAll('[data-alpha]').forEach(s=>{const o=document.querySelector(`[data-alpha-output="${s.dataset.alpha}"]`),k=s.dataset.alpha.replace('_alpha','_color');s.addEventListener('input',()=>{if(o)o.value=`${s.value}%`;refresh(k)})})})();
+</script>
+{% endblock %}

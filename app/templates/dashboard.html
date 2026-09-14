@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Overview · {{ branding.name }}{% endblock %}
+{% block heading %}<h1>Overview</h1><p>Live encoder, subscriber and server status</p>{% endblock %}
+{% block content %}
+<section class="stats-grid">
+  <article class="stat"><span>Channels</span><strong>{{ total_channel_count }}</strong><small>{{ running_count }} running</small></article>
+  <article class="stat"><span>Users</span><strong>{{ user_count }}</strong><small>{{ central_user_count }} main/load-balanced · {{ direct_user_count }} direct node</small></article>
+  <a class="stat stat-link" href="/viewer-sessions"><span>Online users</span><strong data-online-total>{{ online_user_count }}</strong><small>Click to view live sessions</small></a>
+  {% if can('nodes.view') %}<article class="stat"><span>Nodes</span><strong>{{ online_node_count }}/{{ node_count }}</strong><small>online encoding nodes</small></article>{% endif %}
+  <article class="stat"><span>Total output</span><strong id="total-bitrate">{% if total_bitrate >= 1024 %}{{ "%.2f"|format(total_bitrate / 1024) }} Mb/s{% else %}{{ total_bitrate }} kb/s{% endif %}</strong><small>current FFmpeg bitrate</small></article>
+  <article class="stat"><span>Engine</span><strong class="good">Ready</strong><small>FFmpeg process manager</small></article>
+  <article class="stat"><span>System uptime</span><strong data-system-uptime>{{ human_duration(system_metrics.uptime_seconds) }}</strong><small>Main server host uptime</small></article>
+</section>
+
+{% if can('system_metrics.view') %}<section class="system-resource-grid" data-system-metrics data-endpoint="{{ app_root }}/system-metrics.json">
+  <article class="resource-card">
+    <div class="resource-card-head">
+      <div><span class="resource-label">CPU usage</span><strong data-cpu-percent>{{ system_metrics.cpu.percent }}%</strong></div>
+      <span class="resource-icon">CPU</span>
+    </div>
+    <div class="resource-meter" aria-label="CPU usage"><span data-cpu-meter style="width:{{ system_metrics.cpu.percent }}%"></span></div>
+    <div class="resource-meta"><span><b data-cpu-cores>{{ system_metrics.cpu.cores }}</b> cores</span><span>Load <b data-load-average>{{ system_metrics.cpu.load_1 }}</b></span></div>
+  </article>
+
+  <article class="resource-card">
+    <div class="resource-card-head">
+      <div><span class="resource-label">Memory usage</span><strong data-memory-percent>{{ system_metrics.memory.percent }}%</strong></div>
+      <span class="resource-icon">RAM</span>
+    </div>
+    <div class="resource-meter" aria-label="Memory usage"><span data-memory-meter style="width:{{ system_metrics.memory.percent }}%"></span></div>
+    <div class="resource-meta"><span><b data-memory-used>—</b> used</span><span><b data-memory-total>—</b> total</span></div>
+  </article>
+
+  <article class="resource-card disk-resource-card">
+    <div class="resource-card-head">
+      <div><span class="resource-label">Disk usage</span><strong data-disk-percent>{{ system_metrics.disk.percent }}%</strong></div>
+      <span class="resource-icon">DISK</span>
+    </div>
+    <div class="resource-meter" aria-label="Disk usage"><span data-disk-meter style="width:{{ system_metrics.disk.percent }}%"></span></div>
+    <div class="resource-meta"><span><b data-disk-used>—</b> used</span><span><b data-disk-free>—</b> free</span><span><b data-disk-total>—</b> total</span></div>
+  </article>
+
+  <article class="resource-card network-resource-card">
+    <div class="resource-card-head">
+      <div><span class="resource-label network-label-row">Network traffic <small data-network-interfaces>{{ system_metrics.network.interfaces|join(', ') or 'No active interface' }}</small></span><strong data-network-total>—</strong></div>
+      <span class="resource-icon">NIC</span>
+    </div>
+    <div class="network-rate-grid">
+      <div><span>Download</span><b data-network-rx>—</b></div>
+      <div><span>Upload</span><b data-network-tx>—</b></div>
+    </div>
+  </article>
+
+  <article class="resource-card gpu-resource-card" data-gpu-card {% if not system_metrics.gpu.available %}hidden{% endif %}>
+    <div class="resource-card-head">
+      <div><span class="resource-label">GPU usage</span><strong data-gpu-percent>{% if system_metrics.gpu.usage_percent is not none %}{{ "%.1f"|format(system_metrics.gpu.usage_percent) }}%{% else %}—{% endif %}</strong></div>
+      <span class="resource-icon">GPU</span>
+    </div>
+    <div class="resource-meter" aria-label="GPU usage"><span data-gpu-meter style="width:{{ system_metrics.gpu.usage_percent or 0 }}%"></span></div>
+    <div class="gpu-resource-name" data-gpu-name>{{ system_metrics.gpu.name or 'GPU' }}</div>
+    <div class="resource-meta gpu-resource-meta"><span>VRAM <b data-gpu-vram>—</b></span><span><b data-gpu-temp>—</b></span><span><b data-gpu-encoder>{{ system_metrics.gpu.encoder or 'GPU encoder' }}</b></span><span><b data-gpu-streams>{{ system_metrics.gpu.active_streams or 0 }}</b> streams</span></div>
+  </article>
+</section>{% endif %}
+
+{% if can('system_metrics.view') %}<div class="metrics-history-toolbar"><label>Graph time span <select data-metrics-span><option value="1">1 hour</option><option value="6">6 hours</option><option value="24">24 hours</option><option value="72">3 days</option><option value="168">7 days</option><option value="720">30 days</option></select></label></div><section class="metrics-history-grid" data-metrics-history data-endpoint="{{ app_root }}/metrics-history.json">
+  <article class="metrics-chart-card"><div class="metrics-chart-title"><b>CPU &amp; Memory</b></div><canvas width="720" height="260" data-metric-chart="resources"></canvas><div class="metrics-legend"><span class="cpu">CPU Usage</span><span class="memory">Memory Usage</span></div></article>
+  <article class="metrics-chart-card"><div class="metrics-chart-title"><b>Network Traffic</b></div><canvas width="720" height="260" data-metric-chart="network"></canvas><div class="metrics-legend"><span class="input">Input</span><span class="output">Output</span></div></article>
+  <article class="metrics-chart-card metrics-users-card"><div class="metrics-chart-title"><b>Online users</b></div><canvas width="720" height="260" data-metric-chart="users"></canvas><div class="metrics-legend"><span class="users">Online users</span></div></article>
+  <article class="metrics-chart-card metrics-channels-card"><div class="metrics-chart-title"><b>Channels</b></div><canvas width="720" height="260" data-metric-chart="channels" title="Drag to zoom · double-click to reset"></canvas><div class="metrics-legend"><span class="total-channels">Total channels</span><span class="online-channels">Online channels</span></div></article>
+  <article class="metrics-chart-card gpu-history-card" data-gpu-history {% if not system_metrics.gpu.available %}hidden{% endif %}><div class="metrics-chart-title"><b>GPU utilization</b></div><canvas width="720" height="260" data-metric-chart="gpu-util"></canvas><div class="metrics-legend"><span class="gpu-usage">GPU</span><span class="gpu-encoder">Encoder</span><span class="gpu-vram">VRAM</span></div></article>
+  <article class="metrics-chart-card gpu-history-card" data-gpu-history {% if not system_metrics.gpu.available %}hidden{% endif %}><div class="metrics-chart-title"><b>GPU temperature</b></div><canvas width="720" height="260" data-metric-chart="gpu-temp"></canvas><div class="metrics-legend"><span class="gpu-temp">Temperature</span></div></article>
+</section>{% endif %}
+
+{% if can('channels.view') %}<section class="panel dashboard-live-channels-panel">
+  <div class="panel-head dashboard-channel-head">
+    <div><h2>Live channels</h2><p>Refreshes automatically</p></div>
+    <div class="dashboard-channel-tools">
+      <label class="dashboard-channel-search"><span>Search</span><input type="search" data-dashboard-channel-search placeholder="Search by name, ID, category or server" autocomplete="off"></label>
+      <span class="live-filter-result dashboard-channel-result" data-dashboard-channel-result>{{ channels|length }} channels</span>
+      {% if can('channels.create') %}<a class="button primary" href="/channels/new">+ Add channel</a>{% endif %}
+    </div>
+  </div>
+  <div class="table-wrap channel-control-wrap">
+  <table class="channel-control-table dashboard-control-table">
+    <colgroup><col class="dash-col-channel"><col class="dash-col-server"><col class="dash-col-online"><col class="dash-col-status"><col class="dash-col-stream"><col class="dash-col-video"><col class="dash-col-audio"><col class="dash-col-speed"><col class="dash-col-fps"><col class="dash-col-controls"></colgroup>
+    <thead><tr><th class="dash-head-channel">Channel</th><th class="dash-head-server">Servers</th><th class="dash-head-center">Online</th><th class="dash-head-center">Status / uptime</th><th class="dash-head-center">Stream info</th><th class="dash-head-center">Video</th><th class="dash-head-center">Audio</th><th class="dash-head-center">Speed</th><th class="dash-head-center">FPS</th><th class="dash-head-center">Controls</th></tr></thead>
+    <tbody>
+    {% for channel in channels %}
+      {% set runtime = dashboard_runtime.get(channel.id, {}) %}
+      {% set primary_node = channel.nodes[0] if channel.nodes else channel.node %}
+      {% set assigned_count = channel.nodes|length if channel.nodes else (1 if channel.node else 0) %}
+      <tr class="channel-control-row" data-channel-id="{{ channel.id }}" data-runtime-live="1" data-channel-search="{{ (channel.id|string ~ ' ' ~ channel.name ~ ' ' ~ channel.slug ~ ' ' ~ channel.input_url ~ ' ' ~ source_endpoint(channel.input_url) ~ ' ' ~ (channel_category_names(channel)) ~ ' ' ~ ('Main Server' if not primary_node or primary_node.node_type == 'local' else primary_node.name))|lower }}">
+        <td class="channel-identity-cell"><div class="channel-name-cell">{% if channel.logo_url %}<img class="channel-logo channel-control-logo dashboard-channel-logo" src="{{ channel.logo_url|versioned_asset }}" alt="" loading="lazy" onerror="this.remove()">{% endif %}<div class="channel-name-meta"><b>{{ channel.name }}</b><small>{{ channel_category_names(channel) }} · {{ channel.output_type|upper }}</small></div></div></td>
+        <td class="server-cluster-cell dashboard-server-cell">{% if primary_node %}<span class="dashboard-server-inline"><span class="server-primary single"><b>{{ 'Main Server' if primary_node.node_type == 'local' else primary_node.name }}</b><small>{{ source_endpoint(channel.input_url) }}</small></span>{% if assigned_count > 1 %}<span class="server-inline-extra">+{{ assigned_count - 1 }}</span>{% endif %}</span>{% else %}<span class="server-primary single"><b>Main Server</b><small>{{ source_endpoint(channel.input_url) }}</small></span>{% endif %}</td>
+        <td class="dashboard-online-cell"><a class="channel-online-badge" data-online-users href="/viewer-sessions?channel_id={{ channel.id }}">{{ viewer_by_channel.get(channel.id, 0) }}</a></td>
+        <td class="dashboard-status-cell"><div class="channel-runtime"><details class="runtime-alert-menu" data-runtime-alert-menu><summary class="runtime-alert-dot healthy" data-runtime-alert data-has-error="0" aria-label="Up" data-error-endpoint="/channels/{{ channel.id }}/errors.json" data-clear-endpoint="/channels/{{ channel.id }}/errors/clear" data-channel-name="{{ channel.name }}"><span></span></summary></details><span class="status up" data-status>up</span><b class="runtime-uptime" data-uptime>{{ human_duration(runtime.get('uptime_seconds', 0)) if runtime.get('uptime_seconds', 0) else '—' }}</b></div></td>
+        <td class="stream-summary-cell dashboard-stream-cell"><b data-resolution>{% if runtime.get('width') and runtime.get('height') %}{{ runtime.get('width') }} × {{ runtime.get('height') }}{% elif channel.width and channel.height %}{{ channel.width }} × {{ channel.height }}{% else %}Source{% endif %}</b><small data-bitrate>{{ runtime.get('bitrate_kbps', channel.live_bitrate_kbps) or 0 }} kb/s</small></td>
+        <td class="codec-cell dashboard-video-cell"><span class="metric-icon video" aria-hidden="true">V</span><b>{{ channel.video_codec }}</b></td>
+        <td class="codec-cell dashboard-audio-cell"><span class="metric-icon audio" aria-hidden="true">A</span><b>{{ channel.audio_codec }}</b></td>
+        <td class="mono channel-speed dashboard-speed-cell"><span class="metric-icon speed" aria-hidden="true">×</span><b data-speed>—</b></td>
+        <td class="mono nowrap fps-cell dashboard-fps-cell"><span class="metric-icon fps" aria-hidden="true">F</span><b data-fps>{{ channel.fps or '—' }}</b><small>FPS</small></td>
+        <td class="dashboard-controls-cell"><div class="channel-control-actions dashboard-channel-actions" data-http-slot>{% if can('channels.stop') %}<form method="post" action="/channels/{{ channel.id }}/stop" data-channel-runtime-action="stop"><button class="channel-icon-button stop" title="Stop channel" aria-label="Stop {{ channel.name }}"><span class="button-glyph">⏹</span></button></form>{% endif %}{% if can('channels.restart') %}<form method="post" action="/channels/{{ channel.id }}/restart" data-channel-runtime-action="restart"><button class="channel-icon-button restart" title="Restart channel" aria-label="Restart {{ channel.name }}"><span class="button-glyph">↻</span></button></form>{% endif %}{% if can('channels.playback') and dashboard_http_outputs.get(channel.id) %}<a class="channel-icon-button http" data-http-action data-http-url="{{ dashboard_http_outputs.get(channel.id) }}" href="{{ dashboard_http_outputs.get(channel.id) }}" target="_blank" rel="noopener" title="Open HLS output" aria-label="Open {{ channel.name }} HLS output"><span class="button-glyph">H</span></a>{% endif %}<a class="channel-info-button icon-only" href="/channels/{{ channel.id }}/info" title="Channel information" aria-label="Open {{ channel.name }} information"><span class="channel-info-icon" aria-hidden="true">i</span></a></div></td>
+      </tr>
+    {% else %}<tr><td colspan="10" class="empty">No live channels are running.</td></tr>{% endfor %}
+      {% if channels %}<tr class="dashboard-filter-empty" data-dashboard-filter-empty hidden><td colspan="10" class="empty">No channel matches this search.</td></tr>{% endif %}
+    </tbody>
+  </table>
+  </div>
+</section>{% endif %}
+{% endblock %}
+{% block scripts %}
+<script src="/static/dashboard.js?v={{ app_version }}"></script>
+{% endblock %}

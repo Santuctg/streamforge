@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Import Streams · {{ branding.name }}{% endblock %}
+{% block heading %}<h1>Import streams</h1><p>Bulk-create channels from M3U playlists, CSV files, pasted text or a remote playlist URL</p>{% endblock %}
+{% block content %}
+{% if error %}<div class="alert danger import-alert">{{ error }}</div>{% endif %}
+{% if result %}
+<section class="panel import-result">
+  <div class="panel-head"><div><h2>Import complete</h2><p>{{ result.format }} · {{ result.source }}</p></div><a class="button primary" href="/channels">View channels</a></div>
+  <div class="stats-grid import-stats">
+    <div class="stat"><span>Detected</span><strong>{{ result.total }}</strong><small>valid stream URLs</small></div>
+    <div class="stat"><span>Created</span><strong class="good">{{ result.created }}</strong><small>new channels</small></div>
+    <div class="stat"><span>Updated</span><strong>{{ result.updated }}</strong><small>existing channels</small></div>
+    <div class="stat"><span>Skipped</span><strong>{{ result.skipped }}</strong><small>duplicates ignored</small></div>
+  </div>
+  {% if result.start_errors %}<div class="alert danger import-start-errors"><b>Some imported channels could not start:</b><ul>{% for item in result.start_errors %}<li>{{ item }}</li>{% endfor %}</ul></div>{% endif %}
+</section>
+{% endif %}
+
+{% if can('imports.execute') %}<form class="form-layout import-form" method="post" action="/channels/import" enctype="multipart/form-data">
+<section class="panel form-section">
+  <div class="panel-head"><div><h2>1. Import source</h2><p>Use one source. Uploaded file takes priority, then pasted text, then remote URL.</p></div></div>
+  <div class="form-grid">
+    <label class="wide">M3U or CSV file<input type="file" name="playlist_file" accept=".m3u,.m3u8,.csv,text/csv,audio/x-mpegurl,application/vnd.apple.mpegurl"><small class="field-help">Maximum size: 5 MB. Up to 5000 streams per import.</small></label>
+    <label class="wide">Remote M3U/CSV URL<input name="remote_url" type="url" placeholder="http://server/playlist.m3u"></label>
+    <label class="wide">Or paste M3U / CSV text<textarea name="playlist_text" rows="9" placeholder="#EXTM3U&#10;#EXTINF:-1 group-title=&quot;Sports&quot;,TSports HD&#10;http://server/live/index.m3u8"></textarea></label>
+  </div>
+</section>
+
+<section class="panel form-section">
+  <div class="panel-head"><div><h2>2. Category and duplicates</h2><p>M3U group-title and CSV category fields can create and assign categories automatically.</p></div></div>
+  <div class="form-grid">
+    <label>Category handling<select name="category_mode">
+      <option value="source">Use source category; selected category is fallback</option>
+      <option value="selected">Force selected category for every stream</option>
+      <option value="none">Import as Uncategorized</option>
+    </select></label>
+    <label>Selected / fallback category<select name="category_id"><option value="">Uncategorized</option>{% for category in categories %}<option value="{{ category.id }}">{{ category.name }}</option>{% endfor %}</select></label>
+    <label class="check"><input type="checkbox" name="create_missing_categories" checked> Create missing categories from group-title/category</label>
+    <label>Duplicate stream<select name="duplicate_policy"><option value="skip">Skip existing URL or slug</option><option value="update">Update existing channel</option></select></label>
+  </div>
+</section>
+
+<section class="panel form-section">
+  <div class="panel-head"><div><h2>3. Default channel profile</h2><p>CSV columns can override these values per stream. M3U streams use these defaults.</p></div></div>
+  <div class="form-grid">
+    <label>Video codec<select name="video_codec"><option value="copy" selected>Copy / Passthrough</option><option value="auto">H.264 AUTO — GPU first / Chrome safe</option><option value="auto_hevc">H.265 AUTO — GPU first / HEVC</option></select><small class="field-help">Current H.264 auto encoder: {{ auto_h264_encoder }}</small></label>
+    <label>Video bitrate<input name="video_bitrate" value="2500k"></label>
+    <label>Audio codec<select name="audio_codec"><option value="copy" selected>Copy / Passthrough</option><option value="aac">AAC-LC</option><option value="ac3">AC-3</option><option value="eac3">E-AC-3</option><option value="mp2">MP2</option><option value="libmp3lame">MP3</option><option value="libopus">Opus</option></select></label>
+    <label>Audio bitrate<input name="audio_bitrate" value="128k"></label>
+    {% if can('channels.assign_node') %}<div class="wide node-assignment-field"><div class="node-assignment-head"><div><span class="field-label">Encoding nodes</span><small class="field-help">Every imported channel will be replicated to all selected nodes.</small></div></div><div class="channel-checks compact-node-checks">{% for node in nodes %}<label><input type="checkbox" name="node_ids" value="{{ node.id }}" {% if node.node_type == 'local' %}checked{% endif %}><span><b>{{ node.name }}</b><small>{{ node.node_type|title }}</small></span></label>{% endfor %}</div></div>{% endif %}
+    <label>Output type<select name="output_type"><option value="hls" selected>HTTP HLS — panel proxy</option><option value="http_post">HTTP MPEG-TS push — POST</option><option value="http_put">HTTP MPEG-TS push — PUT</option><option value="udp">UDP MPEG-TS</option><option value="srt">SRT MPEG-TS</option></select></label>
+    <label>HLS segment seconds<input type="number" min="1" max="20" name="hls_segment_time" value="1"></label>
+    <label class="check"><input type="checkbox" name="enabled" checked> Enable imported channels</label>
+    <label class="check"><input type="checkbox" name="auto_restart" checked> Auto restart imported channels</label>
+    <label class="check wide"><input type="checkbox" name="start_after_import"> Start new imported channels immediately</label>
+  </div>
+</section>
+
+<section class="panel import-format-help">
+  <div class="panel-head"><div><h2>Supported formats</h2><p>Category and logo are read from M3U group-title/tvg-logo or CSV category/logo_url columns.</p></div></div>
+  <div class="format-examples">
+    <div><h3>M3U</h3><pre>#EXTM3U
+#EXTINF:-1 group-title="Sports" tvg-logo="https://example.com/tsports.png",TSports HD
+http://10.100.11.13:887/play/ba138/index.m3u8</pre></div>
+    <div><h3>CSV</h3><pre>name,input_url,category,program_id,logo_url
+TSports HD,http://server/live.m3u8,Sports,,https://example.com/tsports.png
+News 24,udp://@239.1.1.1:5000,News,205</pre></div>
+  </div>
+</section>
+<div class="form-actions"><a class="button" href="/channels">Cancel</a><button class="button primary" type="submit">Import streams</button></div>
+</form>{% else %}<section class="panel access-denied-panel"><div class="access-denied-icon">!</div><h2>Import permission required</h2><p>Your role can view this page but cannot execute stream imports.</p><code>imports.execute</code></section>{% endif %}
+{% endblock %}

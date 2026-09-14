@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Main Server Backups · {{ branding.name }}{% endblock %}
+{% block heading %}<h1>Main Server backups</h1><p>Local retained backup files</p>{% endblock %}
+{% block content %}
+<div class="local-backup-files-page">
+  {% if message %}<div class="alert success">{{ message }}</div>{% endif %}
+  {% if error %}<div class="alert danger">{{ error }}</div>{% endif %}
+
+  <div class="page-actions">
+    <a class="button" href="/system/backups">Back to backups</a>
+    <a class="button" href="/system/backups/local-files">Refresh</a>
+  </div>
+
+  <section class="panel local-backup-files-card">
+    <div class="panel-head">
+      <div>
+        <h2>Saved Main Server backups</h2>
+        <p>Local retained copies available for download or restore.</p>
+      </div>
+      <span class="backup-library-count">{{ backup_archives|length }} file{% if backup_archives|length != 1 %}s{% endif %}</span>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Backup file</th><th>Size</th><th>Created</th><th>Action</th></tr></thead>
+        <tbody>
+          {% for archive in backup_archives %}
+          <tr>
+            <td><code>{{ archive.name }}</code></td>
+            <td>{{ archive.size_label }}</td>
+            <td>{{ archive.modified_label }}</td>
+            <td>
+              <div class="actions">
+                <a class="button" href="/system/backups/archive/{{ archive.name }}/download">Download</a>
+                <form method="post" action="/system/backups/archive/{{ archive.name }}/restore" onsubmit="return confirm('Restore this Main Server backup now? Current database/settings will be replaced and Main will restart.');">
+                  <input type="hidden" name="confirm_restore" value="yes">
+                  <button class="button danger" type="submit">Restore</button>
+                </form>
+                <form method="post" action="/system/backups/archive/{{ archive.name }}/delete" onsubmit="return confirm('Delete this saved backup permanently?');">
+                  <button class="button danger" type="submit">Delete</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="empty">No saved Main Server backups found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+<style>
+.local-backup-files-page{display:grid;gap:18px}
+.page-actions{display:flex;gap:8px;justify-content:flex-end}
+.local-backup-files-card{margin:0}
+.local-backup-files-card .panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.local-backup-files-card .panel-head h2{margin:0 0 4px}
+.local-backup-files-card .panel-head p{margin:0}
+.local-backup-files-card code{white-space:normal;overflow-wrap:anywhere}
+.local-backup-files-card .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.local-backup-files-card .actions form{margin:0}
+.backup-library-count{display:inline-flex;align-items:center;justify-content:center;min-height:28px;padding:0 9px;border:1px solid var(--line);border-radius:999px;background:var(--field);color:var(--muted);font-size:12px}
+@media(max-width:760px){.page-actions{justify-content:flex-start}.local-backup-files-card .panel-head{flex-direction:column}}
+</style>
+{% endblock %}

@@ -1,0 +1,8 @@
+[Unit]
+Description=Update StreamForge MaxMind GeoIP databases
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/streamforge/scripts/update_geoip_databases.sh

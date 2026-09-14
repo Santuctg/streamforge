@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}{{ channel.name }} Stream Info · {{ branding.name }}{% endblock %}
+{% block heading %}<h1>{{ channel.name }} · Stream info</h1><p>Live process, input programs, PIDs, codecs and output verification</p>{% endblock %}
+{% block content %}
+<div class="info-actions">
+  <a class="button" href="/channels">← Channels</a>
+  {% if can('channels.edit') %}<a class="button" href="/channels/{{ channel.id }}/edit">Edit channel</a>{% endif %}
+  {% if channel.status in ['running','starting','restarting','degraded'] %}
+  {% if can('channels.stop') %}<form method="post" action="/channels/{{ channel.id }}/stop"><button class="button danger">Stop</button></form>{% endif %}
+  {% if can('channels.restart') %}<form method="post" action="/channels/{{ channel.id }}/restart"><button class="button restart-button">Restart</button></form>{% endif %}
+  {% else %}
+  {% if can('channels.start') %}<form method="post" action="/channels/{{ channel.id }}/start"><button class="button success">Start</button></form>{% endif %}
+  {% endif %}
+</div>
+
+<section class="stream-info-root" data-channel-id="{{ channel.id }}" data-stream-info>
+  <div class="stats-grid info-stats">
+    <article class="stat"><span>Status</span><strong class="status {{ channel.status }}" data-status>{{ channel.status }}</strong><small>{{ channel.last_error or 'No active error' }}</small></article>
+    <article class="stat"><span>Live output bitrate</span><strong class="mono" data-bitrate>{{ runtime.bitrate_kbps or channel.live_bitrate_kbps }} kb/s</strong><small>Rolling output throughput</small></article>
+    <article class="stat"><span>Processing speed</span><strong class="mono" data-speed>{{ ('%.2f'|format(runtime.speed_x)) ~ 'x' if runtime.speed_x else '—' }}</strong><small>FFmpeg media-time / wall-time ratio</small></article>
+    <article class="stat"><span>Process</span><strong class="mono" data-pid>{{ channel.pid or '—' }}</strong><small>PID · uptime <span data-uptime>{{ runtime.uptime_seconds }}</span>s</small></article>
+    <article class="stat"><span>Active encoder</span><strong class="encoder-name">{{ encoder.label }}</strong><small>{{ 'Hardware acceleration' if encoder.hardware else 'Copy or CPU mode' }}</small></article>
+  </div>
+  {% if replica_nodes %}
+  <section class="panel replica-status-panel" data-replica-status data-endpoint="/channels/{{ channel.id }}/replicas.json">
+    <div class="panel-head probe-head">
+      <div><h2>Node replicas</h2><p>One live check when Stream Info opens; no continuous background polling.</p></div>
+      <button type="button" class="button small" data-replica-refresh>Refresh node status</button>
+    </div>
+    <div class="replica-grid" data-replica-grid>
+      {% for replica in replica_nodes %}
+      <article class="replica-card" data-replica-node-id="{{ replica.node_id }}">
+        <div class="replica-card-head"><b>{{ replica.node_name }}</b><div class="replica-state-pills"><span class="status starting" data-replica-node-state>Checking node</span><span class="status starting" data-replica-channel-state>Checking channel</span></div></div>
+        <div class="replica-uptime-grid">
+          <span>Node uptime <b class="mono" data-replica-node-uptime>—</b></span>
+          <span>Channel uptime <b class="mono" data-replica-channel-uptime>—</b></span>
+        </div>
+        <small data-replica-metrics>Live check pending…</small>
+        <p data-replica-error hidden></p>
+      </article>
+      {% endfor %}
+    </div>
+    <div class="replica-captured" data-replica-captured></div>
+  </section>
+  {% endif %}
+
+  <section class="panel info-config-panel">
+    <div class="panel-head"><div><h2>Configured channel</h2><p>Saved settings used when the stream starts</p></div></div>
+    <div class="info-kv-grid">
+      <div><span>Input</span><b class="mono break-text">{{ channel.input_url }}</b></div>
+      {% set active_programs = channel_source_program_ids(channel) %}<div><span>Selected program for active source</span><b>{{ active_programs[channel.active_input_index] if active_programs and channel.active_input_index < active_programs|length and active_programs[channel.active_input_index] else 'Auto / first video and audio' }}</b></div>
+      <div><span>Category</span><b>{{ channel_category_names(channel) }}</b></div>
+      <div><span>Encoding nodes</span><b>{% for node in channel.nodes %}{{ node.name }} ({{ node.node_type|title }}){% if not loop.last %}<br>{% endif %}{% else %}{{ channel.node.name if channel.node else 'Local Node' }}{% endfor %}</b></div>
+      <div><span>Remote input</span><b>{{ 'Main/Local node relay' if channel.remote_input_mode == 'local_relay' else 'Original source on every node' }}</b></div>
+      <div><span>Logo</span><b>{% if channel.logo_url %}<img class="info-channel-logo" src="{{ channel.logo_url|versioned_asset }}" alt="{{ channel.name }} logo" onerror="this.hidden=true">{% else %}Not set{% endif %}</b></div>
+      <div><span>Video profile</span><b>{{ channel.video_codec }} · {{ channel.video_bitrate }}</b></div>
+      <div><span>Output size</span><b>{{ (channel.width ~ '×' ~ channel.height) if channel.width and channel.height else 'Source resolution' }}{% if channel.fps %} · {{ channel.fps }} fps{% endif %}</b></div>
+      <div><span>Audio profile</span><b>{{ channel.audio_codec }} · {{ channel.audio_bitrate }}</b></div>
+      <div><span>Output</span><b>{{ 'HTTP HLS' if channel.output_type == 'hls' else channel.output_type|upper }} · {% if channel.output_url %}{{ channel.output_url.splitlines()|length }} remote output{{ '' if channel.output_url.splitlines()|length == 1 else 's' }}{% else %}Panel-proxied HLS delivery{% endif %}</b></div>
+      <div><span>Failure recovery</span><b>{{ 'Auto restart enabled' if channel.auto_restart else 'Manual restart only' }}</b></div>
+      {% if can('channels.playback') and http_output %}<div><span>Direct HTTP HLS</span><b class="mono break-text"><a href="{{ http_output.hls }}" target="_blank">{{ http_output.hls }}</a></b></div><div><span>Chrome player</span><b class="mono break-text"><a href="{{ http_output.player }}" target="_blank">{{ http_output.player }}</a></b></div>{% endif %}
+    </div>
+  </section>
+
+  <section class="panel stream-probe-section">
+    <div class="panel-head probe-head">
+      <div><h2>Input stream probe</h2><p>Runs ffprobe once when Stream Info opens, or again only when you click Refresh.</p></div>
+      <button type="button" class="button primary small" data-probe-refresh="input">Refresh input info</button>
+    </div>
+    <div class="probe-result" data-probe-result="input" data-endpoint="/channels/{{ channel.id }}/probe.json?target=input">
+      <div class="probe-loading"><span class="spinner"></span> Reading input stream…</div>
+    </div>
+  </section>
+
+  <section class="panel stream-probe-section">
+    <div class="panel-head probe-head">
+      <div><h2>Encoded output probe</h2><p>Verifies generated local HTTP HLS media on demand. No background ffprobe loop runs.</p></div>
+      <button type="button" class="button small" data-probe-refresh="output">Refresh output info</button>
+    </div>
+    <div class="probe-result" data-probe-result="output" data-endpoint="/channels/{{ channel.id }}/probe.json?target=output" data-auto-load="{{ '1' if output_ready else '0' }}">
+      {% if output_ready %}<div class="probe-loading"><span class="spinner"></span> Reading encoded output…</div>{% else %}<div class="probe-empty">Start the channel and wait for HLS segments, then click “Refresh output info”.</div>{% endif %}
+    </div>
+  </section>
+</section>
+{% endblock %}

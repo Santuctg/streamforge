@@ -1,0 +1,9 @@
+[Unit]
+Description=Watch StreamForge Remote Node access settings for TLS changes
+
+[Path]
+PathChanged=/var/lib/streamforge-node/tls-reconcile.request
+Unit=streamforge-node-tls.service
+
+[Install]
+WantedBy=multi-user.target

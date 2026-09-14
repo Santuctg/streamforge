@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block title %}GeoIP · {{ node.name }}{% endblock %}
+{% block heading %}<div class="geoip-page-heading"><div class="geoip-page-heading-copy"><h1>{{ node.name }} · GeoIP</h1><p>Choose IPinfo, MaxMind, or IPinfo-first automatic fallback, then test a public IP.</p></div></div>{% endblock %}
+{% block content %}
+<style>
+/* STREAMFORGE_GEOIP_BALANCED_STATUS_GRID_V99R9 */
+/* STREAMFORGE_GEOIP_OUTER_SECTION_GAP_V99R11 */
+.geoip-page-heading{display:flex;align-items:center;gap:16px}.geoip-page-heading-copy{min-width:0}.geoip-back-button{white-space:nowrap}
+/* STREAMFORGE_GEOIP_COMPACT_PROVIDER_FORM_V99R12 */
+/* STREAMFORGE_GEOIP_WRAP_PROVIDER_FORM_V99R14 */
+/* STREAMFORGE_GEOIP_PROVIDER_CHECKBOX_NOWRAP_V99R15 */
+#geoip-settings-form{display:flex;flex-wrap:wrap;align-items:stretch;gap:14px;max-width:none}
+#geoip-settings-form>label:not(.check),#geoip-settings-form>.credential-card{flex:1 1 280px;width:auto;min-width:260px;max-width:360px;margin:0}
+#geoip-settings-form>.credential-card{min-height:72px;padding:11px 13px}
+#geoip-settings-form>label.check{display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:10px!important;flex:0 1 auto;width:auto!important;min-width:270px!important;max-width:390px!important;min-height:72px!important;margin:0!important;padding:12px 14px!important;white-space:nowrap!important}
+#geoip-settings-form>label.check.geo-maxmind-field:not(.geo-credential-remove){min-width:340px!important}
+#geoip-settings-form>label.check input[type="checkbox"]{width:16px!important;height:16px!important;min-width:16px!important;flex:0 0 16px!important;margin:0!important}
+#geoip-settings-form>label.check span{display:block;white-space:nowrap!important;line-height:1.35}
+#geoip-settings-form input:not([type="checkbox"]),#geoip-settings-form select{width:100%}
+/* STREAMFORGE_GEOIP_ACTIONS_RIGHT_SPACED_V99R16 */
+.geoip-primary-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin:22px 18px 18px;padding-top:2px}
+.geoip-primary-actions form{margin:0}
+.geoip-primary-actions .button{min-height:38px;white-space:nowrap}
+/* STREAMFORGE_GEOIP_TEST_SEPARATE_PANEL_V99R15 */
+.geoip-test-panel.geoip-inline-test{margin-top:18px;padding:0;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+.geoip-test-panel .panel-head{margin:0}
+.geoip-test-body{padding:16px 18px 18px}
+.geoip-test-panel .geoip-compact-test{margin-top:0}
+.geoip-maxmind-panel{margin-top:18px!important}
+.geoip-status-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:18px;row-gap:16px;padding:18px 20px 20px}.geoip-status-grid>div{min-width:0;padding:16px 18px;border:1px solid var(--line);border-radius:12px;background:#0d151e;box-shadow:inset 0 1px 0 rgba(255,255,255,.02)}.geoip-status-grid span{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.055em;margin-bottom:7px}.geoip-status-grid b{display:block;font-size:12px;line-height:1.55;overflow-wrap:anywhere}.geoip-section-note{margin:0 20px 20px}.geoip-maxmind-panel .panel-head{margin-bottom:0}
+@media(max-width:1100px){.geoip-status-grid{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:16px;row-gap:14px}}
+@media(max-width:700px){.geoip-page-heading{align-items:flex-start;flex-direction:column;gap:10px}#geoip-settings-form>label:not(.check),#geoip-settings-form>.credential-card,#geoip-settings-form>label.check,#geoip-settings-form>label.check.geo-maxmind-field:not(.geo-credential-remove){flex:1 1 100%;min-width:100%!important;max-width:none!important}.geoip-primary-actions{align-items:stretch;justify-content:flex-end;margin:18px 14px 14px}.geoip-primary-actions form,.geoip-primary-actions .button{width:100%}.geoip-test-body{padding:14px}.geoip-status-grid{grid-template-columns:1fr;row-gap:12px;padding:14px}.geoip-section-note{margin:0 14px 14px}}
+</style>
+{% if error %}<div class="alert danger">{{ error }}</div>{% endif %}
+{% if message %}<div class="alert success">{{ message }}</div>{% endif %}
+<section class="panel form-section">
+  <div class="panel-head"><div><h2>GeoIP provider settings</h2><p id="geo-provider-description">Auto checks IPinfo first and uses local MaxMind databases only when IPinfo has no result.</p></div></div>
+  <form method="post" action="/nodes/{{ node.id }}/geoip/settings" class="form-grid" id="geoip-settings-form">
+    <label>Lookup provider
+      <select name="provider" id="geoip-provider">
+        <option value="auto" {% if geo_settings.provider == 'auto' %}selected{% endif %}>Auto — IPinfo first, MaxMind fallback</option>
+        <option value="ipinfo" {% if geo_settings.provider == 'ipinfo' %}selected{% endif %}>IPinfo API only</option>
+        <option value="maxmind" {% if geo_settings.provider == 'maxmind' %}selected{% endif %}>MaxMind databases only</option>
+      </select>
+    </label>
+
+    <label class="geo-ipinfo-field">New IPinfo API token
+      <input type="password" name="ipinfo_token" placeholder="Leave blank to keep saved token" autocomplete="new-password">
+    </label>
+    <div class="credential-card geo-ipinfo-field"><span>IPinfo API</span><b>{{ 'Configured' if geo_settings.ipinfo_configured else 'Missing' }}</b><small>{{ geo_settings.ipinfo_saved_display or ('Saved token available' if geo_settings.ipinfo_configured else 'Not saved') }}</small></div>
+    <label class="check geo-ipinfo-field geo-credential-remove"><input type="checkbox" name="remove_ipinfo_token"><span>Remove saved IPinfo token</span></label>
+
+    <label class="check geo-maxmind-field"><input type="checkbox" name="auto_update" {% if geo_settings.auto_update %}checked{% endif %}><span>Automatically update MaxMind databases daily</span></label>
+    <label class="geo-maxmind-field">MaxMind Account ID
+      <input name="maxmind_account_id" value="{{ geo_settings.maxmind_account_id or '' }}" autocomplete="off">
+    </label>
+    <label class="geo-maxmind-field">New MaxMind License Key
+      <input type="password" name="maxmind_license_key" placeholder="Leave blank to keep saved key" autocomplete="new-password">
+    </label>
+    <div class="credential-card geo-maxmind-field"><span>MaxMind credentials</span><b>{{ 'Configured' if geo_settings.maxmind_configured else 'Missing' }}</b><small>Account ID: {{ geo_settings.maxmind_account_id or 'Not saved' }} · {{ geo_settings.maxmind_saved_display or ('Saved key available' if geo_settings.maxmind_configured else 'Not saved') }}</small></div>
+    <label class="check geo-maxmind-field geo-credential-remove"><input type="checkbox" name="remove_maxmind_key"><span>Remove saved MaxMind key</span></label>
+
+  </form>
+
+  <div class="geoip-primary-actions">
+    {% if (node.node_type == 'local' and can('main_access.edit')) or (node.node_type != 'local' and can('nodes.edit')) %}
+    <form id="geo-maxmind-update" method="post" action="/nodes/{{ node.id }}/geoip/update" class="geo-maxmind-field">
+      <button class="button restart-button" type="submit">Update MaxMind databases now</button>
+    </form>
+    {% endif %}
+    <button class="button primary" type="submit" form="geoip-settings-form">Save GeoIP settings</button>
+    <a class="button" href="/nodes">Back to nodes</a>
+  </div>
+
+</section>
+
+<section class="panel form-section geoip-inline-test geoip-test-panel" id="geoip-test">
+  <div class="panel-head"><div>
+    <h2 id="geo-test-title">Test GeoIP lookup</h2>
+    <p id="geo-test-description">Use a public IP address. Private LAN addresses normally have no GeoIP result.</p>
+  </div></div>
+  <div class="geoip-test-body">
+    <form method="get" action="/nodes/{{ node.id }}/asn" class="compact-form geoip-compact-test">
+      <label>IP address<input name="ip" value="{{ test_ip }}" placeholder="8.8.8.8" required></label>
+      <button class="button primary" id="geo-test-button">Lookup</button>
+    </form>
+    {% if result %}
+    {% if result.ipinfo_error %}
+    <div class="alert danger category-alert">{{ result.ipinfo_error }}</div>
+    {% endif %}
+    <div class="info-kv-grid geoip-test-result">
+      <div><span>IP</span><b class="mono">{{ result.ip }}</b></div>
+      <div><span>ASN</span><b>{{ 'AS' ~ result.asn if result.asn else 'No match' }}</b></div>
+      <div><span>Business / network</span><b>{{ result.business_name or 'No match' }}</b></div>
+      <div><span>Country</span><b>{{ result.country_name or 'No match' }}{% if result.country_code %} ({{ result.country_code }}){% endif %}</b></div>
+      <div><span>Resolved by</span><b>{{ result.provider or 'No provider match' }}</b></div>
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+<section class="panel form-section geo-maxmind-section geoip-maxmind-panel">
+  <div class="panel-head"><div><h2>ASN / business database</h2><p>Expected location: <span class="mono">/opt/streamforge/GeoLite2-ASN.mmdb</span>.</p></div></div>
+  <div class="geoip-status-grid">
+    <div><span>Status</span><b>{{ 'Loaded' if status.loaded else 'Not ready' }}</b></div>
+    <div><span>File</span><b>{{ 'Found' if status.exists else 'Missing' }}</b></div>
+    <div><span>Python module</span><b>{{ 'Loaded' if status.module_loaded else 'Missing' }}</b></div>
+    <div><span>Size</span><b>{{ status.size_bytes or 0 }} bytes</b></div>
+    <div><span>Provider</span><b>{{ status.provider or geo_settings.provider or 'auto' }}</b></div>
+    <div><span>IPinfo token</span><b>{{ 'Configured' if status.ipinfo_configured or geo_settings.ipinfo_configured else 'Missing' }}</b></div>
+    <div><span>Path</span><b class="mono">{{ status.path }}</b></div>
+    {% if status.database_type %}<div><span>Database type</span><b>{{ status.database_type }}</b></div>{% endif %}
+    {% if status.ip_version %}<div><span>IP version</span><b>{{ status.ip_version }}</b></div>{% endif %}
+    <div><span>Automatic updates</span><b>{{ 'Enabled' if status.auto_update_enabled or geo_settings.auto_update else 'Disabled' }}</b></div>
+    <div><span>MaxMind credentials</span><b>{{ 'Configured' if status.auto_update_configured or geo_settings.maxmind_configured else 'Missing' }}</b></div>
+    <div><span>Last automatic update</span><b>{{ status.last_auto_update or 'Not run yet' }}</b></div>
+  </div>
+  {% if status.error %}<div class="alert danger category-alert geoip-section-note">{{ status.error }}</div>{% endif %}
+</section>
+
+<section class="panel form-section geo-maxmind-section geoip-maxmind-panel">
+  <div class="panel-head"><div><h2>Country database</h2><p>MaxMind country lookup uses <span class="mono">/opt/streamforge/GeoLite2-Country.mmdb</span>.</p></div></div>
+  <div class="geoip-status-grid">
+    <div><span>Status</span><b>{{ 'Loaded' if status.country_loaded else 'Not ready' }}</b></div>
+    <div><span>File</span><b>{{ 'Found' if status.country_exists else 'Missing' }}</b></div>
+    <div><span>Size</span><b>{{ status.country_size_bytes or 0 }} bytes</b></div>
+    <div><span>Path</span><b class="mono">{{ status.country_path }}</b></div>
+    {% if status.country_database_type %}<div><span>Database type</span><b>{{ status.country_database_type }}</b></div>{% endif %}
+    <div><span>Provider</span><b>MaxMind</b></div>
+  </div>
+  {% if status.country_error %}<div class="alert warning category-alert geoip-section-note">{{ status.country_error }}</div>{% endif %}
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+(() => {
+  const provider = document.getElementById('geoip-provider');
+  const description = document.getElementById('geo-provider-description');
+  const testTitle = document.getElementById('geo-test-title');
+  const testDescription = document.getElementById('geo-test-description');
+  const testButton = document.getElementById('geo-test-button');
+  if (!provider) return;
+  const maxmindItems = document.querySelectorAll('.geo-maxmind-field, .geo-maxmind-section');
+  const ipinfoItems = document.querySelectorAll('.geo-ipinfo-field');
+
+  const setHidden = (items, hidden) => {
+    items.forEach((el) => {
+      el.classList.toggle('geo-provider-hidden', hidden);
+      el.querySelectorAll('input, select, button').forEach((control) => {
+        if (hidden) control.setAttribute('disabled', 'disabled');
+        else control.removeAttribute('disabled');
+      });
+    });
+  };
+
+  const update = () => {
+    const mode = provider.value;
+    setHidden(maxmindItems, mode === 'ipinfo');
+    setHidden(ipinfoItems, mode === 'maxmind');
+
+    if (mode === 'ipinfo') {
+      description.textContent = 'IPinfo performs live API lookups. No MaxMind database, Account ID, License Key or database update is required.';
+      testTitle.textContent = 'Test IPinfo lookup';
+      testDescription.textContent = 'Enter a public IP. A successful lookup should show “Resolved by: ipinfo”.';
+      testButton.textContent = 'Test IPinfo';
+    } else if (mode === 'maxmind') {
+      description.textContent = 'MaxMind uses local ASN and Country databases. Configure credentials, then download or auto-update the databases.';
+      testTitle.textContent = 'Test MaxMind lookup';
+      testDescription.textContent = 'Enter a public IP after the ASN/Country databases show as loaded.';
+      testButton.textContent = 'Test MaxMind';
+    } else {
+      description.textContent = 'Auto checks IPinfo first. MaxMind local databases are used only when IPinfo has no ASN, business or country result.';
+      testTitle.textContent = 'Test automatic GeoIP lookup';
+      testDescription.textContent = 'Enter a public IP. The result shows whether IPinfo or MaxMind answered.';
+      testButton.textContent = 'Test Auto Lookup';
+    }
+  };
+
+  provider.addEventListener('change', update);
+  update();
+})();
+</script>
+{% endblock %}

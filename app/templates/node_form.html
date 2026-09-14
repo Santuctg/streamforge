@@ -1,0 +1,480 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if node else 'Add' }} Node · {{ branding.name }}{% endblock %}
+{% block heading %}<h1>{{ 'Edit Main/Local server' if node and node.node_type == 'local' else ('Edit node' if node else 'Add remote node') }}</h1><p>{{ 'Public Panel/API, Playlist/App and playback access rules' if node and node.node_type == 'local' else 'Encoding connection, DNS binding, load balancing and strict client-prefix routing' }}</p>{% endblock %}
+{% block content %}
+<style>
+/* STREAMFORGE_NODE_LIMITS_THREE_COLUMNS_STYLE_V2291 */
+.node-limits-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:14px;
+  align-items:start;
+}
+.node-limits-grid > label{
+  display:grid;
+  gap:7px;
+  min-width:0;
+  margin:0;
+}
+.node-limits-grid input{
+  width:100%;
+}
+@media(max-width:1100px){
+  .node-limits-grid{grid-template-columns:1fr;}
+}
+/* STREAMFORGE_NODE_HIDE_HOVER_EDIT_STYLE_V2293 */
+.node-hover-setting{display:grid!important;grid-template-columns:18px minmax(0,1fr)!important;align-items:start!important;gap:10px!important;padding:12px 14px!important;border:1px solid var(--line)!important;border-radius:10px!important;background:var(--surface-2)!important}
+.node-hover-setting>input{width:16px!important;height:16px!important;margin:2px 0 0!important;accent-color:var(--accent)}
+.node-hover-setting>span{display:grid;gap:5px;min-width:0}.node-hover-setting b{color:var(--text);line-height:1.3}.node-hover-setting .field-help{margin:0!important}
+
+/* STREAMFORGE_NODE_FIVE_OPTIONS_STYLE_V2296 */
+.node-five-options-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;align-items:stretch}
+.node-five-options-grid>.node-option-card{display:grid!important;align-content:start!important;gap:7px!important;min-width:0!important;margin:0!important;padding:12px!important;border:1px solid var(--line)!important;border-radius:10px!important;background:var(--surface-2)!important}
+.node-five-options-grid>.node-option-card input[type="number"]{width:100%}
+.node-option-check{grid-template-rows:auto 1fr}
+.node-option-checkline{display:grid!important;grid-template-columns:18px minmax(0,1fr)!important;gap:8px!important;align-items:start!important}
+.node-option-checkline>input{width:16px!important;height:16px!important;margin:2px 0 0!important;accent-color:var(--accent)}
+.node-option-checkline>b{line-height:1.3}
+@media(max-width:1500px){.node-five-options-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:900px){.node-five-options-grid{grid-template-columns:1fr}}
+
+
+/* STREAMFORGE_NODE_OPTION_TRUE_VERTICAL_CENTER_V2300 */
+.node-five-options-grid>.node-option-card.node-option-check{
+  display:flex!important;
+  flex-direction:column!important;
+  justify-content:center!important;
+  align-items:flex-start!important;
+  gap:10px!important;
+  text-align:left!important;
+  min-height:126px!important;
+  cursor:pointer!important;
+  padding-block:16px!important;
+}
+.node-five-options-grid .node-option-checkline{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  gap:9px!important;
+  width:100%!important;
+  text-align:left!important;
+  margin:0!important;
+}
+.node-five-options-grid .node-option-checkline>input{
+  flex:0 0 auto!important;
+  width:16px!important;
+  height:16px!important;
+  margin:0!important;
+}
+.node-five-options-grid .node-option-check>.field-help{
+  width:100%!important;
+  margin:0!important;
+  text-align:left!important;
+  line-height:1.45!important;
+}
+
+/* STREAMFORGE_DELEGATED_DNS01_UI_V41 */
+/* STREAMFORGE_DNS01_LAYOUT_SPACING_V99R2 */
+/* STREAMFORGE_DNS01_CARD_ACTIONS_V42 */
+/* STREAMFORGE_DNS01_OUTER_GAP_NOTE_WRAP_V105 */
+.dns01-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(430px,1fr));gap:14px;margin:16px 16px 14px}
+.dns01-card{display:grid;gap:14px;height:100%;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--panel2);box-shadow:inset 0 1px 0 rgba(255,255,255,.025)}
+.dns01-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.dns01-domain{display:grid;gap:4px;min-width:0}.dns01-domain b{font-size:15px;overflow-wrap:anywhere}.dns01-type{width:max-content;padding:3px 8px;border:1px solid var(--line);border-radius:999px;font-size:11px;color:var(--muted);font-weight:700}
+.dns01-status{display:grid;justify-items:end;gap:4px;text-align:right;min-width:145px}.dns01-state{display:inline-flex;align-items:center;min-height:27px;padding:4px 9px;border:1px solid var(--line);border-radius:999px;font-size:12px;font-weight:800;line-height:1.2}.dns01-state.ready{color:#74dfaf;border-color:rgba(116,223,175,.34);background:rgba(116,223,175,.08)}.dns01-state.waiting{color:#f7c86a;border-color:rgba(247,200,106,.35);background:rgba(247,200,106,.08)}.dns01-state.error{color:#ff969f;border-color:rgba(255,150,159,.35);background:rgba(255,150,159,.08)}
+.dns01-records{display:grid;gap:9px}.dns01-record{display:grid;grid-template-columns:74px minmax(0,1fr) auto;gap:9px;align-items:center;padding:10px 11px;border:1px solid var(--line);border-radius:10px;background:#0b1118}.dns01-record-label{font-size:11px;text-transform:uppercase;letter-spacing:.055em;color:var(--muted);font-weight:800}.dns01-value{min-width:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow-wrap:anywhere;user-select:all;font-size:12px}.dns01-copy{height:30px!important;min-height:30px!important;padding:0 10px!important;font-size:11px!important;border-radius:8px!important;white-space:nowrap}
+.dns01-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.dns01-action{height:35px!important;min-height:35px!important;padding:0 12px!important;font-size:12px!important;border-radius:9px!important}.dns01-action[disabled],.dns01-copy[disabled]{opacity:.55;cursor:wait}.dns01-result{min-height:19px;color:var(--muted);font-size:12px;line-height:1.45}.dns01-result.ok{color:#74dfaf}.dns01-result.bad{color:#ff969f}.dns01-result.busy{color:#f7c86a}.dns01-note{display:block;box-sizing:border-box;max-width:calc(100% - 32px);margin:0 16px 16px;padding:12px 0 0;border-top:1px solid var(--line);line-height:1.55;white-space:normal;overflow-wrap:break-word;word-break:normal}.dns01-note .mono{white-space:nowrap}
+@media(max-width:900px){.dns01-grid{grid-template-columns:1fr;margin:12px 12px 12px}.dns01-note{max-width:calc(100% - 24px);margin:0 12px 12px}.dns01-card-head{display:grid}.dns01-status{justify-items:start;text-align:left;min-width:0}.dns01-record{grid-template-columns:1fr}.dns01-copy{justify-self:start}}
+
+</style>
+
+<form class="form-layout" method="post" enctype="multipart/form-data" action="{{ '/nodes/' ~ node.id ~ '/edit' if node else '/nodes/new' }}">
+{% if error %}<div class="alert danger wide">{{ error }}</div>{% endif %}
+<section class="panel form-section">
+  <div class="panel-head node-connection-head">
+    <div><h2>{{ 'Main / Local server access' if node and node.node_type == 'local' else 'Node connection' }}</h2><p>{% if node and node.node_type == 'local' %}Configure independent public aliases for the Main Panel/API and Main playlists/apps. Playback IP/ASN rules below apply to Main/Local public streaming endpoints.{% else %}The token must match <span class="mono">STREAMFORGE_NODE_TOKEN</span> on the remote server.{% endif %}</p></div>
+    {% if not (node and node.node_type == 'local') %}
+    <label class="check node-enabled-head"><input type="checkbox" name="enabled" {% if not node or node.enabled %}checked{% endif %}><span>Enabled</span></label>
+    {% endif %}
+  </div>
+  <div class="form-grid">
+    {% if node and node.node_type == 'local' %}
+    <label>Name<input name="name" value="{{ node.name if node else '' }}" placeholder="Encoding Node 2" required></label>
+    <label>Node type<input value="Local/Main encoding server" readonly></label>
+
+    <label class="wide">Main Panel/API access URLs
+      <textarea name="api_url" rows="3" placeholder="http://panel.example.com/admin&#10;http://192.168.1.10/admin" required>{{ node.api_urls or node.api_url or '' }}</textarea>
+      <small class="field-help">One full URL per line. The first URL is the canonical Main Panel/API URL sent to Remote Nodes. Optional one-segment paths such as <span class="mono">/admin</span> are routed by Main Server. Each alias may use a different one-segment path. The protocol in each saved URL is canonical: an HTTP request to an https:// alias redirects to HTTPS, while an HTTPS request to an http:// alias redirects to HTTP with the same path/query. HTTP ports are activated automatically by StreamForge Nginx management. StreamForge v4.4 uses delegated DNS-01 for managed TLS: the server shows a one-time _acme-challenge CNAME, so the hostname may point to a public or private/local IP. An existing certificate under /etc/streamforge/tls/HOSTNAME/ is also accepted. When hostname locking is enabled, the exact hostname, port and access path are enforced.</small>
+    </label>
+
+    <input type="hidden" name="api_token" value="">
+    <input type="hidden" name="enabled" value="on">
+    <input type="hidden" name="verify_tls" value="on">
+    {% else %}
+    <div class="wide node-connection-compact-row">
+      <label>Name
+        <input name="name" value="{{ node.name if node else '' }}" placeholder="Encoding Node 2" required>
+      </label>
+      <label>API token
+        <input name="api_token" value="{{ '' if node else suggested_token }}" placeholder="{{ 'Leave blank to keep current token' if node else 'Secure node token' }}" {% if not node %}required{% endif %}>
+        <small class="field-help">STREAMFORGE_NODE_TOKEN</small>
+      </label>
+      <label>SSH host
+        <input name="ssh_host" value="{{ node.ssh_host or '' if node else '' }}" placeholder="192.168.253.30">
+      </label>
+      <label>SSH port
+        <input type="number" name="ssh_port" min="1" max="65535" value="{{ node.ssh_port or 22 if node else 22 }}">
+      </label>
+      <label>SSH user
+        <input name="ssh_user" value="{{ node.ssh_user or 'root' if node else 'root' }}">
+      </label>
+      <label class="node-ssh-password-cell">SSH password
+        <input type="password" name="ssh_password" autocomplete="new-password" placeholder="{{ 'Saved · enter new password to replace' if node and node.ssh_password_enc else 'Enter SSH password' }}">
+        <small class="field-help node-ssh-password-status">
+          {% if node and node.ssh_password_enc %}
+          <span class="saved-secret-badge">Saved</span> Password is stored encrypted.
+          {% else %}
+          <span class="unsaved-secret-badge">Not saved</span>
+          {% endif %}
+        </small>
+      </label>
+    </div>
+
+    <div class="wide node-connection-options-row">
+      <label class="check"><input type="checkbox" name="verify_tls" {% if not node or node.verify_tls %}checked{% endif %}><span>Verify HTTPS certificate</span></label>
+      <label class="check"><input type="checkbox" name="save_ssh_password"><span>Encrypt and save new SSH password</span></label>
+      {% if node and node.ssh_password_enc %}
+      <label class="check saved-password-remove"><input type="checkbox" name="clear_ssh_password"><span>Remove saved SSH password</span></label>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% if not node %}
+    <label>Node logo URL
+      <input type="url" name="logo_url" value="" placeholder="https://example.com/node-logo.png">
+      <small class="field-help">Use a direct PNG, JPG, WEBP or GIF URL.</small>
+    </label>
+    {% else %}
+    <input type="hidden" name="logo_url" value="">
+    {% endif %}
+
+    {% if node and node.node_type == 'remote' %}
+    <div class="wide node-branding-inline">
+      <label class="node-branding-upload">Upload node logo
+        <input type="file" name="logo_file" accept="image/png,image/jpeg,image/webp,image/gif">
+        <small class="field-help">Maximum 2 MB.</small>
+      </label>
+      <div class="current-logo-card node-branding-current">
+        {% if node.logo_url %}
+        <img src="{{ node.logo_url|versioned_asset }}" alt="{{ node.name }} logo" onerror="this.hidden=true">
+        <div><b>Current node logo</b><small>Uploaded file</small></div>
+        <label class="check"><input type="checkbox" name="remove_logo"><span>Remove</span></label>
+        {% else %}<div><b>Current node logo</b><small>Not set</small></div>{% endif %}
+      </div>
+      <label class="node-branding-upload">Upload Node favicon
+        <input type="file" name="favicon_file" accept="image/x-icon,image/vnd.microsoft.icon,image/png,image/jpeg,image/webp,image/gif,.ico">
+        <small class="field-help">Managed from Main · max 2 MB.</small>
+      </label>
+      <div class="current-logo-card node-branding-current node-favicon-current">
+        {% if node_favicon_url %}
+        <img src="{{ node_favicon_url }}" alt="{{ node.name }} favicon">
+        <div><b>Current Node favicon</b><small>Managed from Main</small></div>
+        <label class="check"><input type="checkbox" name="remove_favicon"><span>Remove</span></label>
+        {% else %}<div><b>Current Node favicon</b><small>Not set</small></div>{% endif %}
+      </div>
+    </div>
+    {% else %}
+    <label>Upload node logo
+      <input type="file" name="logo_file" accept="image/png,image/jpeg,image/webp,image/gif">
+      <small class="field-help">Uploaded file has priority. Maximum 2 MB.</small>
+    </label>
+    {% if node and node.logo_url %}
+    <div class="wide current-logo-card">
+      <img src="{{ node.logo_url|versioned_asset }}" alt="{{ node.name }} logo" onerror="this.hidden=true">
+      <div><b>Current node logo</b><small>Uploaded file</small></div>
+      <label class="check"><input type="checkbox" name="remove_logo"><span>Remove current logo</span></label>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    {% if node and node.node_type == 'local' %}
+    <!-- STREAMFORGE_MAIN_AUTOMATIC_ACCESS_POLICY_UI_V3031: relay authority is
+         derived from the canonical Panel/API URL and exact role enforcement
+         is always enabled, so no duplicate/manual controls are rendered. -->
+    <input type="hidden" name="dns_name" value="">
+    <input type="hidden" name="dns_scheme" value="http">
+    <input type="hidden" name="dns_only" value="on">
+    {% else %}
+    <input type="hidden" name="dns_name" value="">
+    <input type="hidden" name="dns_scheme" value="http">
+    <input type="hidden" name="dns_only" value="on">
+    {% endif %}
+
+    {% if not (node and node.node_type == 'local') %}
+    <label class="wide">Node Panel/API access URLs
+      <textarea name="api_url" rows="3" placeholder="http://panel.example.com/admin&#10;http://192.168.1.10/admin" required>{{ (node.api_urls or node.api_url or '') if node else '' }}</textarea>
+      <small class="field-help">One full URL per line. If no public port is written, HTTP uses 80 and HTTPS uses 443. The Node Agent backend listener is separate and is not appended to the public URL. Standalone Remote Nodes can provision TLS automatically with the same delegated DNS-01 CNAME flow; the Node Agent backend listener stays separate from public HTTPS. Each alias may use a different one-segment path.</small>
+    </label>
+    {% endif %}
+
+    <label class="wide">{{ 'Main Playlist/App access URLs' if node and node.node_type == 'local' else 'Playlist/App access URLs' }}
+      <textarea name="playlist_url" rows="3" placeholder="http://stream.example.com/stream&#10;http://192.168.1.10/stream" required>{{ (node.playlist_urls or node.playlist_url or '') if node else '' }}</textarea>
+      {% if node and node.node_type == 'local' %}
+      <small class="field-help">One full URL per line. The first URL is used to generate Main M3U, Xtream, player and encrypted playback links. It may be identical to the Panel/API URL or use another hostname, port and one-segment path. HTTP ports are activated automatically. Playlist-only aliases cannot open the control panel.</small>
+      {% else %}
+      <small class="field-help">One full URL per line. Public HTTP defaults to 80 and public HTTPS defaults to 443 when no port is written. The internal Playlist listener remains separate; managed DNS-01 TLS terminates HTTPS at Nginx and forwards to that listener. Write an explicit public port only when clients really connect to that nonstandard port. Each alias may use a different one-segment path.</small>
+      {% endif %}
+    </label>
+    <input type="hidden" name="playlist_port" value="0">
+    <input type="hidden" name="playlist_dns_only" value="{{ '' if node and node.node_type == 'local' else 'on' }}">
+
+    {% if not (node and node.node_type == 'local') %}
+    <!-- STREAMFORGE_NODE_FIVE_OPTIONS_ROW_V2296 -->
+    <div class="wide node-five-options-grid">
+      <label class="node-option-card">Node-local channel limit
+        <input type="number" min="0" max="100000" name="local_channel_limit" value="{{ (node.local_channel_limit or 0) if node else 0 }}">
+        <small class="field-help">Maximum channels that may be added locally on this Node. Set 0 to disable local channel creation in Shared mode.</small>
+      </label>
+      <label class="node-option-card">Total max connections
+        <input type="number" min="0" max="1000000" name="total_max_connections" value="{{ (node.total_max_connections or 0) if node else 0 }}">
+        <small class="field-help">Maximum concurrent viewer sessions accepted by this Node. Set 0 for unlimited.</small>
+      </label>
+      <!-- STREAMFORGE_NODE_VIEWER_TTL_EDIT_UI_V2256 -->
+      <!-- STREAMFORGE_MANUAL_ADD_VIEWER_TTL_V2292 -->
+      <label class="node-option-card">Online session timeout (seconds)
+        <input type="number" min="5" max="3600" name="node_viewer_session_timeout_seconds" value="{{ node_viewer_session_timeout_seconds|default(5) }}">
+        <small class="field-help">How long this Remote Node keeps a viewer counted as Online after its last playback heartbeat.</small>
+      </label>
+      <!-- STREAMFORGE_NODE_HIDE_HOVER_EDIT_UI_V2293 -->
+      <!-- STREAMFORGE_MANUAL_ADD_HIDE_HOVER_V2296 -->
+      <label class="node-option-card node-option-check">
+        <span class="node-option-checkline"><input type="checkbox" name="node_hide_panel_hover_urls" value="1" {% if node_hide_panel_hover_urls|default(true) %}checked{% endif %}><b>Hide Panel & Web Player URLs</b></span>
+        <small class="field-help">Hides same-origin URL previews on this Node Panel and Web Player.</small>
+      </label>
+      <label class="node-option-card node-option-check">
+        <span class="node-option-checkline"><input type="checkbox" name="sync_main_users" {% if node and node.sync_main_users %}checked{% endif %}><b>Independent Node mode</b></span>
+        <small class="field-help">Keeps this Node's own channel and playlist-user catalogue.</small>
+      </label>
+    </div>
+    {% else %}
+    <input type="hidden" name="local_channel_limit" value="0">
+    <input type="hidden" name="total_max_connections" value="0">
+    <input type="hidden" name="node_viewer_session_timeout_seconds" value="5">
+    <input type="hidden" name="sync_main_users" value="">
+    {% endif %}
+
+    <label class="wide">Strict client IP prefixes
+      <textarea name="client_prefixes" rows="5" placeholder="10.20.0.0/16&#10;192.168.50.0/24&#10;2001:db8:10::/48">{{ node.client_prefixes or '' if node else '' }}</textarea>
+      <small class="field-help">One CIDR per line. A matching client prefers this server first. If it is offline or not playback-ready, StreamForge automatically falls back to another eligible assigned Node.</small>
+    </label>
+    <div class="wide settings-divider"><h3>Panel access rules</h3><p>Independent browser Panel policy. All four configured rules are enforced together.</p></div>
+    <div class="wide access-policy-grid access-policy-row">
+      <label>Panel IP whitelist<textarea name="panel_ip_whitelist" rows="4" placeholder="IP or CIDR per line">{{ node.panel_ip_whitelist or '' if node else '' }}</textarea></label>
+      <label>Panel IP blacklist<textarea name="panel_ip_blacklist" rows="4" placeholder="IP or CIDR per line">{{ node.panel_ip_blacklist or '' if node else '' }}</textarea></label>
+      <label>Panel ASN whitelist<textarea name="panel_asn_whitelist" rows="4" placeholder="AS13335&#10;AS15169">{{ node.panel_asn_whitelist or '' if node else '' }}</textarea></label>
+      <label>Panel ASN blacklist<textarea name="panel_asn_blacklist" rows="4" placeholder="AS64500">{{ node.panel_asn_blacklist or '' if node else '' }}</textarea></label>
+    </div>
+    <div class="wide settings-divider"><h3>Playback & catalog access rules</h3><p>Playlist, Xtream, Web Player catalogue and playback policy. All four configured rules are enforced together.</p></div>
+    <div class="wide access-policy-grid access-policy-row">
+      <label>Playback IP whitelist
+        <textarea name="ip_whitelist" rows="5" placeholder="One IP or CIDR per line">{{ node.ip_whitelist or '' if node else '' }}</textarea>
+      </label>
+      <label>Playback IP blacklist
+        <textarea name="ip_blacklist" rows="5" placeholder="One IP or CIDR per line">{{ node.ip_blacklist or '' if node else '' }}</textarea>
+      </label>
+      <label>ASN whitelist
+        <textarea name="asn_whitelist" rows="4" placeholder="AS13335&#10;AS15169">{{ node.asn_whitelist or '' if node else '' }}</textarea>
+      </label>
+      <label>ASN blacklist
+        <textarea name="asn_blacklist" rows="4" placeholder="AS64500">{{ node.asn_blacklist or '' if node else '' }}</textarea>
+      </label>
+    </div>
+  </div>
+</section>
+
+{% if node %}
+<section class="panel form-section" id="dns01-certificate-panel">
+  <div class="panel-head">
+    <div>
+      <h2>DNS-01 HTTPS certificate</h2>
+      <p>Add each CNAME once at whichever DNS provider owns that hostname. Public DNS validation works even when the hostname itself points to a private/local IP.</p>
+    </div>
+  </div>
+  {% set tls = managed_tls|default({}) %}
+  {% set delegations = tls.get('delegations', {}) if tls else {} %}
+  {% if delegations %}
+  <div class="dns01-grid">
+    {% for host, item in delegations|dictsort %}
+    {% set state = item.get('state', 'pending') %}
+    <article class="dns01-card" data-dns01-card data-host="{{ host }}">
+      <div class="dns01-card-head">
+        <div class="dns01-domain">
+          <b>{{ host }}</b>
+          <span class="dns01-type">CNAME · DNS-01</span>
+        </div>
+        <div class="dns01-status">
+          {% if item.get('dns01_managed') and item.get('certificate_ready') %}
+            <span class="dns01-state ready" data-dns01-status>Certificate ready</span>
+          {% elif state == 'custom_certificate' %}
+            <span class="dns01-state ready" data-dns01-status>Custom cert active</span>
+          {% elif state == 'waiting_cname_migration' %}
+            <span class="dns01-state waiting" data-dns01-status>Add CNAME · cert active</span>
+          {% elif state == 'waiting_cname' %}
+            <span class="dns01-state waiting" data-dns01-status>Add CNAME</span>
+          {% elif state in ['issuing','migrating_renewal','retry_deferred'] %}
+            <span class="dns01-state waiting" data-dns01-status>{{ 'Migrating renewal' if state == 'migrating_renewal' else ('Issuing certificate' if state == 'issuing' else 'Retry scheduled') }}</span>
+          {% elif state == 'registration_state_missing' %}
+            <span class="dns01-state error" data-dns01-status>Registration data missing · cert active</span>
+          {% elif state in ['registration_failed','issue_failed','migration_failed','unavailable'] %}
+            <span class="dns01-state error" data-dns01-status>{{ state|replace('_',' ')|title }}</span>
+          {% else %}
+            <span class="dns01-state waiting" data-dns01-status>Pending</span>
+          {% endif %}
+          <small class="field-help">{% if item.get('certificate_ready') %}TLS listener can be used now{% else %}Waiting for DNS/certificate{% endif %}</small>
+        </div>
+      </div>
+
+      <div class="dns01-records">
+        <div class="dns01-record">
+          <span class="dns01-record-label">Name</span>
+          <span class="dns01-value" data-dns01-name>{{ item.get('cname_name') or ('_acme-challenge.' ~ host) }}</span>
+          <button class="button dns01-copy" type="button" data-copy-from="name">Copy</button>
+        </div>
+        <div class="dns01-record">
+          <span class="dns01-record-label">Target</span>
+          {# STREAMFORGE_DNS01_REGISTRATION_METADATA_UI_V43 #}
+          <span class="dns01-value" data-dns01-target>{{ item.get('cname_target') or ('Registration data unavailable' if state == 'registration_state_missing' else 'Registration pending…') }}</span>
+          <button class="button dns01-copy" type="button" data-copy-from="target" {% if not item.get('cname_target') %}disabled{% endif %}>Copy</button>
+        </div>
+      </div>
+
+      <div class="dns01-actions">
+        <button class="button dns01-action" type="button" data-dns01-test>Test CNAME</button>
+        <button class="button dns01-action" type="button" data-dns01-retry>Retry certificate</button>
+      </div>
+      <div class="dns01-result" data-dns01-result>{{ item.get('cname_check') or item.get('error') or 'Use Test CNAME after adding the record at your DNS provider.' }}</div>
+    </article>
+    {% endfor %}
+  </div>
+  <small class="field-help dns01-note">Add each CNAME only once. StreamForge updates the delegated TXT challenge automatically for issuance and renewal. HTTP-canonical domains also keep a valid TLS certificate on port 443 so an accidental <span class="mono">https://</span> request can complete TLS and redirect to the configured <span class="mono">http://</span> URL without a certificate warning.</small>
+  {% else %}
+  <div class="alert">Save an access hostname first. StreamForge will register a restricted DNS-01 delegation and show the one-time CNAME here on the next reconciliation.</div>
+  {% if tls.get('errors') %}<small class="field-help">TLS status: {{ tls.get('errors') }}</small>{% endif %}
+  {% endif %}
+</section>
+{% endif %}
+
+<div class="form-actions"><a class="button" href="/nodes">Cancel</a><button class="button primary">Save node</button></div>
+</form>
+{% if node %}
+<script>
+// STREAMFORGE_DNS01_CARD_ACTIONS_JS_V42
+// STREAMFORGE_MAIN_DNS01_PANEL_ROOT_V81: keep DNS-01 AJAX actions inside the active Main Panel root path.
+// STREAMFORGE_MAIN_NODE_DNS01_ACTION_FEEDBACK_V82: expected DNS states return JSON; only real transport failures show a network hint.
+(() => {
+  const panel = document.getElementById('dns01-certificate-panel');
+  if (!panel) return;
+  const nodeId = {{ node.id|int }};
+  // STREAMFORGE_MAIN_DNS01_SERVER_ROOT_V83: use the render-time prefix first.
+  // node_form's inline script executes before base.html's footer bootstrap.
+  const panelRoot = String({{ app_root|tojson }} || window.STREAMFORGE_APP_ROOT || '').replace(/\/+$/, '');
+  const nodeDns01Path = (action) => `${panelRoot}/nodes/${nodeId}/dns01/${action}`;
+  const post = async (path, payload) => {
+    const response = await fetch(path, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+      body: JSON.stringify(payload || {})
+    });
+    let data = {};
+    try { data = await response.json(); } catch (_) {}
+    if (!response.ok) throw new Error(data.detail || data.message || `HTTP ${response.status}`);
+    return data;
+  };
+  const setResult = (card, text, kind) => {
+    const box = card.querySelector('[data-dns01-result]');
+    if (!box) return;
+    box.textContent = text || '';
+    box.classList.remove('ok', 'bad', 'busy');
+    if (kind) box.classList.add(kind);
+  };
+  const setStatus = (card, text, kind) => {
+    const badge = card.querySelector('[data-dns01-status]');
+    if (!badge) return;
+    badge.textContent = text;
+    badge.classList.remove('ready', 'waiting', 'error');
+    badge.classList.add(kind || 'waiting');
+  };
+  const copyText = async (button, value) => {
+    if (!value || value.includes('pending')) return;
+    const original = button.textContent;
+    try {
+      await navigator.clipboard.writeText(value);
+      button.textContent = 'Copied';
+    } catch (_) {
+      const area = document.createElement('textarea');
+      area.value = value; area.style.position = 'fixed'; area.style.opacity = '0';
+      document.body.appendChild(area); area.select(); document.execCommand('copy'); area.remove();
+      button.textContent = 'Copied';
+    }
+    setTimeout(() => { button.textContent = original; }, 1200);
+  };
+
+  panel.addEventListener('click', async (event) => {
+    const button = event.target.closest('button');
+    if (!button) return;
+    const card = button.closest('[data-dns01-card]');
+    if (!card) return;
+    const host = card.dataset.host || '';
+    if (button.matches('[data-copy-from]')) {
+      const source = button.dataset.copyFrom === 'name' ? card.querySelector('[data-dns01-name]') : card.querySelector('[data-dns01-target]');
+      await copyText(button, (source?.textContent || '').trim());
+      return;
+    }
+    if (button.matches('[data-dns01-test]')) {
+      const old = button.textContent;
+      button.disabled = true; button.textContent = 'Testing…';
+      setResult(card, 'Checking public DNS…', 'busy');
+      try {
+        const data = await post(nodeDns01Path('test'), {host});
+        if (data.ok) {
+          if (data.certificate_ready) {
+            setStatus(card, 'Certificate ready', 'ready');
+          } else if (data.issuance_queued) {
+            setStatus(card, 'Issuing certificate', 'waiting');
+            window.setTimeout(() => window.location.reload(), 5000);
+          } else {
+            setStatus(card, 'CNAME ready', 'ready');
+          }
+          setResult(card, data.message || 'CNAME is correct.', 'ok');
+        } else {
+          setStatus(card, data.state === 'wrong_target' ? 'Wrong target' : 'CNAME pending', data.state === 'wrong_target' ? 'error' : 'waiting');
+          setResult(card, data.message || 'CNAME is not ready yet.', data.state === 'wrong_target' ? 'bad' : 'busy');
+        }
+      } catch (error) {
+        setStatus(card, 'Test failed', 'error');
+        setResult(card, error instanceof TypeError ? 'Main could not reach the DNS action endpoint. Refresh once; if it persists, check Main/Node connectivity.' : (error.message || String(error)), 'bad');
+      } finally {
+        button.disabled = false; button.textContent = old;
+      }
+      return;
+    }
+    if (button.matches('[data-dns01-retry]')) {
+      const old = button.textContent;
+      button.disabled = true; button.textContent = 'Queuing…';
+      setResult(card, 'Queuing certificate reconciliation…', 'busy');
+      try {
+        const data = await post(nodeDns01Path('retry'), {host});
+        setStatus(card, 'Retry queued', 'waiting');
+        setResult(card, data.message || 'Certificate retry queued. Refresh this page shortly to see the new state.', 'ok');
+      } catch (error) {
+        setStatus(card, 'Retry failed', 'error');
+        setResult(card, error instanceof TypeError ? 'Main could not reach the certificate action endpoint. Check Main/Node connectivity.' : (error.message || String(error)), 'bad');
+      } finally {
+        button.disabled = false; button.textContent = old;
+      }
+    }
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

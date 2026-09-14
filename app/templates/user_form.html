@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if user and user.id else 'Add' }} User · {{ branding.name }}{% endblock %}
+{% block heading %}<h1>{{ 'Edit user' if user and user.id else 'Add user' }}</h1><p>Main Panel users with optional sticky load balancing</p>{% endblock %}
+{% block content %}
+<form class="form-layout" method="post" data-playlist-order-form data-current-playlist-order='{{ user.playlist_order or "[]" if user else "[]" }}' action="{{ '/users/' ~ user.id ~ '/edit' if user and user.id else '/users/new' }}" data-user-delivery-form>
+{% if error %}<div class="alert danger wide">{{ error }}</div>{% endif %}
+<section class="panel form-section"><div class="panel-head"><div><h2>Account</h2><p>A random secure token is generated automatically.</p></div></div>
+<div class="form-grid">
+<label>Username<input name="xtream_username" value="{{ user.xtream_username or '' if user else '' }}" autocomplete="off" placeholder="e.g. xtreamapk" {% if not user %}required{% endif %}><small class="field-help">This username is used by player_api.php and Android/TV apps.</small></label>
+<label>Password<input type="password" name="xtream_password" autocomplete="new-password" placeholder="{{ 'Leave blank to keep current password' if user and user.xtream_password_hash else 'Enter account password' }}" {% if not user %}required{% endif %}><small class="field-help">Stored as a secure scrypt hash. Playback URLs returned by the API use encrypted keys instead of exposing this password.</small></label>
+<label>Display name (optional)<input name="name" value="{{ user.name if user else '' }}" placeholder="Defaults to username"></label>
+<label>Expiry (UTC)<input type="datetime-local" name="expires_at" value="{{ user.expires_at.strftime('%Y-%m-%dT%H:%M') if user and user.expires_at else '' }}"></label>
+<label>Account type<select name="user_type"><option value="viewer" {% if not user or user.user_type != 'restream' %}selected{% endif %}>Normal user — HLS only, IP/session-bound key</option><option value="restream" {% if user and user.user_type == 'restream' %}selected{% endif %}>Restreamer — allowed IPs required</option></select><small class="field-help">Normal users cannot request TS/restream output. Restreamer accounts are restricted to the IP/CIDR list below.</small></label>
+<label class="user-max-connections-field">Max connections<input type="number" min="0" max="100" name="max_connections" value="{{ user.max_connections if user else 1 }}"><small>0 means unlimited.</small></label>
+<label class="wide">Restream allowed IPs / CIDRs<textarea name="restream_allowed_ips" rows="4" placeholder="203.0.113.10&#10;198.51.100.0/24">{{ user.restream_allowed_ips or '' if user else '' }}</textarea><small class="field-help">Required only for Restreamer accounts. One IP or CIDR per line.</small></label>
+<label class="check"><input type="checkbox" name="enabled" {% if not user or user.enabled %}checked{% endif %}><span>Enabled</span></label>
+<input type="hidden" name="delivery_mode" value="central">
+<input type="hidden" name="direct_node_id" value="">
+<label class="wide">Playlist profile
+<select name="playlist_id" data-playlist-profile-select>
+<option value="0" {% if not user or not user.playlist_id %}selected{% endif %}>Custom channel selection</option>
+{% for playlist in playlists %}<option value="{{ playlist.id }}" {% if user and user.playlist_id == playlist.id %}selected{% endif %}>{{ playlist.name }} · {{ playlist_channel_count(playlist) }} channel(s)</option>{% endfor %}
+</select>
+<small class="field-help">Create and order a playlist once, then assign it to multiple users. Select Custom only when this user needs a unique channel list.</small>
+</label>
+<label class="wide">Notes<textarea name="notes" rows="3">{{ user.notes or '' if user else '' }}</textarea></label>
+</div></section>
+
+
+
+<section class="panel form-section" data-central-user-options>
+<div class="panel-head"><div><h2>Main Panel load balancing</h2><p>Optional node restriction for Main Panel playlists.</p></div></div>
+<div class="form-grid">
+<label class="check wide"><input type="checkbox" name="load_balance_enabled" data-user-load-balance-toggle {% if not user or user.load_balance_enabled %}checked{% endif %}><span><b>Enable user-based node load balancing</b><small class="field-help">Uses sticky hashing by user token, client IP and channel. Uncheck to use the first selected Node as the Static Route; if it is unavailable, another eligible assigned Node is used as fallback.</small></span></label>
+</div>
+<div class="panel-head user-channel-head compact-head"><div><h3>Allowed load-balancing nodes</h3><p>Leave every node unselected to allow all nodes assigned to each channel.</p></div><div class="user-channel-tools"><button class="button small" type="button" data-user-node-select-all>Select all nodes</button><button class="button small" type="button" data-user-node-clear-all>Clear all</button></div></div>
+<div class="channel-checks compact-node-checks" data-user-node-list>
+{% for node in nodes %}<label><input type="checkbox" name="node_ids" value="{{ node.id }}" {% if user and node in user.nodes %}checked{% endif %}><span><b>{{ node.name }}</b><small>{{ node.node_type|title }}{% if node.client_prefixes %} · Strict IP prefix configured{% endif %}</small></span></label>{% else %}<p class="empty">No enabled node is available.</p>{% endfor %}
+</div>
+</section>
+
+<section class="panel form-section" data-custom-channel-options {% if user and user.playlist_id %}hidden aria-hidden="true"{% else %}aria-hidden="false"{% endif %}><div class="panel-head user-channel-head"><div><h2>Custom allowed channels</h2><p>Select the HLS channels to include in this user's M3U.</p></div><div class="user-channel-tools"><span data-user-channel-count>0 selected</span><button class="button small" type="button" data-user-select-all>Select all channels</button><button class="button small" type="button" data-user-clear-all>Clear all</button></div></div>
+<div class="channel-list-search"><input type="search" data-user-channel-search placeholder="Search channels"></div>
+<div class="channel-checks" data-user-channel-list>
+{% for channel in channels %}<label data-channel-node-ids="{{ channel.nodes|map(attribute='id')|join(',') }}" data-channel-name="{{ channel.name }}"><input type="checkbox" name="channel_ids" value="{{ channel.id }}" {% if user and channel in user.channels %}checked{% endif %}><span><b>{{ channel.name }}</b><small>{{ channel.output_type|upper }} · {{ channel.slug }} · {{ channel.nodes|length }} node(s)</small></span></label>{% else %}<p class="empty">Create a channel first.</p>{% endfor %}
+</div>
+<div class="playlist-order-box">
+  <div class="panel-head compact-head"><div><h3>Playlist channel order</h3><p>Move selected channels up or down. This order is used by this Main Panel user. Node-local playlists keep their own order on the Node.</p></div></div>
+  <input type="hidden" name="playlist_order" value="[]" data-playlist-order-input>
+  <ol class="playlist-order-list" data-playlist-order-list></ol>
+</div>
+</section>
+<div class="form-actions"><a class="button" href="/users">Cancel</a><button class="button primary">Save user</button></div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+(() => {
+  const form = document.querySelector('[data-user-delivery-form]');
+  const profile = form?.querySelector('[data-playlist-profile-select]');
+  const channels = form?.querySelector('[data-custom-channel-options]');
+  if (!form || !profile || !channels) return;
+
+  const customIsSelected = () => {
+    const value = String(profile.value || '').trim().toLowerCase();
+    return value === '' || value === '0' || value === 'custom' || value === '__custom__';
+  };
+
+  const syncCustomChannels = () => {
+    const visible = customIsSelected();
+    channels.hidden = !visible;
+    channels.setAttribute('aria-hidden', visible ? 'false' : 'true');
+    channels.querySelectorAll('input, button, select, textarea').forEach((control) => {
+      if (control.matches('[name="playlist_order"]')) return;
+      control.disabled = !visible;
+    });
+    if (visible) {
+      const search = channels.querySelector('[data-user-channel-search]');
+      if (search) {
+        search.disabled = false;
+        search.value = '';
+        search.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      channels.dispatchEvent(new CustomEvent('streamforge:custom-channels-shown', { bubbles: true }));
+    }
+  };
+
+  profile.addEventListener('change', syncCustomChannels);
+  profile.addEventListener('input', syncCustomChannels);
+  window.addEventListener('pageshow', syncCustomChannels);
+  syncCustomChannels();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,27 @@
+[Unit]
+Description=StreamForge Public WebPlayer/API Plane
+After=network-online.target redis-server.service streamforge.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=streamforge
+Group=streamforge
+WorkingDirectory=/opt/streamforge
+EnvironmentFile=/etc/streamforge.env
+Environment=STREAMFORGE_PROCESS_ROLE=public
+Environment=TMPDIR=/var/lib/streamforge/gunicorn-tmp
+ExecStart=/opt/streamforge/scripts/streamforge-public-start
+Restart=always
+RestartSec=2
+KillMode=control-group
+TimeoutStopSec=20
+LimitNOFILE=1048576
+TasksMax=infinity
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/streamforge
+
+[Install]
+WantedBy=multi-user.target

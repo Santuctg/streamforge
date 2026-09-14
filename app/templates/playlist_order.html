@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Playlist order · {{ branding.name }}{% endblock %}
+{% block heading %}<h1>Custom playlist hierarchy</h1><p>{{ playlist.name }} · category and channel order are stored on the Main Server and used by assigned users.</p>{% endblock %}
+{% block content %}
+{% if error %}<div class="alert danger">{{ error }}</div>{% endif %}
+{% if message %}<div class="alert success">{{ message }}</div>{% endif %}
+<form method="post" action="/playlists/{{ playlist.id }}/order" class="panel playlist-hierarchy-box" data-main-playlist-hierarchy-form>
+  <input type="hidden" name="category_order" value='{{ category_order_json }}' data-main-playlist-category-order-input>
+  <input type="hidden" name="playlist_order" value='{{ channel_order_json }}' data-main-playlist-channel-order-input>
+  <div class="playlist-hierarchy-grid">
+    <section class="playlist-hierarchy-section">
+      <div class="playlist-hierarchy-title"><b>1. Category order</b><small>Move complete category groups.</small></div>
+      <ol class="playlist-order-list main-playlist-category-order-list" data-main-playlist-category-list>
+      {% for group in groups %}
+        <li data-playlist-category-item data-category-key="{{ group.key }}">
+          <span><b data-order-number>{{ loop.index }}</b><span><strong>{{ group.name }}</strong><small>{{ group.channels|length }} channel(s)</small></span></span>
+          <span class="playlist-order-actions"><button class="button small" type="button" data-order-up aria-label="Move category up">↑</button><button class="button small" type="button" data-order-down aria-label="Move category down">↓</button></span>
+        </li>
+      {% else %}
+        <li class="playlist-order-empty">Select channels in this playlist first.</li>
+      {% endfor %}
+      </ol>
+    </section>
+    <section class="playlist-hierarchy-section">
+      <div class="playlist-hierarchy-title"><b>2. Channel order inside category</b><small>Channels stay inside their own category.</small></div>
+      <div class="playlist-category-channel-groups" data-main-playlist-channel-groups>
+      {% for group in groups %}
+        <section class="playlist-category-group" data-playlist-category-group data-category-key="{{ group.key }}">
+          <div class="playlist-category-group-head"><b>{{ group.name }}</b><small>{{ group.channels|length }} channel(s)</small></div>
+          <ol class="playlist-order-list" data-playlist-channel-list>
+          {% for channel in group.channels %}
+            <li data-playlist-channel-item data-channel-id="{{ channel.id }}">
+              <span><b data-order-number>{{ loop.index }}</b><span><strong>{{ channel.name }}</strong><small>{{ channel.slug }}</small></span></span>
+              <span class="playlist-order-actions"><button class="button small" type="button" data-order-up aria-label="Move channel up">↑</button><button class="button small" type="button" data-order-down aria-label="Move channel down">↓</button></span>
+            </li>
+          {% endfor %}
+          </ol>
+        </section>
+      {% else %}
+        <p class="empty">No selected channels.</p>
+      {% endfor %}
+      </div>
+    </section>
+  </div>
+  <div class="form-actions playlist-hierarchy-actions"><a class="button" href="/users">Back</a><a class="button" href="/playlists/{{ playlist.id }}/edit">Edit channels</a><button class="button primary" type="submit">Save playlist order</button></div>
+</form>
+{% endblock %}

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}{{ category.name }} channels · {{ branding.name }}{% endblock %}
+{% block heading %}<h1>{{ category.name }} channels</h1><p>Open the category and set the default channel order used by the panel, playlists and synchronized Remote Nodes.</p>{% endblock %}
+{% block content %}
+<div class="category-page-grid category-channel-order-page">
+  <div class="category-management-column">
+    <section class="panel category-list-panel">
+      <div class="panel-head">
+        <div><h2>{{ category.name }}</h2><p>{{ channels|length }} channel{{ '' if channels|length == 1 else 's' }} in this category</p></div>
+        <div class="category-actions category-channel-actions">
+          <input type="search" class="channel-inline-search" data-category-channel-search placeholder="Search channels">
+          <a class="button" href="/categories">Back</a>
+          <a class="button" href="/channels?category={{ category.id }}">Channel list</a>
+        </div>
+      </div>
+      {% if error %}<div class="alert danger category-alert">{{ error }}</div>{% endif %}
+      {% if message %}<div class="alert success category-alert">{{ message }}</div>{% endif %}
+      {% if channels %}
+      <form method="post" action="/categories/{{ category.id }}/channels/reorder" data-category-channel-order-form data-current-channel-order='{{ channels|map(attribute="id")|list|tojson }}'>
+        <input type="hidden" name="channel_order" value="[]" data-category-channel-order-input>
+        <div class="panel-head compact-head"><div><h3>Channel order</h3><p>Use the arrows to order channels only inside <b>{{ category.name }}</b>.</p></div></div>
+        <ol class="playlist-order-list" data-category-channel-order-list>
+          {% for channel in channels %}
+          <li data-order-channel-id="{{ channel.id }}" data-order-channel-name="{{ channel.name }}" data-category-channel-row data-channel-search="{{ (channel.name ~ ' ' ~ channel.slug ~ ' ' ~ channel.input_url)|lower }}">
+            <span><b>{{ loop.index }}</b><span>{{ channel.name }}</span></span>
+          </li>
+          {% endfor %}
+        </ol>
+        <button class="button primary" type="submit">Save channel order</button>
+      </form>
+      {% else %}
+      <div class="empty">No channels inside this category yet.</div>
+      {% endif %}
+    </section>
+  </div>
+
+  <section class="panel category-order-panel">
+    <div class="panel-head"><div><h2>Included channels</h2><p>Preview the channels that belong to this category.</p></div></div>
+    <div class="category-list">
+      {% for channel in channels %}
+      <article class="category-row">
+        <div class="category-summary">
+          <span class="category-icon">{{ loop.index }}</span>
+          <div><b>{{ channel.name }}</b><small>{{ channel.output_type|upper }} · {{ channel.status|replace('_', ' ')|title }}</small></div>
+        </div>
+        <div class="category-actions">
+          <a class="button small" href="/channels/{{ channel.id }}/info">Info</a>
+          {% if can('channels.edit') %}<a class="button small" href="/channels/{{ channel.id }}/edit">Edit</a>{% endif %}
+        </div>
+      </article>
+      {% else %}<div class="empty">No channels found.</div>{% endfor %}
+    </div>
+  </section>
+</div>
+<script>
+const categoryChannelSearch=document.querySelector('[data-category-channel-search]');const filterCategoryChannels=()=>{const normal=value=>{try{return String(value||'').normalize('NFKD').replace(/\p{Diacritic}/gu,'').toLocaleLowerCase();}catch(_e){return String(value||'').toLocaleLowerCase();}};const tokens=normal(categoryChannelSearch?.value||'').trim().split(/\s+/).filter(Boolean);document.querySelectorAll('[data-category-channel-row]').forEach(row=>{const hay=normal(row.dataset.channelSearch||'');row.hidden=Boolean(tokens.length&&!tokens.every(token=>hay.includes(token)));});};categoryChannelSearch?.addEventListener('input',filterCategoryChannels);categoryChannelSearch?.addEventListener('search',filterCategoryChannels);categoryChannelSearch?.addEventListener('keydown',event=>{if(event.key==='Enter')event.preventDefault();if(event.key==='Escape'){categoryChannelSearch.value='';filterCategoryChannels();}});filterCategoryChannels();
+</script>
+{% endblock %}

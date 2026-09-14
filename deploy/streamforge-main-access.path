@@ -1,0 +1,9 @@
+[Unit]
+Description=Watch for StreamForge Main/Local access listener changes
+
+[Path]
+PathChanged=/var/lib/streamforge/main-access-runtime/request.json
+Unit=streamforge-main-access.service
+
+[Install]
+WantedBy=multi-user.target

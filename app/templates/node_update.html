@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Update {{ node.name }} · {{ branding.name }}{% endblock %}
+{% block heading %}<h1>Update remote node</h1><p>Push the current Node Agent from the Main Panel</p>{% endblock %}
+{% block content %}
+{% if error %}<div class="alert danger node-update-notice">{{ error }}</div>{% endif %}
+{% if message %}<div class="alert success node-update-notice">{{ message }}</div>{% endif %}
+<div class="node-update-page">
+<section class="panel form-section node-update-live" data-node-update-status data-node-id="{{ node.id }}" data-status-url="{{ request.scope.get('root_path','') }}/nodes/{{ node.id }}/update/status">
+  <div class="panel-head"><div><h2>Live update status</h2><p>The page follows upload, install, restart and catalogue synchronization in real time.</p></div><span class="node-update-state idle" data-update-state>{{ update_job.state or 'idle' }}</span></div>
+  <div class="node-update-live-body">
+    <div class="node-update-progress-head"><div><b data-update-message>{{ update_job.message or 'No update is running.' }}</b><small data-update-time>{{ update_job.updated_at or '' }}</small></div><strong data-update-percent>{{ update_job.progress or 0 }}%</strong></div>
+    <div class="node-update-progress"><span data-update-progress style="width:{{ update_job.progress or 0 }}%"></span></div>
+    <ol class="node-update-steps" data-update-steps>
+      {% for key, label in [('queued','Queued'),('connecting','Connect'),('packaging','Package'),('uploading','Upload'),('installing','Install'),('restarting','Restart'),('verifying','Verify'),('syncing','Sync'),('done','Complete')] %}
+      <li data-update-step="{{ key }}"><span></span><b>{{ label }}</b></li>
+      {% endfor %}
+    </ol>
+    <div class="node-update-error" data-update-error{% if not update_job.error %} hidden{% endif %}>{{ update_job.error or '' }}</div>{# STREAMFORGE_NODE_UPDATE_ERROR_SUMMARY_ONLY_V65R3 #}
+    <details class="node-update-log-box">
+      <summary>Live update log</summary>
+      <pre data-update-log>{% for line in update_job.logs or [] %}{{ line }}{% if not loop.last %}
+{% endif %}{% else %}Waiting for an update job…{% endfor %}</pre>
+    </details>
+  </div>
+</section>
+<section class="panel form-section">
+  <div class="panel-head"><div><h2>Automatic update</h2><p>Port 80 is the default. When saved SSH credentials exist, Main Server automatically uses them for the one-time systemd listener migration; otherwise the API updater is used.</p></div></div>
+  <div class="node-update-body">
+    <div class="node-update-summary"><b>{{ node.name }}</b><span class="mono">{{ node.api_url }}</span><small>The update runs as a background job and this page displays its live state.</small></div>
+    <form method="post" action="/nodes/{{ node.id }}/update/api" data-node-update-trigger onsubmit="return confirm('Update and restart {{ node.name }} now?')"><button class="button primary">Update node</button></form>
+  </div>
+</section>
+<section class="panel form-section">
+  <div class="panel-head"><div><h2>SSH update / port migration</h2><p>Use this once when an older Node still listens on 8810 or when port 80 needs the systemd low-port capability installed.</p></div></div>
+  <form class="form-grid" method="post" action="/nodes/{{ node.id }}/update/ssh" data-node-update-trigger>
+    <label>SSH host<input name="ssh_host" value="{{ ssh_host }}" required></label>
+    <label>SSH port<input type="number" name="ssh_port" min="1" max="65535" value="{{ ssh_port }}" required></label>
+    <label>SSH user<input name="ssh_user" value="{{ ssh_user }}" required></label>
+    <label>SSH password<input type="password" name="ssh_password" autocomplete="new-password" placeholder="Enter a new password"></label>
+    {% if ssh_password_saved %}<label class="check"><input type="checkbox" name="use_saved_password" checked><span>Use saved encrypted SSH password</span></label>{% endif %}
+    <label class="check"><input type="checkbox" name="save_ssh_password"><span>Save the entered password encrypted</span></label>
+    <label>Node Agent port<input type="number" name="agent_port" min="1" max="65535" value="{{ agent_port }}" required></label>
+    <div class="wide field-help">The existing API token, DNS-only setting, panel URL and node slug are preserved.</div>
+    <div class="wide form-actions"><a class="button" href="/nodes">Back</a><button class="button restart-button" onclick="return confirm('Reinstall and restart this node over SSH?')">Update over SSH</button></div>
+  </form>
+</section>
+</div>
+{% endblock %}
+
+{% block scripts %}<script>
+(() => {
+  const box = document.querySelector('[data-node-update-status]');
+  if (!box) return;
+  const nodeId = box.dataset.nodeId;
+  // STREAMFORGE_NODE_UPDATE_PREFIXED_LIVE_STATUS_V50: custom Panel/API prefixes
+  // must be included because v4.9 deliberately removed the old global fetch wrapper.
+  const statusUrl = box.dataset.statusUrl || `/nodes/${nodeId}/update/status`;
+  const stateNode = box.querySelector('[data-update-state]');
+  const messageNode = box.querySelector('[data-update-message]');
+  const errorNode = box.querySelector('[data-update-error]');
+  const percentNode = box.querySelector('[data-update-percent]');
+  const bar = box.querySelector('[data-update-progress]');
+  const logNode = box.querySelector('[data-update-log]');
+  const timeNode = box.querySelector('[data-update-time]');
+  const steps = Array.from(box.querySelectorAll('[data-update-step]'));
+  const order = ['queued','connecting','packaging','uploading','installing','restarting','verifying','syncing','done'];
+  let lastLog = '';
+  const render = (data) => {
+    const state = String(data.state || 'idle');
+    const phase = String(data.phase || state);
+    const progress = Math.max(0, Math.min(100, Number(data.progress) || 0));
+    stateNode.textContent = state;
+    stateNode.className = `node-update-state ${state}`;
+    messageNode.textContent = data.message || 'No update is running.';
+    percentNode.textContent = `${Math.round(progress)}%`;
+    bar.style.width = `${progress}%`;
+    timeNode.textContent = data.updated_at ? `Updated ${new Date(data.updated_at).toLocaleTimeString()}` : '';
+    errorNode.textContent = data.error || '';
+    errorNode.hidden = !data.error;
+    const currentIndex = Math.max(0, order.indexOf(phase));
+    steps.forEach((step, index) => {
+      step.classList.toggle('complete', state === 'done' || state === 'warning' || index < currentIndex);
+      step.classList.toggle('active', index === currentIndex && !['done','warning','error','idle'].includes(state));
+      step.classList.toggle('failed', state === 'error' && index === currentIndex);
+    });
+    const logText = Array.isArray(data.logs) && data.logs.length ? data.logs.join('\n') : 'Waiting for an update job…';
+    if (logText !== lastLog) {
+      const shouldFollow = logNode.scrollTop + logNode.clientHeight >= logNode.scrollHeight - 25;
+      logNode.textContent = logText;
+      if (shouldFollow) logNode.scrollTop = logNode.scrollHeight;
+      lastLog = logText;
+    }
+    const busy = ['queued','running'].includes(state);
+    document.querySelectorAll('[data-node-update-trigger] button').forEach(button => { button.disabled = busy; });
+    return busy;
+  };
+  const poll = async () => {
+    let busy = false;
+    try {
+      const sep = statusUrl.includes('?') ? '&' : '?';
+      const response = await fetch(`${statusUrl}${sep}_=${Date.now()}`, {cache:'no-store', credentials:'same-origin', headers:{'Accept':'application/json'}});
+      if (response.ok) busy = render(await response.json());
+    } catch (error) {
+      // Keep polling after transient navigation/restart/network failures.
+      console.debug('StreamForge Node update live status retry', error);
+    }
+    setTimeout(poll, busy ? 800 : 2500);
+  };
+  poll();
+})();
+</script>{% endblock %}

@@ -1,0 +1,704 @@
+{% extends "base.html" %}
+{% block title %}Settings · {{ branding.name }}{% endblock %}
+{% block heading %}<h1>Settings</h1><p>Main Server branding and connection capacity</p>{% endblock %}
+{% block content %}
+{% if saved %}<div class="alert success">Settings saved successfully.</div>{% endif %}
+{% if message %}<div class="alert success">{{ message }}</div>{% endif %}
+{% if error %}<div class="alert danger">{{ error }}</div>{% endif %}
+<form class="form-layout" method="post" enctype="multipart/form-data" action="/system/branding">
+  <section class="panel form-section settings-section">
+    <div class="panel-head"><div><h2>Main Panel branding</h2><p>These values appear on the login page and panel sidebar.</p></div></div>
+    <div class="form-grid">
+      <label>Brand name<input name="brand_name" maxlength="80" value="{{ branding.name }}" required><small class="field-help">Default: StreamForge</small></label>
+      <label>Subtitle
+        <input type="hidden" name="brand_subtitle_present" value="1">
+        <input name="brand_subtitle" maxlength="120" value="{{ branding.subtitle }}" autocomplete="off" data-brand-subtitle>
+        <small class="field-help">Leave blank to hide the subtitle.</small>
+      </label>
+      <label>Upload logo<input type="file" name="logo_file" accept="image/png,image/jpeg,image/webp,image/gif"><small class="field-help">PNG, JPG, WEBP or GIF; maximum 2 MB.</small></label>
+      <label>Upload favicon<input type="file" name="favicon_file" accept="image/x-icon,image/vnd.microsoft.icon,image/png,image/jpeg,image/webp,image/gif,.ico"><small class="field-help">Browser/tab icon. ICO, PNG, JPG, WEBP or GIF; maximum 2 MB.</small></label>
+      {% if branding.logo_url %}
+      <div class="current-logo-card">
+        <img src="{{ branding.logo_url|versioned_asset }}" alt="Current branding logo">
+        <div><b>Current logo</b><small>Displayed on login and sidebar</small></div>
+        <label class="check"><input type="checkbox" name="remove_logo"><span>Remove logo</span></label>
+      </div>
+      {% endif %}
+      {% if branding.favicon_url %}
+      <div class="current-logo-card current-favicon-card">
+        <img src="{{ branding.favicon_url }}" alt="Current favicon">
+        <div><b>Current favicon</b><small>Displayed in the browser tab</small></div>
+        <label class="check"><input type="checkbox" name="remove_favicon"><span>Remove favicon</span></label>
+      </div>
+      {% endif %}
+    </div>
+  </section>
+  <section class="panel form-section settings-section">
+    <div class="panel-head"><div><h2>Main Server connection capacity</h2><p>Limit concurrent Main Panel playback sessions across every account.</p></div></div>
+    <div class="form-grid metrics-settings-grid">
+      <label>Total max connections<input type="number" min="0" max="1000000" name="total_max_connections" value="{{ main_total_max_connections }}"></label>
+      <label>Metrics history retention (days)<input type="number" min="1" max="3650" name="metrics_retention_days" value="{{ metrics_retention_days }}"></label>
+      <label class="graph-span-field">Default graph time span<select name="metrics_default_span_hours">{% for hours,label in [(1,'Last hour'),(6,'Last 6 hours'),(24,'Last 24 hours'),(72,'Last 3 days'),(168,'Last 7 days'),(720,'Last 30 days')] %}<option value="{{ hours }}" {% if metrics_default_span_hours == hours %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+      <label>Graph sample interval (seconds)<input type="number" min="5" max="3600" name="metrics_sample_interval_seconds" value="{{ metrics_sample_interval_seconds }}"></label>
+      <!-- STREAMFORGE_SESSION_HOVER_SETTINGS_UI_V2254 -->
+      <label>Online session timeout (seconds)<input type="number" min="5" max="3600" name="viewer_session_timeout_seconds" value="{{ viewer_session_timeout_seconds }}"><small class="field-help">How long a viewer stays counted as Online after its last playback heartbeat. Default: 5 seconds.</small></label>
+      <!-- STREAMFORGE_CLIENT_SESSION_RESET_OFFLINE_UI_V1081 -->
+      <label>New session after offline (minutes)<input type="number" min="1" max="10080" name="client_session_reset_offline_minutes" value="{{ client_session_reset_offline_minutes }}"><small class="field-help">Same device/SID resumes the old cumulative Session age within this offline gap. Longer gaps start a new logical session and a new Client-log row. Default: 60 minutes.</small></label>
+      <!-- STREAMFORGE_MAIN_LOG_ROTATION_UI_V90R3 -->
+      <!-- STREAMFORGE_MAIN_LOG_RETENTION_V88 -->
+      <!-- STREAMFORGE_MAIN_LOG_ROTATION_INLINE_V91 -->
+      <label>Rotate / remove logs older than
+        <select name="log_retention_days">{% for days in [1,3,7,14,30,60,90,180,365] %}<option value="{{ days }}" {% if log_retention_days == days %}selected{% endif %}>{{ days }} day{% if days != 1 %}s{% endif %}</option>{% endfor %}</select>
+        <small class="field-help">Old Main Server Activity, Access, Client and System log rows are removed automatically.</small>
+      </label>
+      <!-- STREAMFORGE_MAIN_HIDE_HOVER_SETTING_LAYOUT_V2293 -->
+      <label class="hover-url-setting">
+        <input type="checkbox" name="hide_panel_hover_urls" {% if hide_panel_hover_urls %}checked{% endif %}>
+        <span class="hover-url-setting-copy">
+          <b>Hide Main Panel & Web Player URLs on mouse hover</b>
+          <small class="field-help">Hides same-origin URL previews in the Main Panel and Main Web Player. Remote Nodes can be configured separately from Edit Node.</small>
+        </span>
+      </label>
+      <label class="wide network-interface-field">Dashboard and graph network interfaces
+        <select name="network_interfaces" multiple size="1" data-network-interface-select>
+          <option value="__all__" {% if not selected_network_interfaces %}selected{% endif %}>All interfaces</option>
+          {% for interface in available_network_interfaces %}<option value="{{ interface }}" {% if interface in selected_network_interfaces %}selected{% endif %}>{{ interface }}</option>{% endfor %}
+        </select>
+        <small class="field-help">Use Ctrl/Cmd-click to select multiple interfaces. Choose All interfaces to aggregate every active NIC.</small>
+      </label>
+    </div>
+  </section>
+  <!-- STREAMFORGE_MAIN_YOUTUBE_COOKIES_SETTINGS_V1013 -->
+  <section class="panel form-section settings-section">
+    <div class="panel-head"><div><h2>YouTube Live source authentication</h2><p>Optional server-local cookies for YouTube when this server IP is challenged by YouTube.</p></div></div>
+    <div class="form-grid">
+      <label class="wide">Upload YouTube cookies.txt
+        <input type="file" name="youtube_cookies_file" accept=".txt,text/plain">
+        <small class="field-help">Use a fresh Netscape-format cookies.txt exported from a YouTube browser session. Stored only on this Main Server with owner-only permissions.</small>
+      </label>
+      <div class="credential-card"><span>YouTube cookies</span><b>{{ 'Configured' if youtube_cookies_configured else 'Not configured' }}</b><small>{{ '/var/lib/streamforge/youtube-cookies.txt' if youtube_cookies_configured else 'Public streams are attempted without cookies first.' }}</small></div>
+      {% if youtube_cookies_configured %}<label class="check"><input type="checkbox" name="remove_youtube_cookies_file"><span>Remove saved YouTube cookies</span></label>{% endif %}
+    </div>
+  </section>
+  <div class="form-actions"><button class="button primary" type="submit">Save settings</button></div>
+</form>
+<style>
+.optional-label{
+  color:var(--muted);
+  font-size:11px;
+  font-weight:400;
+  margin-left:4px;
+}
+
+/* STREAMFORGE_HIDE_HOVER_SETTING_CARD_STYLE_V2293 */
+.hover-url-setting{display:grid!important;grid-template-columns:18px minmax(0,1fr)!important;align-items:start!important;gap:10px!important;min-height:0!important;padding:12px 14px!important;border:1px solid var(--line)!important;border-radius:10px!important;background:var(--surface-2)!important}
+.hover-url-setting>input{width:16px!important;height:16px!important;margin:2px 0 0!important;accent-color:var(--accent)}
+.hover-url-setting-copy{display:grid!important;gap:5px!important;min-width:0}
+.hover-url-setting-copy b{color:var(--text);line-height:1.3}
+.hover-url-setting-copy .field-help{margin:0!important;line-height:1.4!important}
+
+/* STREAMFORGE_SETTINGS_SPACING_POLISH */
+.settings-page-head{
+  margin-bottom:18px!important;
+}
+.settings-page-head h1,
+.settings-page-head h2{
+  margin-bottom:4px!important;
+}
+.settings-page-head p{
+  margin-top:0!important;
+}
+
+.form-section{
+  margin-bottom:18px!important;
+}
+.form-section + .form-section{
+  margin-top:18px!important;
+}
+.panel-head{
+  padding-top:18px!important;
+  padding-bottom:18px!important;
+}
+.panel-head h2{
+  margin:0 0 4px!important;
+}
+.panel-head p{
+  margin:0!important;
+}
+
+.form-grid{
+  row-gap:16px!important;
+  column-gap:16px!important;
+}
+.form-grid > label{
+  gap:7px!important;
+}
+.form-grid .field-help{
+  margin-top:2px!important;
+  line-height:1.35!important;
+}
+
+.form-actions{
+  margin-top:16px!important;
+}
+.settings-page-head + .alert,
+.settings-page-head + .notice,
+.settings-page-head + .flash,
+.settings-page-head + [class*="alert"]{
+  margin-top:14px!important;
+  margin-bottom:16px!important;
+}
+
+/* Give the top status/flash message breathing room without affecting sidebar. */
+main > .alert,
+main > .notice,
+main > .flash,
+main > [class*="alert"]{
+  margin-bottom:16px!important;
+}
+
+/* Keep the Settings title/content away from the viewport and sidebar edge. */
+@media(min-width:761px){
+  .settings-page-head{
+    padding-top:8px!important;
+  }
+}
+
+
+.backup-target-form{
+  display:grid!important;
+  grid-template-columns:repeat(12,minmax(0,1fr));
+  gap:14px 12px;
+  align-items:end;
+}
+.backup-target-form>label{min-width:0;display:grid;gap:6px}
+.backup-target-form input,.backup-target-form select{width:100%;min-width:0}
+.backup-name-field{grid-column:span 4}
+.backup-type-field{grid-column:span 4}
+.backup-schedule-field{grid-column:span 4}
+.backup-destination-field{grid-column:1/-1}
+.backup-target-form .wide{grid-column:1/-1}
+.backup-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:10px;
+  flex-wrap:wrap;
+  padding-top:2px;
+}
+.backup-auth-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:end}
+.backup-auth-grid .wide{grid-column:1/-1}
+.backup-auth-grid[hidden]{display:none!important}
+.backup-action-spacer{flex:1 1 auto}
+.backup-test-result{align-self:center;font-size:12px;color:var(--muted)}
+.backup-test-result.ok{color:#60d9b0}
+.backup-test-result.error{color:#ff7f8d}
+.backup-library-card{
+  display:grid;
+  gap:12px;
+  margin:18px;
+  padding:14px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:var(--surface-2);
+}
+.backup-library-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.backup-library-head>div{display:grid;gap:4px}
+.backup-library-head small{color:var(--muted)}
+.backup-library-count{display:inline-flex;align-items:center;justify-content:center;min-height:28px;padding:0 9px;border:1px solid var(--line);border-radius:999px;background:var(--field);color:var(--muted);font-size:12px}
+.backup-library-table{border:1px solid var(--line);border-radius:8px;overflow:auto}
+.backup-library-table table{width:100%}
+.backup-library-table code{white-space:normal;overflow-wrap:anywhere}
+@media(max-width:760px){.backup-library-card{margin:14px}.backup-library-head{flex-direction:column}}
+
+.backup-restore-card{
+  display:grid;
+  gap:12px;
+  margin:18px;
+  padding:14px;
+  border:1px solid #5f3940;
+  border-radius:10px;
+  background:#15131a;
+}
+.backup-restore-copy{display:grid;gap:4px}
+.backup-restore-copy small{color:var(--muted);line-height:1.45}
+.backup-restore-form{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(280px,.8fr) auto;
+  gap:12px;
+  align-items:end;
+}
+.backup-restore-file{display:grid;gap:6px;min-width:0}
+.backup-restore-file input{
+  width:100%;
+  min-width:0;
+  min-height:40px;
+  box-sizing:border-box;
+  border:1px solid var(--line-strong);
+  border-radius:8px;
+  background:var(--field);
+  color:var(--text);
+  padding:7px 9px;
+}
+.backup-restore-confirm{align-self:center}
+@media(max-width:900px){
+  .backup-restore-form{grid-template-columns:1fr}
+  .backup-restore-form .button{justify-self:start}
+}
+
+.backup-form-mode{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 12px;
+  border:1px solid #35506b;
+  border-radius:8px;
+  background:#0b1622;
+}
+.backup-form-mode[hidden]{display:none!important}
+.backup-form-mode span{color:var(--muted);font-size:12px}
+.backup-form-mode .button{margin-left:auto}
+.backup-edit-type{
+  display:inline-flex;
+  align-items:center;
+  padding:3px 8px;
+  border:1px solid var(--line-strong);
+  border-radius:999px;
+  color:var(--text)!important;
+  background:var(--field);
+}
+.backup-target-form.is-editing [data-backup-type-field]{display:none!important}
+.backup-target-form.is-editing .backup-name-field{grid-column:span 6}
+.backup-target-form.is-editing .backup-schedule-field{grid-column:span 6}
+
+
+.google-backup-card[hidden]{display:none!important}
+
+.google-backup-card{
+  grid-column:1/-1;
+  width:100%;
+  margin:0;
+  padding:14px;
+  box-sizing:border-box;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:var(--surface-2);
+}
+.google-backup-header{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+}
+.google-backup-header>div{display:grid;gap:4px;min-width:0}
+.google-backup-header small{color:var(--muted)}
+.google-connected-bar{
+  width:100%;
+  box-sizing:border-box;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  margin-top:12px;
+  padding:12px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:var(--field);
+}
+.google-connected-bar>div:first-child{display:grid;gap:3px}
+.google-connected-bar span,.google-connected-bar small{font-size:11px;color:var(--muted)}
+.google-connected-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.google-advanced-setup{margin-top:10px}
+.google-advanced-setup summary{
+  cursor:pointer;
+  color:var(--muted);
+  font-size:12px;
+  user-select:none;
+  list-style:none;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:4px 0;
+  border:0!important;
+  outline:0!important;
+  background:transparent!important;
+}
+.google-advanced-setup summary::-webkit-details-marker{display:none}
+.google-advanced-setup summary::before{content:"▸";font-size:11px}
+.google-advanced-setup[open]{
+  margin-top:10px;
+  padding:12px;
+  border:1px solid var(--line);
+  border-radius:9px;
+  background:rgba(7,16,25,.28);
+}
+.google-advanced-setup[open] summary{margin-bottom:10px}
+.google-advanced-setup[open] summary::before{content:"▾"}
+.google-oauth-help{display:grid;gap:7px;margin-top:12px;padding:12px;border:1px dashed var(--line-strong);border-radius:8px}
+.google-oauth-help small{color:var(--muted)}
+.google-oauth-help code{
+  display:block;
+  padding:10px 12px;
+  border:1px solid #2c435b!important;
+  border-radius:8px;
+  background:#08131e!important;
+  color:#d7eaff!important;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.02);
+  overflow-wrap:anywhere;
+  user-select:all;
+}
+.google-oauth-credentials{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr) max-content!important;
+  gap:12px!important;
+  align-items:end!important;
+  margin-top:12px;
+  width:100%;
+}
+.google-oauth-credentials>.google-oauth-field{
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  gap:6px!important;
+  min-width:0!important;
+  margin:0!important;
+  width:auto!important;
+}
+.google-oauth-credentials>.google-oauth-field{
+  color:#e8f2fc!important;
+  font-weight:600;
+}
+.google-oauth-credentials>.google-oauth-field,
+.google-oauth-credentials>.google-oauth-field *{
+  font-family:inherit;
+}
+.google-oauth-credentials>.google-oauth-field input{
+  display:block!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:none!important;
+  margin:0!important;
+  box-sizing:border-box!important;
+  min-height:42px!important;
+  padding:10px 12px!important;
+  border:1px solid #35506b!important;
+  border-radius:8px!important;
+  background:#0b1622!important;
+  color:#eef6ff!important;
+  caret-color:#eef6ff!important;
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.025),
+    0 1px 0 rgba(255,255,255,.02)!important;
+  outline:none!important;
+  -webkit-text-fill-color:#eef6ff!important;
+  color-scheme:dark!important;
+}
+.google-oauth-credentials>.google-oauth-field input::placeholder{
+  color:#7f9ab5!important;
+  opacity:1!important;
+  -webkit-text-fill-color:#7f9ab5!important;
+}
+.google-oauth-credentials>.google-oauth-field input:hover{
+  border-color:#496b8e!important;
+  background:#0d1a28!important;
+}
+.google-oauth-credentials>.google-oauth-field input:focus{
+  border-color:#4fd4b4!important;
+  background:#0d1a28!important;
+  box-shadow:
+    0 0 0 2px rgba(79,212,180,.16),
+    inset 0 0 0 1px rgba(255,255,255,.03)!important;
+}
+.google-oauth-credentials>.google-oauth-field input:-webkit-autofill,
+.google-oauth-credentials>.google-oauth-field input:-webkit-autofill:hover,
+.google-oauth-credentials>.google-oauth-field input:-webkit-autofill:focus{
+  -webkit-text-fill-color:#eef6ff!important;
+  -webkit-box-shadow:0 0 0 1000px #0b1622 inset!important;
+  box-shadow:0 0 0 1000px #0b1622 inset!important;
+  transition:background-color 9999s ease-out 0s!important;
+  caret-color:var(--text)!important;
+}
+.google-oauth-action{
+  display:flex!important;
+  align-items:end!important;
+  justify-content:flex-end!important;
+  min-width:max-content!important;
+  margin:0!important;
+}
+.google-oauth-action .button{
+  white-space:nowrap!important;
+  width:auto!important;
+  min-height:40px;
+}
+.google-signin-row{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:12px}
+.google-signin-button{display:inline-flex!important;align-items:center!important;gap:9px!important}
+.google-g{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:#fff;color:#4285f4;font-weight:800;font-family:Arial,sans-serif}
+[data-google-drive-test-result].ok{color:#60d9b0}
+[data-google-drive-test-result].error{color:#ff7f8d}
+
+@media(max-width:1100px){
+  .google-oauth-credentials{
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+  }
+  .google-oauth-action{
+    grid-column:1/-1;
+    justify-content:flex-start!important;
+  }
+}
+@media(max-width:900px){
+  .backup-name-field,.backup-type-field,.backup-schedule-field{grid-column:span 6}
+  .backup-destination-field{grid-column:1/-1}
+  .google-backup-card{grid-column:1/-1}
+  .backup-auth-grid{grid-template-columns:1fr}
+  .google-oauth-credentials{grid-template-columns:1fr!important}
+  .google-oauth-action{grid-column:auto}
+  .google-connected-bar{align-items:flex-start;flex-direction:column}
+  .google-connected-actions{justify-content:flex-start}
+}
+@media(max-width:760px){
+  .backup-target-form{grid-template-columns:1fr!important}
+  .backup-target-form .wide,
+  .backup-name-field,.backup-type-field,.backup-schedule-field,.backup-destination-field{grid-column:auto}
+  .backup-actions{justify-content:stretch}
+  .backup-actions .button{flex:1 1 180px}
+  .backup-action-spacer{display:none}
+  .google-backup-card{margin:12px 14px 0}
+  .google-backup-header{flex-direction:column}
+}
+
+.backup-target-list{border-bottom:1px solid var(--line)}
+.backup-empty-state{padding:18px;color:var(--muted);background:var(--surface-2)}
+.backup-target-form{padding:18px;margin:0}
+.backup-target-form .form-actions{margin-top:2px}
+.metrics-settings-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+.backup-key-field,.backup-key-field input,.graph-span-field,.graph-span-field select{width:100%;max-width:none}
+.network-interface-field{width:min(100%,520px)}
+.metrics-settings-grid input:not([type="checkbox"]),.metrics-settings-grid select{height:40px;min-height:40px;padding-top:0;padding-bottom:0}
+.network-interface-field select[multiple]{background-image:none!important;padding-right:9px!important}
+.backup-target-list .table-wrap{border:0;border-radius:0}
+
+
+
+
+@media(max-width:1050px){.metrics-settings-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){.backup-target-form{padding:14px}.metrics-settings-grid{grid-template-columns:1fr}}
+.current-favicon-card{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2)}
+.current-favicon-card img{width:42px;height:42px;object-fit:contain;padding:5px;border:1px solid var(--line);border-radius:8px;background:var(--field)}
+.current-favicon-card>div{display:grid;gap:3px}.current-favicon-card small{color:var(--muted)}
+
+/* STREAMFORGE_OPTION_CARD_VERTICAL_CENTER_LEFT_V2299 */
+.hover-url-setting{
+  align-items:center!important;
+  text-align:left!important;
+}
+.hover-url-setting-copy{
+  justify-content:center!important;
+  text-align:left!important;
+}
+
+</style>
+<script>
+(() => {
+  const select = document.querySelector('[data-network-interface-select]');
+  if (!select) return;
+  const all = select.querySelector('option[value="__all__"]');
+  select.dataset.allSelected = all.selected ? '1' : '0';
+  select.addEventListener('change', () => {
+    const selected = Array.from(select.selectedOptions);
+    const allWasSelected = select.dataset.allSelected === '1';
+    if (all.selected && !allWasSelected) {
+      Array.from(select.options).forEach(option => { option.selected = option === all; });
+    } else if (selected.some(option => option.value !== '__all__')) {
+      all.selected = false;
+    }
+    select.dataset.allSelected = all.selected ? '1' : '0';
+  });
+
+})();
+
+(() => {
+  const form = document.querySelector('[data-backup-target-form]');
+  if (!form) return;
+  const kind = form.querySelector('[data-backup-kind]');
+  const genericWrap = form.querySelector('[data-generic-destination]');
+  const destination = form.querySelector('[data-destination-input]');
+  const googleCard = form.querySelector('[data-google-backup-card]');
+  const smbAuthWrap = form.querySelector('[data-smb-auth-fields]');
+  const sshAuthWrap = form.querySelector('[data-ssh-auth-fields]');
+  const keyInput = form.querySelector('input[name="key_path"]');
+  const usernameInput = form.querySelector('input[name="username"]');
+  const passwordInput = form.querySelector('input[name="password"]');
+  const domainInput = form.querySelector('input[name="domain"]');
+  const sshUserInput = form.querySelector('[data-ssh-user]');
+  const sshPasswordInput = form.querySelector('[data-ssh-password]');
+  const destinationHelp = form.querySelector('[data-destination-help]');
+  const testButton = form.querySelector('[data-backup-destination-test]');
+  const testResult = form.querySelector('[data-backup-destination-test-result]');
+  const editId = form.querySelector('[data-backup-edit-id]');
+  const editMode = form.querySelector('[data-backup-form-mode]');
+  const editLabel = form.querySelector('[data-backup-edit-label]');
+  const editType = form.querySelector('[data-backup-edit-type]');
+  const editCancel = form.querySelector('[data-backup-edit-cancel]');
+  const googleOauthInputs = Array.from(form.querySelectorAll('[data-google-oauth-input]'));
+  const saveButton = form.querySelector('[data-backup-save-button]');
+  const runButton = form.querySelector('[data-backup-run-button]');
+  const nameInput = form.querySelector('input[name="name"]');
+  const scheduleInput = form.querySelector('input[name="schedule_hours"]');
+
+
+  const sync = () => {
+    const directGoogle = kind.value === 'google_drive';
+    const ssh = kind.value === 'ssh';
+    const editing = Boolean(editId.value);
+    googleCard.hidden = !directGoogle || editing;
+    googleOauthInputs.forEach((input) => {
+      input.disabled = googleCard.hidden;
+    });
+    genericWrap.hidden = false;
+    smbAuthWrap.hidden = kind.value !== 'smb';
+    sshAuthWrap.hidden = !ssh;
+    destination.required = true;
+
+    if (kind.value === 'local') {
+      destination.placeholder = '/var/backups/streamforge';
+      destinationHelp.textContent = 'Absolute folder path. StreamForge will create it if needed when the backup runs.';
+    } else if (kind.value === 'smb') {
+      destination.placeholder = '//server/share/backups';
+      destinationHelp.textContent = 'Use //server/share/folder for username/password SMB, or a pre-mounted path like /mnt/nas-backup.';
+    } else if (kind.value === 'ssh') {
+      destination.placeholder = 'backup@server:/srv/streamforge-backups';
+      destinationHelp.textContent = 'Use user@host:/absolute/path or ssh://user@host:port/path.';
+    } else if (directGoogle) {
+      destination.placeholder = 'StreamForge-Backups';
+      destinationHelp.textContent = 'Google Drive folder name/path. Example: StreamForge-Backups';
+    }
+    testResult.textContent = '';
+    testResult.className = 'backup-test-result';
+  };
+  const directGoogleValue = () => destination.value || '';
+
+  const setEditMode = (button) => {
+    const id = button.dataset.id || '';
+    const targetKind = button.dataset.kind || 'local';
+
+    editId.value = id;
+    form.classList.add('is-editing');
+    form.action = `/system/backups/${encodeURIComponent(id)}/update`;
+    nameInput.value = button.dataset.name || '';
+    kind.value = targetKind;
+    destination.value = button.dataset.destination || '';
+    scheduleInput.value = button.dataset.schedule || '24';
+
+    if (keyInput) keyInput.value = button.dataset.keyPath || '';
+    if (usernameInput) usernameInput.value = button.dataset.username || '';
+    if (domainInput) domainInput.value = button.dataset.domain || '';
+    if (passwordInput) passwordInput.value = '';
+    if (sshUserInput) sshUserInput.value = targetKind === 'ssh' ? (button.dataset.username || '') : '';
+    if (sshPasswordInput) sshPasswordInput.value = '';
+
+    editMode.hidden = false;
+    editLabel.textContent = button.dataset.name || button.dataset.destination || '';
+    editType.textContent = targetKind.replace('_', ' ').toUpperCase();
+    kind.disabled = true;
+    saveButton.textContent = 'Update backup';
+    runButton.textContent = 'Update & backup now';
+
+    sync();
+    form.scrollIntoView({behavior:'smooth', block:'start'});
+    window.setTimeout(() => nameInput.focus(), 250);
+  };
+
+  const clearEditMode = () => {
+    editId.value = '';
+    form.classList.remove('is-editing');
+    form.action = '/system/backups/add';
+    nameInput.value = '';
+    kind.value = 'local';
+    destination.value = '';
+    scheduleInput.value = '24';
+    if (keyInput) keyInput.value = '';
+    if (usernameInput) usernameInput.value = '';
+    if (passwordInput) passwordInput.value = '';
+    if (domainInput) domainInput.value = '';
+    if (sshUserInput) sshUserInput.value = '';
+    if (sshPasswordInput) sshPasswordInput.value = '';
+    editMode.hidden = true;
+    editLabel.textContent = '';
+    editType.textContent = '';
+    kind.disabled = false;
+    saveButton.textContent = 'Save backup schedule';
+    runButton.textContent = 'Save & backup now';
+    sync();
+  };
+
+  document.querySelectorAll('[data-backup-edit]').forEach((button) => {
+    button.addEventListener('click', () => setEditMode(button));
+  });
+  editCancel.addEventListener('click', clearEditMode);
+
+  kind.addEventListener('change', sync);
+  form.addEventListener('submit', () => {
+    sync();
+    if (kind.value === 'ssh') {
+      usernameInput.value = sshUserInput ? sshUserInput.value : '';
+      passwordInput.value = sshPasswordInput ? sshPasswordInput.value : '';
+      domainInput.value = '';
+    } else if (kind.value !== 'smb') {
+      usernameInput.value = '';
+      passwordInput.value = '';
+      domainInput.value = '';
+    }
+  });
+  sync();
+
+  testButton.addEventListener('click', async () => {
+    sync();
+    testButton.disabled = true;
+    testResult.textContent = 'Testing…';
+    testResult.className = 'backup-test-result';
+    try {
+      const payload = new URLSearchParams();
+      payload.set('kind', kind.value);
+      payload.set('destination', directGoogleValue());
+      payload.set('key_path', keyInput ? keyInput.value : '');
+      if (kind.value === 'smb') {
+        payload.set('username', usernameInput ? usernameInput.value : '');
+        payload.set('password', passwordInput ? passwordInput.value : '');
+        payload.set('domain', domainInput ? domainInput.value : '');
+      } else if (kind.value === 'ssh') {
+        payload.set('username', sshUserInput ? sshUserInput.value : '');
+        payload.set('password', sshPasswordInput ? sshPasswordInput.value : '');
+      }
+      const response = await fetch('/system/backups/test-destination', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'},
+        body: payload.toString(),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || 'Destination test failed');
+      testResult.textContent = data.email ? `Connected: ${data.email}` : (data.message || 'Destination is ready');
+      testResult.className = 'backup-test-result ok';
+    } catch (error) {
+      testResult.textContent = error.message || 'Destination test failed';
+      testResult.className = 'backup-test-result error';
+    } finally {
+      testButton.disabled = false;
+    }
+  });
+
+  const button = document.querySelector('[data-google-drive-test]');
+  const result = document.querySelector('[data-google-drive-test-result]');
+  if (button && result) button.addEventListener('click', async () => {
+    button.disabled = true; result.textContent = 'Testing…'; result.className = '';
+    try {
+      const response = await fetch('/system/backups/google/test', {method:'POST'});
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) throw new Error(payload.error || 'Connection failed');
+      result.textContent = payload.email ? `Connected: ${payload.email}` : (payload.message || 'Connected');
+      result.className = 'ok';
+    } catch (error) {
+      result.textContent = error.message || 'Connection failed'; result.className = 'error';
+    } finally { button.disabled = false; }
+  });
+})();
+</script>
+{% endblock %}

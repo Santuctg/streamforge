@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Categories · {{ branding.name }}{% endblock %}
+{% block heading %}<h1>Channel categories</h1><p>Create groups and assign channels during add, edit or import</p>{% endblock %}
+{% block content %}
+<div class="category-page-grid">
+  <div class="category-management-column">
+    {% if can('categories.create') %}
+    <section class="panel form-section category-create-panel">
+      <div class="panel-head"><div><h2>Add category</h2><p>Examples: Sports, News, Movies, Kids.</p></div></div>
+      <form class="compact-form category-create-form" method="post" action="/categories/new">
+        <label>Category name<input name="name" maxlength="120" placeholder="Sports" required></label>
+        <button class="button primary" type="submit">Add category</button>
+      </form>
+    </section>
+    {% endif %}
+
+    <section class="panel category-list-panel">
+      <div class="panel-head"><div><h2>Existing categories</h2><p>Deleting a category does not delete its channels.</p></div><a class="button" href="/channels">View channels</a></div>
+      {% if error %}<div class="alert danger category-alert">{{ error }}</div>{% endif %}
+      {% if message %}<div class="alert success category-alert">{{ message }}</div>{% endif %}
+      <div class="category-list">
+        {% for category in categories %}
+        <article class="category-row" data-category-id="{{ category.id }}" data-category-name="{{ category.name }}">
+          <div class="category-summary">
+            <span class="category-icon">{{ category.name[:1]|upper }}</span>
+            <div><b>{{ category.name }}</b><small>{{ category_counts.get(category.id, 0) }} channel{{ '' if category_counts.get(category.id, 0) == 1 else 's' }}</small></div>
+          </div>
+          <div class="category-actions">
+            <a class="button small" href="/categories/{{ category.id }}/channels">Channels</a>
+            {% if can('categories.edit') %}<button class="button small" type="button" data-category-rename-open data-category-id="{{ category.id }}" data-category-name="{{ category.name }}">Rename</button>{% endif %}
+            {% if can('categories.delete') %}<form method="post" action="/categories/{{ category.id }}/delete" onsubmit="return confirm('Delete category {{ category.name }}? Channels will become Uncategorized.')"><button class="button ghost-danger small" type="submit">Delete</button></form>{% endif %}
+          </div>
+        </article>
+        {% else %}<div class="empty">No categories yet. Add the first category from the form.</div>{% endfor %}
+        <article class="category-row uncategorized-row">
+          <div class="category-summary"><span class="category-icon">?</span><div><b>Uncategorized</b><small>{{ uncategorized_count }} channel{{ '' if uncategorized_count == 1 else 's' }}</small></div></div>
+          <div class="category-actions"><a class="button small" href="/channels?category=uncategorized">Channels</a></div>
+        </article>
+      </div>
+    </section>
+  </div>
+
+  {% if can('categories.reorder') and categories %}
+  <section class="panel category-order-panel">
+    <div class="panel-head"><div><h2>Category order</h2><p>Set the order used by the panel, M3U/Xtream playlists and synchronized Remote Nodes.</p></div></div>
+    <form class="compact-form" method="post" action="/categories/reorder" data-category-order-form data-current-category-order='{{ categories|map(attribute="id")|list|tojson }}'>
+      <input type="hidden" name="category_order" value="[]" data-category-order-input>
+      <ol class="playlist-order-list category-order-list" data-category-order-list></ol>
+      <button class="button primary" type="submit">Save category order</button>
+    </form>
+  </section>
+  {% endif %}
+</div>
+{% if can('categories.edit') %}
+<div class="category-rename-overlay" data-category-rename-modal hidden>
+  <section class="category-rename-dialog" role="dialog" aria-modal="true" aria-labelledby="category-rename-title">
+    <div class="category-rename-header">
+      <div>
+        <h2 id="category-rename-title">Rename category</h2>
+        <p>Update the category name and save the change.</p>
+      </div>
+      <button class="category-rename-close" type="button" aria-label="Close" data-category-rename-close>&times;</button>
+    </div>
+    <form class="category-rename-modal-form" method="post" action="/categories/0/rename" data-category-rename-form>
+      <label>Category name<input name="name" maxlength="120" data-category-rename-input required></label>
+      <div class="category-rename-modal-actions">
+        <button class="button" type="button" data-category-rename-close>Cancel</button>
+        <button class="button primary" type="submit">Save</button>
+      </div>
+    </form>
+  </section>
+</div>
+{% endif %}
+{% endblock %}

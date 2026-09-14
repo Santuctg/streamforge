@@ -1,0 +1,24 @@
+[Unit]
+Description=StreamForge Remote Node Public Playlist/API Plane
+After=network-online.target redis-server.service streamforge-node.service
+Wants=network-online.target redis-server.service streamforge-node.service
+
+[Service]
+Type=simple
+User=streamforge-node
+Group=streamforge-node
+WorkingDirectory=/opt/streamforge-node
+EnvironmentFile=/etc/streamforge-node.env
+Environment=STREAMFORGE_NODE_MODE=public
+Environment=STREAMFORGE_NODE_PUBLIC_MANAGED_BY_SYSTEMD=1
+ExecReload=/bin/kill -HUP $MAINPID
+ExecStart=/usr/bin/python3 /opt/streamforge-node/public_start.py
+Restart=always
+RestartSec=3
+LimitNOFILE=1048576
+TasksMax=infinity
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

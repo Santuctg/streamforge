@@ -1,0 +1,810 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- STREAMFORGE_MAIN_WEBPLAYER_SELF_HOSTED_HLSJS_V1163: prefer the server-local HLS.js copy so Web Player playback does not depend on a third-party CDN being reachable at play time. -->
+<link rel="preload" as="script" href="{{ prefix }}/static/vendor/hls.min.js?v={{ app_version }}">
+  <meta name="robots" content="noindex,nofollow">
+  <title>{{ channel.name }} · {{ branding.name if branding else 'StreamForge' }} Player</title>
+  <!-- STREAMFORGE_MAIN_PLAYER_FAVICON_HEAD_V2289 -->
+  {% if player_favicon_url %}<link rel="icon" href="{{ player_favicon_url }}"><link rel="shortcut icon" href="{{ player_favicon_url }}">{% endif %}
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    /* STREAMFORGE_WEB_PLAYER_WATCH_SIDEBAR_V2206 */
+    /* STREAMFORGE_WEB_PLAYER_CINEMA_LAYOUT_V2207 */
+    /* STREAMFORGE_WEB_PLAYER_FULL_WIDTH_V2208 */
+    /* STREAMFORGE_WEB_PLAYER_CLEAN_INFO_V2210 */
+    .player-body{margin:0;background:radial-gradient(circle at top,#11333b 0%,#071017 28%,#04080d 78%);color:#f6fbff}
+    .watch-shell{width:100%;max-width:none;margin:0;padding:18px 22px 30px}
+    .watch-grid{display:grid;grid-template-columns:minmax(0,1fr) clamp(360px,26vw,520px);gap:20px;align-items:start;width:100%}
+    .player-panel,.browser-panel{background:rgba(7,12,18,.92);border:1px solid rgba(120,152,190,.14);border-radius:22px;box-shadow:0 18px 48px rgba(0,0,0,.28)}
+    .player-panel{padding:18px;min-width:0}
+    .player-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px}
+    .player-back{color:#7fe3d3;text-decoration:none;font-weight:700;font-size:14px}
+    .player-top h1{margin:6px 0 0;font-size:22px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .watch-frame{position:relative;background:#000;border-radius:20px;overflow:hidden;border:1px solid rgba(120,152,190,.14)}
+    .watch-frame video{display:block;width:100%;aspect-ratio:16/9;min-height:min(68vh,760px);max-height:82vh;object-fit:contain;background:#000}
+    .now-card{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:14px;padding:16px 18px;border-radius:18px;background:linear-gradient(180deg,rgba(10,16,24,.98),rgba(6,11,18,.98));border:1px solid rgba(120,152,190,.14)}
+    .now-meta{display:flex;align-items:center;gap:14px;min-width:0}
+    .now-logo,.now-logo-fallback{width:52px;height:52px;border-radius:16px;background:#0a111b;border:1px solid rgba(120,152,190,.16);display:flex;align-items:center;justify-content:center;overflow:hidden;flex:0 0 52px}
+    /* STREAMFORGE_PLAYER_INFO_LOGO_CONTAIN_V2214 */.now-logo img{display:block;width:100%;height:100%;object-fit:contain;background:#08101a;padding:4px}
+    .now-logo-fallback{font-size:22px;color:#8ab4ff;font-weight:800}
+    .now-copy{min-width:0}
+    .now-copy strong{display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .now-copy span{display:block;margin-top:3px;color:#28e0d3;font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}/* STREAMFORGE_MAIN_PLAYER_INFO_GROUPS_V2240 */
+.now-actions{margin-left:auto;display:flex;align-items:stretch;justify-content:flex-end;gap:10px;min-width:0;flex-wrap:wrap}
+.viewer-info{text-align:right;display:flex;align-items:stretch;justify-content:flex-end;gap:10px;min-width:0;flex-wrap:wrap}
+.viewer-info-group{display:grid;align-content:center;gap:4px;min-width:170px;padding:9px 12px;border:1px solid rgba(120,152,190,.16);border-radius:13px;background:rgba(5,12,19,.45)}
+.viewer-info-group.connection{min-width:210px}
+.viewer-info-group div{display:flex;justify-content:space-between;gap:14px;align-items:center;font-size:12px}
+.viewer-info label{color:#7890a5;font-weight:700}.viewer-info b{color:#f1f7fd;font-weight:800;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.viewer-info .expiry{color:#8de3d3}
+    .now-copy small{display:block;margin-top:4px;color:#8ea8bf;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .player-tools{display:flex;align-items:center;justify-content:flex-end;gap:10px;min-width:280px}
+    .copy-row.player-copy{width:min(440px,100%)}
+    .copy-row.player-copy input{background:#08101a;color:#edf6ff}
+    .player-copy button{white-space:nowrap}
+    /* STREAMFORGE_MAIN_WEBPLAYER_INFO_DOWNLOAD_V3046 */.player-download-button{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 24px;border-radius:12px;background:#ff2020;color:#fff;text-decoration:none;font-weight:850;border:1px solid #ff4a4a;cursor:pointer;user-select:none}.player-download-button:hover{filter:brightness(1.08)}
+    /* STREAMFORGE_PLAYER_CARD_GRID_STABLE_V2214 */.browser-panel{padding:16px;position:sticky;top:18px;box-sizing:border-box;height:var(--watch-panel-height,auto);max-height:var(--watch-panel-height,none);overflow:hidden;display:flex;flex-direction:column}
+    .browser-head{text-align:center;padding:2px 0 12px}
+    .browser-head strong{display:inline-block;font-size:27px;letter-spacing:.20em;font-weight:800}
+    .browser-head::after{content:"";display:block;width:72px;height:3px;margin:10px auto 0;border-radius:999px;background:linear-gradient(90deg,#ff4e4e,#ff2e2e)}
+    .category-chip-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:10px 0 18px}
+    .category-chip{border:1px solid rgba(120,152,190,.18);background:#0b1017;color:#edf5fd;border-radius:14px;padding:11px 12px;font-weight:700;cursor:pointer;transition:.15s ease;text-align:center}
+    .category-chip:hover{border-color:#445872;background:#121823}
+    ./* STREAMFORGE_MAIN_CATEGORY_GLOW_FIX_V2221 */category-chip.active{background:linear-gradient(180deg,#ff2525,#db0505);border-color:#ff4a4a;color:#fff;box-shadow:none}
+    /* STREAMFORGE_MAIN_CHANNEL_CARD_RESPONSIVE_V2213 *//* STREAMFORGE_MAIN_CHANNEL_PANEL_HEIGHT_V2218 */.channel-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;align-items:start;overflow-y:auto;min-height:0;padding-right:2px}
+    .channel-card{display:block;min-width:0;width:auto;text-decoration:none;color:#f5faff}
+    .channel-card[hidden]{display:none !important}
+    .channel-tile{display:flex;flex-direction:column;min-width:0;height:auto;border:1px solid rgba(120,152,190,.16);border-radius:16px;background:#0b1017;padding:8px;transition:.15s ease}
+    .channel-card:hover .channel-tile{background:#101722;border-color:#445872;transform:translateY(-1px)}
+    .channel-card.active .channel-tile{border-color:#ff4747;box-shadow:0 0 0 1px rgba(255,71,71,.18),0 14px 30px rgba(255,40,40,.10)}
+    .channel-thumb,.channel-thumb-fallback{width:100%;aspect-ratio:1/1;border-radius:14px;background:#f4f6f8;border:1px solid rgba(0,0,0,.05);display:flex;align-items:center;justify-content:center;overflow:hidden}
+    .channel-thumb img{display:block;width:100%;height:100%;object-fit:contain;background:#fff}
+    .channel-thumb-fallback{background:#07131d;color:#8fb7ff;font-size:22px;font-weight:800;border-color:rgba(120,152,190,.16)}
+    /* STREAMFORGE_MAIN_CHANNEL_NAME_CENTER_V2216 */.channel-name{margin-top:7px;font-size:12px;font-weight:800;line-height:1.25;min-height:0;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-align:center;width:100%}
+    .channel-meta{margin-top:4px;font-size:11px;color:#8ea8bf;line-height:1.25;min-height:28px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    .watch-empty{padding:18px;border:1px dashed rgba(120,152,190,.18);border-radius:16px;color:#8ea8bf;text-align:center}
+    .status{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:7px 12px;font-size:12px;font-weight:800;letter-spacing:.02em;text-transform:uppercase;white-space:nowrap}
+    .status.starting{background:rgba(103,161,255,.14);color:#93c5fd}.status.ok{background:rgba(16,185,129,.15);color:#6ee7b7}.status.bad{background:rgba(239,68,68,.14);color:#fca5a5}
+    @media(max-width:1240px){}
+    @media(max-width:1180px){.watch-grid{grid-template-columns:minmax(0,1fr) 340px}}
+    @media(max-width:980px){.watch-grid{grid-template-columns:1fr}.browser-panel{position:static;max-height:none;overflow:visible}.watch-frame video{min-height:0;max-height:none}}
+    @media(max-width:760px){.watch-shell{padding:10px}.player-panel,.browser-panel{padding:14px;border-radius:18px}.player-top{flex-direction:column;align-items:flex-start}.now-card{flex-direction:column;align-items:stretch}.now-meta{width:100%}/* STREAMFORGE_MAIN_WEBPLAYER_MOBILE_INFO_LAYOUT_V3049 */.now-actions{margin-left:0;display:grid;grid-template-columns:minmax(0,1fr);width:100%;justify-content:stretch}.viewer-info{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%;text-align:left;gap:8px;flex:none}.viewer-info-group,.viewer-info-group.connection{box-sizing:border-box;width:100%;min-width:0;max-width:100%}.viewer-info-group div{gap:8px;min-width:0}.viewer-info-group b{min-width:0}.player-download-button{box-sizing:border-box;width:100%;min-height:44px;flex:none}.player-tools{min-width:0;justify-content:stretch}.copy-row.player-copy{width:100%}.category-chip-row{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:520px){.browser-head strong{font-size:22px;letter-spacing:.16em}.player-top h1{font-size:20px}}
+    @media(max-width:380px){.viewer-info{grid-template-columns:1fr}}
+  
+/* STREAMFORGE_PROJECT_MOBILE_AUDIT_PLAYER_V2298 */
+@media(max-width:700px){
+  html,body{width:100%;max-width:100%;overflow-x:hidden}
+  .wrap,.player-card,.viewer-info,.viewer-info-group{max-width:100%;min-width:0}
+  .player-top,.viewer-info{flex-wrap:wrap}
+  video{width:100%;max-width:100%;height:auto}
+  a,button{max-width:100%}
+  .viewer-info-group{overflow-wrap:anywhere}
+}
+
+</style>
+{% if webplayer_settings %}
+<style>
+:root{--sf-page:{{ webplayer_settings.page_rgba }};--sf-panel:{{ webplayer_settings.panel_rgba }};--sf-accent:{{ webplayer_settings.accent_rgba }};--sf-text:{{ webplayer_settings.text_rgba }}}
+/* STREAMFORGE_MAIN_WATCH_THEME_CORE_V2229 */
+/* STREAMFORGE_MAIN_PLAYER_BACKGROUND_SYNC_V2234 */
+html{background:#000!important}
+.player-body{background:var(--sf-page)!important;color:var(--sf-text)!important;min-height:100vh}
+/* STREAMFORGE_MAIN_PLAYER_INFO_THEME_SYNC_V2253 */
+.player-panel,.browser-panel,.now-card,.channel-tile,.viewer-info-group{background:var(--sf-panel)!important;color:var(--sf-text)!important;border-color:color-mix(in srgb,var(--sf-text) 15%,transparent)!important}
+.player-top h1,.player-back,.browser-head strong,.now-copy strong,.now-copy span,.channel-name,.viewer-info,.viewer-info label,.viewer-info b,.viewer-info-group,.viewer-info-group label,.viewer-info-group b,.watch-empty{color:var(--sf-text)!important}
+/* STREAMFORGE_MAIN_PLAYER_ACTIVE_CATEGORY_CLARITY_V2237 */
+.category-chip.active{
+  background:var(--sf-accent)!important;
+  border:2px solid var(--sf-accent)!important;
+  box-shadow:inset 0 0 0 1px currentColor!important;
+  font-weight:900!important;
+  transform:translateY(-1px);
+}
+.category-chip.active::before{content:"✓";display:inline-block;margin-right:7px;font-weight:1000}
+.channel-card.active .channel-tile,.channel-card:hover .channel-tile{border-color:var(--sf-accent)!important}
+.browser-head::after{background:var(--sf-accent)!important}
+.player-download-button{background:var(--sf-accent)!important;border-color:var(--sf-accent)!important;color:var(--sf-text)!important}
+</style>
+{% endif %}
+</head>
+<body class="player-body">
+  <main class="watch-shell">
+    <section class="watch-grid">
+      <section class="player-panel">
+        <div class="player-top">
+          <div>
+            <a class="player-back" href="{{ back_url }}">← All channels</a>
+            <h1 id="current-channel-title">{{ channel.name }}</h1>
+          </div>
+          <span id="player-state" class="status starting">loading</span>
+        </div>
+        <div class="watch-frame">
+          <video id="stream-video" controls autoplay playsinline{% if channel.logo_url %} poster="{{ channel.logo_url|versioned_asset }}"{% endif %}></video>
+        </div>
+        {% set current_names = [] %}
+        {% for cat in channel.categories or [] %}
+          {% if cat.name and cat.name not in current_names %}{% set current_names = current_names + [cat.name] %}{% endif %}
+        {% endfor %}
+        {% if channel.category and channel.category.name and channel.category.name not in current_names %}{% set current_names = [channel.category.name] + current_names %}{% endif %}
+        {% if not current_names %}{% set current_names = ['Uncategorized'] %}{% endif %}
+        <div class="now-card">
+          <div class="now-meta" id="current-now-meta">
+            {% if channel.logo_url %}
+              <span class="now-logo"><img src="{{ channel.logo_url|versioned_asset }}" alt="" loading="lazy"></span>
+            {% else %}
+              <span class="now-logo-fallback">▶</span>
+            {% endif %}
+            <div class="now-copy">
+              <strong id="current-now-name">{{ channel.name }}</strong>
+              <span>Now Streaming</span>
+            </div>
+          </div>
+          <!-- STREAMFORGE_WEB_PLAYER_VIEWER_INFO_V2212 -->
+          {% if ((not hide_quick_user_info) and ((not webplayer_settings or webplayer_settings.show_user_info) or (webplayer_settings and webplayer_settings.show_connection_info))) or (webplayer_settings and webplayer_settings.download_available) %}
+          <div class="now-actions">
+          <!-- STREAMFORGE_WEBPLAYER_QUICK_USER_PRIVACY_V3056 -->
+          {% if (not hide_quick_user_info) and ((not webplayer_settings or webplayer_settings.show_user_info) or (webplayer_settings and webplayer_settings.show_connection_info)) %}
+          <div class="viewer-info">
+            {% if not webplayer_settings or webplayer_settings.show_user_info %}
+            <div class="viewer-info-group user">
+              <div><label>Username</label><b>{{ player_username }}</b></div>
+              <div><label>Expire</label><b class="expiry">{{ player_expires }}</b></div>
+            </div>
+            {% endif %}
+            {% if webplayer_settings and webplayer_settings.show_connection_info %}
+            <!-- STREAMFORGE_MAIN_PLAYER_CONNECTION_INFO_UI_V2238 -->
+            <div class="viewer-info-group connection">
+              <div><label>Max Connections</label><b>{{ 'Unlimited' if player_max_connections == 0 else player_max_connections }}</b></div>
+              <div><label>Online Use</label><b id="player-online-use">{{ player_online_use }}</b></div>
+            </div>
+            {% endif %}
+          </div>
+          {% endif %}
+          {% if webplayer_settings and webplayer_settings.download_available %}
+          <a class="player-download-button" href="{{ prefix }}/web-player/download" download>Download</a>
+          {% endif %}
+          </div>
+          {% endif %}
+        </div>
+      </section>
+      <aside class="browser-panel">
+        <div class="browser-head"><strong>LIVE STREAMS</strong></div>
+        <div id="category-chips" class="category-chip-row"></div>
+        <div id="channel-grid" class="channel-grid">
+          {% if channels %}
+            {% for item in channels %}
+              {% set item_names = [] %}
+              {% for cat in item.categories or [] %}
+                {% if cat.name and cat.name not in item_names %}{% set item_names = item_names + [cat.name] %}{% endif %}
+              {% endfor %}
+              {% if item.category and item.category.name and item.category.name not in item_names %}{% set item_names = [item.category.name] + item_names %}{% endif %}
+              {% if not item_names %}{% set item_names = ['Uncategorized'] %}{% endif %}
+              <a data-channel-card
+                 data-categories="{{ item_names|join('|') }}"
+                 data-channel-name="{{ item.name }}"
+                 data-logo-url="{{ item.logo_url or '' }}"
+                 {% set _item_source_text = (((item.input_url or '') ~ '\n' ~ (item.backup_inputs or ''))|lower) %}
+                 data-youtube-source="{{ '1' if ('youtube.com' in _item_source_text or 'youtu.be' in _item_source_text or 'youtube-nocookie.com' in _item_source_text) else '0' }}"
+                 data-stream-url="{{ prefix }}/play/{{ token }}/{{ item.slug }}/master.m3u8?wp=1"
+                 data-watch-url="{{ watch_prefix }}/{{ item.slug }}"
+                 href="{{ watch_prefix }}/{{ item.slug }}"
+                 class="channel-card{% if item.slug == channel.slug %} active{% endif %}">
+                <div class="channel-tile">
+                  {% if item.logo_url %}
+                    <div class="channel-thumb"><img src="{{ item.logo_url|versioned_asset }}" alt="" loading="lazy"></div>
+                  {% else %}
+                    <div class="channel-thumb-fallback">▶</div>
+                  {% endif %}
+                  <div class="channel-name">{{ item.name }}</div>
+                </div>
+              </a>
+            {% endfor %}
+          {% endif %}
+        </div>
+        <div id="channel-empty" class="watch-empty" hidden>No channels in this category.</div>
+      </aside>
+    </section>
+  </main>
+<script>
+(() => {
+  // STREAMFORGE_MAIN_PLAYER_CANONICAL_WEBPLAYER_URL_V2249:
+  // The watch route renders the selected channel, then the visible browser URL
+  // is normalized to the stable Web Player URL. Later channel switches stay in-page.
+  const canonicalPlayerUrl = {{ canonical_player_url | tojson }};
+  if (window.location.pathname !== canonicalPlayerUrl) {
+    history.replaceState(null, '', canonicalPlayerUrl);
+  }
+  const video = document.getElementById('stream-video');
+  // STREAMFORGE_MAIN_WEBPLAYER_DEFAULT_AUDIO_30_V112: prefer sound-on playback at 30%.
+  // STREAMFORGE_MAIN_WEBPLAYER_AUTOPLAY_MUTED_FALLBACK_V1111:
+  // Browsers commonly reject unmuted autoplay. Try the preferred 30% sound first,
+  // then immediately retry muted so playback still starts without a click. The
+  // first real user gesture restores the intended 30% audio automatically.
+  video.defaultMuted = false;
+  video.muted = false;
+  video.volume = 0.30;
+  let autoplayMutedFallback = false;
+  let autoplayRestoreArmed = false;
+  function armAutoplayAudioRestore() {
+    if (autoplayRestoreArmed) return;
+    autoplayRestoreArmed = true;
+    const restore = () => {
+      if (!autoplayMutedFallback) return;
+      autoplayMutedFallback = false;
+      video.defaultMuted = false;
+      video.muted = false;
+      if (!Number.isFinite(video.volume) || video.volume <= 0) video.volume = 0.30;
+      video.play().catch(() => {});
+    };
+    window.addEventListener('pointerdown', restore, { once: true, capture: true });
+    window.addEventListener('keydown', restore, { once: true, capture: true });
+    window.addEventListener('touchstart', restore, { once: true, capture: true, passive: true });
+  }
+  async function playAutoplaySafe() {
+    try {
+      await video.play();
+      return true;
+    } catch (error) {
+      if (error?.name !== 'NotAllowedError') throw error;
+      video.defaultMuted = true;
+      video.muted = true;
+      try {
+        await video.play();
+        autoplayMutedFallback = true;
+        armAutoplayAudioRestore();
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
+  }
+  const state = document.getElementById('player-state');
+  let streamUrl = {{ stream_url | tojson }};
+  {% set _initial_source_text = (((channel.input_url or '') ~ '\n' ~ (channel.backup_inputs or ''))|lower) %}
+  // STREAMFORGE_WEBPLAYER_YOUTUBE_EDGE_V1017: only YouTube-backed channels
+  // use the tighter one-segment player edge. Ordinary channels retain v7.7.
+  let youtubeLowLatency = {{ ('youtube.com' in _initial_source_text or 'youtu.be' in _initial_source_text or 'youtube-nocookie.com' in _initial_source_text) | tojson }};
+  let hls = null;
+
+  function setState(text, className) {
+    state.textContent = text;
+    state.className = `status ${className}`;
+  }
+  // STREAMFORGE_WEB_PLAYER_NO_VIDEO_OVERLAY_V2209:
+  // Keep diagnostics off the video surface. Status detail is exposed only as
+  // the top status badge tooltip so nothing is drawn over the picture.
+  function setMessage(text) {
+    state.title = text || '';
+  }
+  let fallbackMode = false;
+  let fatalErrorCount = 0;
+  let reconnectTimer = null;
+  let reconnectAttempt = 0;
+  let stalledTimer = null;
+  // STREAMFORGE_WEBPLAYER_PROGRESS_WATCHDOG_V1163:
+  // STREAMFORGE_WEBPLAYER_EVIDENCE_BASED_STALL_RECOVERY_V1167:
+  // Track both rendered media-time and incoming HLS/buffer activity. A browser
+  // decode pause must not tear down an otherwise healthy stream just because
+  // currentTime stopped moving for a few seconds.
+  let lastPlaybackProgressAt = Date.now();
+  let lastPlaybackTime = 0;
+  let lastHlsDataAt = Date.now();
+  let lastSoftRecoveryAt = 0;
+  let hlsLibraryLoading = false;
+  let hlsLibraryRetryTimer = null;
+
+  function notePlaybackProgress(force = false) {
+    const current = Number(video.currentTime || 0);
+    if (force || Math.abs(current - lastPlaybackTime) >= 0.15) {
+      lastPlaybackTime = current;
+      lastPlaybackProgressAt = Date.now();
+      lastHlsDataAt = Date.now();
+    }
+  }
+
+  function noteHlsData() {
+    lastHlsDataAt = Date.now();
+  }
+
+  function bufferedAhead() {
+    const current = Number(video.currentTime || 0);
+    try {
+      for (let index = 0; index < video.buffered.length; index += 1) {
+        const start = video.buffered.start(index);
+        const end = video.buffered.end(index);
+        if (current + 0.10 >= start && current <= end + 0.10) return Math.max(0, end - current);
+      }
+    } catch (_) {}
+    return 0;
+  }
+
+  // STREAMFORGE_WEBPLAYER_NON_DESTRUCTIVE_STALL_RECOVERY_V1167:
+  // A healthy server-side channel must not be torn down merely because the
+  // browser temporarily drains its buffer. Nudge the existing HLS pipeline
+  // toward the live edge first; only repeated fatal HLS errors may rebuild it.
+  function softRecover(reason = '') {
+    if (video.paused || document.hidden) return;
+    const now = Date.now();
+    if (now - lastSoftRecoveryAt < 8000) return;
+    lastSoftRecoveryAt = now;
+    setState('buffering', 'starting');
+    setMessage(reason || 'Buffering live stream…');
+    if (hls) {
+      try { hls.startLoad(-1); } catch (_) {}
+    }
+    playAutoplaySafe().catch(() => {});
+  }
+
+  function hlsConfig(stable = false) {
+    if (stable) {
+      return {
+        enableWorker: true,
+        lowLatencyMode: false,
+        liveSyncDurationCount: 2,
+        liveMaxLatencyDurationCount: 6,
+        backBufferLength: 20,
+        maxBufferLength: 12,
+        maxMaxBufferLength: 16,
+        manifestLoadingTimeOut: 10000,
+        manifestLoadingMaxRetry: 2,
+        levelLoadingTimeOut: 10000,
+        levelLoadingMaxRetry: 2,
+        fragLoadingTimeOut: 15000,
+        fragLoadingMaxRetry: 3,
+      };
+    }
+    if (youtubeLowLatency) {
+      // STREAMFORGE_WEBPLAYER_YOUTUBE_EDGE_V1017:
+      // STREAMFORGE_YOUTUBE_KEYFRAME_SAFE_PLAYER_V1020:
+      // Copy-mode YouTube output stays on independently decodable boundaries.
+      // STREAMFORGE_YOUTUBE_PACED_PLAYER_BUFFER_V1021:
+      // Keep two local segments of safety headroom while input pacing smooths
+      // upstream 5-second publication bursts into a steady local HLS cadence.
+      return {
+        enableWorker: true,
+        lowLatencyMode: false,
+        liveSyncDurationCount: 2,
+        liveMaxLatencyDurationCount: 5,
+        maxLiveSyncPlaybackRate: 1.08,
+        startFragPrefetch: true,
+        backBufferLength: 20,
+        maxBufferLength: 15,
+        maxMaxBufferLength: 25,
+        manifestLoadingTimeOut: 12000,
+        manifestLoadingMaxRetry: 5,
+        levelLoadingTimeOut: 12000,
+        levelLoadingMaxRetry: 5,
+        fragLoadingTimeOut: 25000,
+        fragLoadingMaxRetry: 8,
+      };
+    }
+    // STREAMFORGE_WEBPLAYER_STABLE_EDGE_BUFFER_V77: regular 2s HLS is not LL-HLS.
+    // Stay a couple of segments behind the edge so normal WAN jitter does not drain the player.
+    return {
+      // STREAMFORGE_MAIN_WEBPLAYER_FAST_CHANNEL_SWITCH_BUFFER_V1113:
+      // 1-second HLS can start from one segment behind live edge. Prefetch the
+      // first fragment immediately; reconnect fallback still uses the wider
+      // stable buffer above when WAN jitter requires it.
+      enableWorker: true,
+      lowLatencyMode: false,
+      liveSyncDurationCount: 2,
+      liveMaxLatencyDurationCount: 5,
+      startFragPrefetch: true,
+      backBufferLength: 20,
+      maxBufferLength: 12,
+      maxMaxBufferLength: 20,
+      manifestLoadingTimeOut: 12000,
+      manifestLoadingMaxRetry: 4,
+      levelLoadingTimeOut: 12000,
+      levelLoadingMaxRetry: 4,
+      fragLoadingTimeOut: 20000,
+      fragLoadingMaxRetry: 6,
+    };
+  }
+
+  function destroyHls() {
+    if (hls) {
+      try { hls.destroy(); } catch (_) {}
+      hls = null;
+    }
+  }
+
+  // STREAMFORGE_WEBPLAYER_PERSISTENT_AUTO_RECONNECT_V3055:
+  // A fatal HLS error must not leave the player permanently destroyed. Keep
+  // rebuilding the media pipeline with bounded backoff until the channel's
+  // master playlist becomes available again.
+  function clearReconnectTimer() {
+    if (reconnectTimer !== null) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+  }
+
+  function clearStalledTimer() {
+    if (stalledTimer !== null) {
+      clearTimeout(stalledTimer);
+      stalledTimer = null;
+    }
+  }
+
+  function markPlaybackLive() {
+    clearReconnectTimer();
+    clearStalledTimer();
+    reconnectAttempt = 0;
+    fatalErrorCount = 0;
+    fallbackMode = false;
+    notePlaybackProgress(true);
+    setState('live', 'ok');
+    setMessage('');
+  }
+
+  function scheduleReconnect(reason = '') {
+    if (reconnectTimer !== null) return;
+    destroyHls();
+    clearStalledTimer();
+    const retryUrl = streamUrl;
+    const delay = Math.min(10000, 1500 * (2 ** Math.min(reconnectAttempt, 3)));
+    reconnectAttempt += 1;
+    setState('reconnecting', 'starting');
+    setMessage(reason || `Stream offline. Retrying in ${Math.ceil(delay / 1000)}s…`);
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = null;
+      if (retryUrl !== streamUrl) return;
+      fallbackMode = reconnectAttempt > 1;
+      fatalErrorCount = 0;
+      startPlayback(fallbackMode);
+    }, delay);
+  }
+
+  function startNativePlayback() {
+    destroyHls();
+    video.src = streamUrl;
+    video.load();
+    video.addEventListener('loadeddata', () => setMessage(''), { once: true });
+    playAutoplaySafe().then((started) => {
+      if (started) {
+        markPlaybackLive();
+      } else {
+        setState('ready', 'starting');
+        setMessage('Tap play to start the stream.');
+      }
+    }).catch(() => {
+      scheduleReconnect('The HLS playlist is unavailable. Waiting for the channel to return…');
+    });
+  }
+
+  function loadHls(stable = false) {
+    destroyHls();
+    setState('connecting', 'starting');
+    setMessage(stable ? 'Reconnecting in stable mode…' : 'Preparing live stream…');
+    hls = new Hls(hlsConfig(stable));
+    hls.attachMedia(video);
+    hls.on(Hls.Events.MEDIA_ATTACHED, () => hls.loadSource(streamUrl));
+    hls.on(Hls.Events.FRAG_LOADED, () => { noteHlsData(); fatalErrorCount = 0; });
+    hls.on(Hls.Events.LEVEL_UPDATED, noteHlsData);
+    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      noteHlsData();
+      playAutoplaySafe().then((started) => {
+        if (started) {
+          markPlaybackLive();
+        } else {
+          setState('ready', 'starting');
+          setMessage('Tap play to start the stream.');
+        }
+      }).catch(() => {
+        setState('ready', 'starting');
+        setMessage('Tap play to start the stream.');
+      });
+    });
+    hls.on(Hls.Events.ERROR, (_event, data) => {
+      if (!data?.fatal) return;
+      fatalErrorCount += 1;
+      if (data.type === Hls.ErrorTypes.NETWORK_ERROR && fatalErrorCount <= 6) {
+        const code = Number(data?.response?.code || 0);
+        setState('buffering', 'starting');
+        setMessage(code ? `HTTP ${code}; resuming the live stream…` : 'Network hiccup detected. Resuming the live stream…');
+        try {
+          if (code === 404) hls.stopLoad();
+          hls.startLoad(-1);
+        } catch (_) {
+          softRecover('Network recovery is in progress…');
+        }
+        return;
+      }
+      if (data.type === Hls.ErrorTypes.MEDIA_ERROR && fatalErrorCount <= 4) {
+        setState('recovering', 'starting');
+        setMessage('Recovering the live media pipeline…');
+        try { hls.recoverMediaError(); } catch (_) { softRecover('Media recovery is in progress…'); }
+        return;
+      }
+      if (data?.response?.code) setMessage(`HTTP ${data.response.code}`);
+      if (!fallbackMode) {
+        fallbackMode = true;
+        setMessage('Switching to the stable live buffer…');
+        loadHls(true);
+        return;
+      }
+      scheduleReconnect('Repeated fatal HLS errors detected. Reconnecting automatically…');
+    });
+  }
+
+  // STREAMFORGE_WEBPLAYER_HLSJS_LOCAL_CDN_FALLBACK_V1163:
+  // Main/brand Web Players use the same playback engine. Prefer the local copy
+  // installed by StreamForge, then fail over across two public CDNs. If all are
+  // temporarily unreachable, keep retrying instead of leaving Firefox/Chrome
+  // permanently in an unsupported state.
+  function ensureHlsLibrary() {
+    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      startNativePlayback();
+      return;
+    }
+    if (window.Hls && Hls.isSupported()) {
+      startPlayback(fallbackMode);
+      return;
+    }
+    if (hlsLibraryLoading) return;
+    hlsLibraryLoading = true;
+    if (hlsLibraryRetryTimer !== null) {
+      clearTimeout(hlsLibraryRetryTimer);
+      hlsLibraryRetryTimer = null;
+    }
+    const sources = [
+      {{ (prefix ~ '/static/vendor/hls.min.js?v=' ~ app_version) | tojson }},
+      'https://cdn.jsdelivr.net/npm/hls.js@1.7.1/dist/hls.min.js',
+      'https://unpkg.com/hls.js@1.7.1/dist/hls.min.js'
+    ];
+    const attempt = (index) => {
+      if (window.Hls && Hls.isSupported()) {
+        hlsLibraryLoading = false;
+        startPlayback(fallbackMode);
+        return;
+      }
+      if (index >= sources.length) {
+        hlsLibraryLoading = false;
+        setState('reconnecting', 'starting');
+        setMessage('Player engine is temporarily unavailable. Retrying automatically…');
+        hlsLibraryRetryTimer = setTimeout(() => {
+          hlsLibraryRetryTimer = null;
+          ensureHlsLibrary();
+        }, 3000);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = sources[index];
+      script.async = true;
+      script.onload = () => {
+        if (window.Hls && Hls.isSupported()) {
+          hlsLibraryLoading = false;
+          startPlayback(fallbackMode);
+        } else {
+          script.remove();
+          attempt(index + 1);
+        }
+      };
+      script.onerror = () => {
+        script.remove();
+        attempt(index + 1);
+      };
+      document.head.appendChild(script);
+    };
+    attempt(0);
+  }
+
+  function startPlayback(stable = false) {
+    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      startNativePlayback();
+      return;
+    }
+    if (window.Hls && Hls.isSupported()) {
+      loadHls(stable);
+      return;
+    }
+    ensureHlsLibrary();
+  }
+
+  video.addEventListener('playing', () => { notePlaybackProgress(true); markPlaybackLive(); });
+  video.addEventListener('timeupdate', () => notePlaybackProgress(false));
+  video.addEventListener('progress', () => { if (bufferedAhead() > 0.25) noteHlsData(); });
+  video.addEventListener('error', () => { if (hls) softRecover('Playback pipeline paused. Resuming without reconnecting…'); else scheduleReconnect('Playback stopped. Waiting for the channel to return…'); });
+  video.addEventListener('waiting', () => {
+    if (!video.paused) notePlaybackProgress(false);
+  });
+  video.addEventListener('stalled', () => {
+    clearStalledTimer();
+    if (video.paused) return;
+    stalledTimer = setTimeout(() => {
+      stalledTimer = null;
+      const now = Date.now();
+      const mediaQuiet = now - lastPlaybackProgressAt >= 15000;
+      const hlsQuiet = now - lastHlsDataAt >= 12000;
+      if (!video.paused && mediaQuiet && hlsQuiet && bufferedAhead() < 0.25 && video.readyState < HTMLMediaElement.HAVE_FUTURE_DATA) {
+        softRecover('Waiting for fresh HLS data; keeping the current player session…');
+      }
+    }, 12000);
+  });
+  video.addEventListener('loadeddata', () => { clearStalledTimer(); noteHlsData(); });
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      notePlaybackProgress(true);
+      if (reconnectTimer !== null) {
+        clearReconnectTimer();
+        scheduleReconnect('Player resumed. Checking the channel now…');
+      }
+    }
+  });
+  setInterval(() => {
+    if (document.hidden || video.paused || video.seeking || video.ended) return;
+    notePlaybackProgress(false);
+    const now = Date.now();
+    const mediaQuiet = now - lastPlaybackProgressAt >= 18000;
+    const hlsQuiet = now - lastHlsDataAt >= 12000;
+    if (mediaQuiet && hlsQuiet && bufferedAhead() < 0.25 && reconnectTimer === null) {
+      softRecover('Playback paused at the live edge; resuming without rebuilding the player…');
+    }
+  }, 2500);
+
+
+  const cards = Array.from(document.querySelectorAll('[data-channel-card]'));
+  const channelTitle = document.getElementById('current-channel-title');
+  const nowName = document.getElementById('current-now-name');
+  const nowMeta = document.getElementById('current-now-meta');
+
+  // STREAMFORGE_MAIN_PLAYER_INPAGE_CHANNEL_SWITCH_V2240:
+  function updateNowLogo(logoUrl) {
+    if (!nowMeta) return;
+    const oldLogo = nowMeta.querySelector('.now-logo,.now-logo-fallback');
+    if (!oldLogo) return;
+    if (logoUrl) {
+      const span = document.createElement('span');
+      span.className = 'now-logo';
+      const img = document.createElement('img');
+      img.src = logoUrl;
+      img.alt = '';
+      img.loading = 'lazy';
+      span.appendChild(img);
+      oldLogo.replaceWith(span);
+      video.poster = logoUrl;
+    } else {
+      const span = document.createElement('span');
+      span.className = 'now-logo-fallback';
+      span.textContent = '▶';
+      oldLogo.replaceWith(span);
+      video.removeAttribute('poster');
+    }
+  }
+
+  function switchChannel(card) {
+    const nextUrl = card.dataset.streamUrl || '';
+    if (!nextUrl || card.classList.contains('active')) return;
+    streamUrl = nextUrl;
+    youtubeLowLatency = card.dataset.youtubeSource === '1';
+    fallbackMode = false;
+    fatalErrorCount = 0;
+    reconnectAttempt = 0;
+    clearReconnectTimer();
+    clearStalledTimer();
+    destroyHls();
+    try { video.pause(); } catch (_) {}
+    video.removeAttribute('src');
+    video.load();
+
+    const name = card.dataset.channelName || '';
+    if (channelTitle) channelTitle.textContent = name;
+    if (nowName) nowName.textContent = name;
+    updateNowLogo(card.dataset.logoUrl || '');
+    cards.forEach((item) => item.classList.toggle('active', item === card));
+
+    // STREAMFORGE_MAIN_PLAYER_DIRECT_SWITCH_NO_URL_V2246:
+    document.title = name ? `${name} · StreamForge Player` : document.title;
+    startPlayback();
+  }
+
+  cards.forEach((card) => {
+    card.addEventListener('click', (event) => {
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+      event.preventDefault();
+      switchChannel(card);
+    });
+  });
+
+  const chipWrap = document.getElementById('category-chips');
+  const empty = document.getElementById('channel-empty');
+  const unique = new Set();
+  cards.forEach((card) => {
+    const raw = card.dataset.categories || '';
+    raw.split('|').map((name) => name.trim()).filter(Boolean).forEach((name) => unique.add(name));
+  });
+  const categories = ['All', ...Array.from(unique)];
+  let activeCategory = 'All';
+
+  function applyCategory(name) {
+    activeCategory = name;
+    let shown = 0;
+    cards.forEach((card) => {
+      const raw = card.dataset.categories || '';
+      const names = raw.split('|').map((item) => item.trim()).filter(Boolean);
+      const show = name === 'All' || names.includes(name);
+      card.hidden = !show;
+      card.style.gridColumn = show ? 'span 3' : '';
+      if (show) shown += 1;
+    });
+    // STREAMFORGE_WEB_PLAYER_NORMAL_LAST_ROW_V2218
+    cards.forEach((card) => {
+      if (!card.hidden) card.style.gridColumn = '';
+    });
+    empty.hidden = shown !== 0;
+    chipWrap.querySelectorAll('[data-chip]').forEach((chip) => {
+      chip.classList.toggle('active', chip.dataset.chip === name);
+    });
+  }
+
+  categories.forEach((name) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'category-chip';
+    btn.textContent = name;
+    btn.dataset.chip = name;
+    btn.addEventListener('click', () => applyCategory(name));
+    chipWrap.appendChild(btn);
+  });
+  applyCategory(activeCategory);
+
+  /* STREAMFORGE_MAIN_PLAYER_LIVE_ONLINE_V2246 */
+  const onlineUseEl = document.getElementById('player-online-use');
+  const onlineUseEndpoint = {{ (prefix ~ '/web-player/online-use') | tojson }};
+  let onlineUseBusy = false;
+  async function refreshOnlineUse() {
+    if (!onlineUseEl || onlineUseBusy) return;
+    onlineUseBusy = true;
+    try {
+      const response = await fetch(onlineUseEndpoint, {
+        cache: 'no-store',
+        credentials: 'same-origin',
+        headers: {'Accept': 'application/json'}
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (Number.isFinite(Number(data.online_use))) {
+          onlineUseEl.textContent = String(Math.max(0, Number(data.online_use)));
+        }
+      }
+    } catch (_) {
+    } finally {
+      onlineUseBusy = false;
+    }
+  }
+  if (onlineUseEl) {
+    refreshOnlineUse();
+    setInterval(refreshOnlineUse, 2000);
+  }
+
+  // STREAMFORGE_WEB_PLAYER_PANEL_HEIGHT_SYNC_V2218
+  const playerPanel = document.querySelector('.player-panel');
+  const browserPanel = document.querySelector('.browser-panel');
+  const syncPanelHeight = () => {
+    if (!playerPanel || !browserPanel) return;
+    if (window.matchMedia('(max-width: 1060px)').matches) {
+      browserPanel.style.removeProperty('--watch-panel-height');
+      return;
+    }
+    browserPanel.style.setProperty('--watch-panel-height', `${Math.ceil(playerPanel.getBoundingClientRect().height)}px`);
+  };
+  syncPanelHeight();
+  window.addEventListener('resize', syncPanelHeight);
+  if (window.ResizeObserver && playerPanel) {
+    new ResizeObserver(syncPanelHeight).observe(playerPanel);
+  }
+
+  ensureHlsLibrary();
+})();
+</script>
+{% if webplayer_settings and webplayer_settings.hide_hover_urls %}
+<!-- STREAMFORGE_MAIN_PLAYER_HIDE_HOVER_URLS_V2293 -->
+<script>
+(()=>{const dest=a=>{const raw=a.getAttribute('href')||'';if(!raw||raw.startsWith('#')||raw.startsWith('javascript:')||raw.startsWith('mailto:')||raw.startsWith('tel:'))return'';try{const u=new URL(raw,location.href);return u.origin===location.origin?u.pathname+u.search+u.hash:''}catch(_){return''}};const convert=a=>{if(!(a instanceof HTMLAnchorElement)||a.dataset.sfHoverHidden==='1')return;const url=dest(a);if(!url)return;a.dataset.sfHoverHidden='1';a.dataset.sfNavUrl=url;a.removeAttribute('href');a.setAttribute('role','link');if(!a.hasAttribute('tabindex'))a.tabIndex=0;a.addEventListener('click',e=>{if(e.defaultPrevented)return;e.preventDefault();location.assign(a.dataset.sfNavUrl)});a.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();location.assign(a.dataset.sfNavUrl)}})};const bind=r=>{if(r.matches&&r.matches('a[href]'))convert(r);if(r.querySelectorAll)r.querySelectorAll('a[href]').forEach(convert)};const start=()=>{bind(document);new MutationObserver(rs=>rs.forEach(r=>r.addedNodes.forEach(n=>{if(n.nodeType===1)bind(n)}))).observe(document.documentElement,{childList:true,subtree:true})};document.readyState==='loading'?document.addEventListener('DOMContentLoaded',start,{once:true}):start()})();
+</script>{% endif %}
+</body>
+</html>

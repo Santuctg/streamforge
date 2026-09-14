@@ -1,0 +1,18 @@
+[Unit]
+Description=Apply StreamForge Main/Local Nginx access listeners
+After=nginx.service
+Requires=nginx.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+EnvironmentFile=-/etc/streamforge.env
+ExecStart=/usr/local/sbin/streamforge-apply-main-access
+TimeoutStartSec=300
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+# STREAMFORGE_CERTBOT_SANDBOX_WRITES_V38
+ReadWritePaths=/etc/nginx/sites-available /etc/nginx/sites-enabled -/etc/letsencrypt -/var/lib/letsencrypt -/var/log/letsencrypt /var/lib/streamforge/main-access-runtime /var/lib/streamforge/tls /var/lib/streamforge/acme-dns
+UMask=0027

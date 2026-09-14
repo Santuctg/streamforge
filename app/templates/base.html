@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script>
+  // STREAMFORGE_MAIN_APP_ROOT_EARLY_BOOTSTRAP_V83: inline page scripts can run
+  // before the footer bootstrap; expose the active access prefix in <head>.
+  window.STREAMFORGE_APP_ROOT={{ request.scope.get('root_path','')|tojson }};
+  window.STREAMFORGE_PANEL_INTERNAL_INITIAL={{ panel_internal_url|default('/', true)|tojson }};
+  window.STREAMFORGE_HIDE_PANEL_HOVER_URLS={{ hide_panel_hover_urls|default(false)|tojson }};
+  </script>
+  {% if not admin %}
+  <script>
+  (()=>{
+    /* STREAMFORGE_MAIN_LOGIN_ADDRESS_BAR_HIDE_V122:
+       Hide the internal /login route at first paint. This runs inline so a
+       temporary static-asset failure cannot expose /login in the address bar. */
+    const root=({{ request.scope.get('root_path','')|tojson }}||'').replace(/\/+$/,'');
+    const canonical=root||'/';
+    const loginPath=(root||'')+'/login';
+    try{
+      if(location.pathname===loginPath){history.replaceState(history.state,'',canonical);}
+    }catch(_){}
+  })();
+  </script>
+  {% endif %}
+  {% if admin %}
+  <script>
+  (()=>{
+    /* STREAMFORGE_MAIN_HIDDEN_NATIVE_ROUTE_HEAD_V49:
+       Hide a direct/deep internal panel route as soon as the new document
+       begins parsing. Normal menu navigation already reloads the canonical
+       root, so this is mainly a safety net for POST redirects/direct links. */
+    const root=({{ request.scope.get('root_path','')|tojson }}||'').replace(/\/+$/,'');
+    const canonical=root||'/';
+    const internal={{ panel_internal_url|default('/', true)|tojson }};
+    try{
+      document.cookie='streamforge_panel_route='+encodeURIComponent(internal)+'; Path=/; Max-Age=43200; SameSite=Lax';
+      if(location.pathname!==canonical||location.search||location.hash){
+        history.replaceState(history.state,'',canonical);
+      }
+    }catch(_){}
+  })();
+  </script>
+  {% endif %}
+  <!-- STREAMFORGE_BRANDED_BROWSER_TITLES_V68 -->
+  <title>{% block title %}{{ branding.name }}{% endblock %}</title>
+  {# STREAMFORGE_MAIN_BRAND_ASYNC_DECODE_V1116: panel logo is non-blocking; favicon remains branded. #}
+  {% if branding.favicon_url %}<link rel="icon" href="{{ branding.favicon_url }}">{% endif %}
+  <link rel="stylesheet" href="/static/style.css?v={{ app_version }}">
+  <!-- STREAMFORGE_MAIN_PANEL_STATIC_SHELL_ASSETS_V1116: fetch cacheable panel JS while HTML is still parsing. -->
+  <link rel="preload" href="/static/panel_nav.js?v={{ app_version }}" as="script">
+  <link rel="preload" href="/static/app.js?v={{ app_version }}" as="script">
+
+
+
+
+
+
+
+
+
+
+
+
+</head>
+<body>
+{% if admin %}
+<div class="app-shell">
+  <aside class="sidebar" data-sidebar>
+    <div class="sidebar-top">
+      <div class="brand">{% if branding.logo_url %}<img class="brand-logo" src="{{ branding.logo_url|versioned_asset }}" alt="{{ branding.name }} logo" decoding="async" fetchpriority="low">{% else %}<span class="brand-mark">{{ branding.name[:2]|upper }}</span>{% endif %}<div class="brand-copy">
+          <b>{{ branding.name }}</b>
+          {% if branding.subtitle %}<small class="brand-subtitle">{{ branding.subtitle }}</small>{% endif %}
+          <small class="brand-version">v{{ app_version }}</small>
+        </div></div>
+      <button class="sidebar-toggle" type="button" data-sidebar-toggle title="Collapse sidebar" aria-label="Collapse sidebar" aria-controls="main-navigation">❮</button>
+    </div>
+    <nav id="main-navigation">
+      <div class="main-nav-links">
+      {% if can('dashboard.view') %}<a href="/" class="{% if request.url.path == '/' %}active{% endif %}"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h6V4H4v9Zm10 7h6V11h-6v9ZM4 20h6v-3H4v3Zm10-13h6V4h-6v3Z"/></svg></span><span class="nav-label">Overview</span></a>{% endif %}
+      {% if can('channels.view') %}<a href="/channels" class="{% if request.url.path.startswith('/channels') and not request.url.path.startswith('/channels/import') %}active{% endif %}"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M9 5v14M15 5v14"/></svg></span><span class="nav-label">Channels</span></a>{% endif %}
+      {% if can('nodes.view') %}<a href="/nodes" class="{% if request.url.path.startswith('/nodes') %}active{% endif %}"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5"/><path d="M12 5V3M12 21v-2M5 12H3M21 12h-2"/></svg></span><span class="nav-label">Nodes</span></a>{% endif %}
+      {% if can('categories.view') %}<a href="/categories" class="{% if request.url.path.startswith('/categories') %}active{% endif %}"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h6v6H4zM14 5h6v6h-6zM4 15h6v4H4zM14 15h6v4h-6z"/></svg></span><span class="nav-label">Categories</span></a>{% endif %}
+      {% if can('imports.view') %}<a href="/channels/import" class="{% if request.url.path.startswith('/channels/import') %}active{% endif %}"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V6M7 11l5-5 5 5"/><path d="M5 19h14"/></svg></span><span class="nav-label">Import streams</span></a>{% endif %}
+      {% if can('stream_users.view') %}<a href="/users" class="{% if request.url.path.startswith('/users') %}active{% endif %}"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M4 19c0-3 2.2-5 5-5s5 2 5 5M16 7h4M18 5v4"/></svg></span><span class="nav-label">Users & Playlists</span></a>{% endif %}
+      {% if can('logs.view') %}<a href="/logs" class="{% if request.url.path.startswith('/logs') %}active{% endif %}"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h12M6 9h12M6 13h12M6 17h8"/></svg></span><span class="nav-label">Logs</span></a>{% endif %}
+      {% if can('panel_users.view') or can('roles.view') %}<span class="nav-section-label"><span class="nav-label">Panel access</span></span>{% endif %}
+      {% if can('panel_users.view') %}<a href="/admin-users" class="{% if request.url.path.startswith('/admin-users') %}active{% endif %}"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3"/><path d="M5 20c0-4 2.8-6 7-6s7 2 7 6"/></svg></span><span class="nav-label">Panel users</span></a>{% endif %}
+      {% if can('roles.view') %}<a href="/roles" class="{% if request.url.path.startswith('/roles') %}active{% endif %}"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.4 1A8 8 0 0 0 15 6l-.3-2.6h-4L10.4 6A8 8 0 0 0 8.8 7L6.4 6 4.5 9.5 6.5 11a7 7 0 0 0 0 2l-2 1.5L6.4 18l2.4-1a8 8 0 0 0 1.6 1l.3 2.6h4L15 18a8 8 0 0 0 1.6-1l2.4 1 2-3.5-2.1-1.5c.1-.3.1-.7.1-1Z"/></svg></span><span class="nav-label">Roles & Permissions</span></a>{% endif %}
+      {% if can('backups.view') %}<a href="/system/backups" class="{% if request.url.path.startswith('/system/backups') %}active{% endif %}"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></span><span class="nav-label">Backups</span></a>{% endif %}
+      {% if can('settings.view') %}<a href="/system/branding" class="{% if request.url.path.startswith('/system/branding') %}active{% endif %}"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 4 8 8-8 8-8-8 8-8Z"/><circle cx="12" cy="12" r="2"/></svg></span><span class="nav-label">Settings</span></a>{% endif %}
+</div>
+      <div class="sidebar-bottom">
+        <!-- STREAMFORGE_MAIN_PASSWORD_FOOTER_EXACT_MATCH_V2294 -->
+        <form method="get" action="/account/password"><button type="submit" class="nav-button account main-node-account" aria-label="Change password"><span class="node-account-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15" r="1.4"/><path d="M12 16.4V18"/></svg></span><span class="node-account-label">Change password</span></button></form>
+        <form method="post" action="/logout"><button type="submit" class="nav-button signout main-node-signout" aria-label="Sign out"><span class="node-signout-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10 4H6.8A1.8 1.8 0 0 0 5 5.8v12.4A1.8 1.8 0 0 0 6.8 20H10"/><path d="M14 8l4 4-4 4"/><path d="M9 12h9"/></svg></span><span class="node-signout-label">Sign out</span></button></form>
+      </div>
+    </nav>
+  </aside>
+  <main class="main-content">
+    <header class="topbar">
+      <div>{% block heading %}{% endblock %}</div>
+      <div class="admin-chip"><b>{{ admin.username }}</b><small>{{ admin.role.name if admin.role else 'No role' }}</small></div>
+    </header>
+    {% block content %}{% endblock %}
+  </main>
+</div>
+{% else %}
+  {% block guest %}{% endblock %}
+{% endif %}
+<script src="/static/panel_nav.js?v={{ app_version }}"></script>
+
+<script src="/static/app.js?v={{ app_version }}"></script>
+{% block scripts %}{% endblock %}
+
+
+</body>
+</html>

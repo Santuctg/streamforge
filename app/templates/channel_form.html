@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if channel else 'Add' }} Channel · {{ branding.name }}{% endblock %}
+{% block heading %}<h1>{{ 'Edit channel' if channel else 'Add channel' }}</h1><p>Configure ingest, automatic GPU encoding and browser-safe delivery</p>{% endblock %}
+{% block content %}
+<form class="form-layout channel-editor-form" method="post" enctype="multipart/form-data" action="{{ '/channels/' ~ channel.id ~ '/edit' if channel else '/channels/new' }}">
+{% if error %}<div class="alert danger wide">{{ error }}</div>{% endif %}
+<section class="panel form-section"><div class="panel-head"><div><h2>Identity & input</h2><p>FFmpeg-compatible UDP, RTP, HTTP/HLS or SRT input URL. HTTP sources use automatic reconnect.</p></div></div>
+<div class="form-grid identity-form-grid">
+<label>Name<input name="name" value="{{ channel.name if channel else '' }}" required></label>
+<label>Slug<input name="slug" value="{{ channel.slug if channel else '' }}" placeholder="auto-from-name"></label>
+{% set source_urls = [channel.input_url] if channel else [''] %}
+{% set saved_source_program_ids = channel_source_program_ids(channel) if channel else [] %}
+{% if channel and channel.backup_inputs %}{% set source_urls = source_urls + channel.backup_inputs.split('\n') %}{% endif %}
+<div class="wide stream-source-editor" data-stream-source-editor data-scan-endpoint="/channels/source-scan.json">
+  <div class="stream-source-head">
+    <div><b>Stream links & source info</b><small>Input 1 is primary. Add backups, change priority, and scan each source before saving.</small></div>
+    <div class="stream-source-head-actions"><button class="button small" type="button" data-source-add>+ Add link</button><button class="button small" type="button" data-source-scan-all>Scan all</button></div>
+  </div>
+  <div class="stream-source-list" data-source-list>
+    {% for source in source_urls %}{% if source or loop.first %}
+    <article class="stream-source-row" data-source-row>
+      <div class="stream-source-priority"><button class="button small" type="button" data-source-up aria-label="Move source up">↑</button><button class="button small" type="button" data-source-down aria-label="Move source down">↓</button></div>
+      <div class="stream-source-url"><span class="source-rank" data-source-rank>{{ loop.index }}</span><input name="source_urls" value="{{ source }}" placeholder="http://source/live/index.m3u8 or YouTube Live URL" {% if loop.first %}required{% endif %}></div>
+      {% set saved_program_id = saved_source_program_ids[loop.index0] if loop.index0 < saved_source_program_ids|length else none %}
+      <div class="stream-source-info">
+        <div class="stream-source-scan-summary" data-source-compact-info></div>
+        <label class="source-program-field" data-source-program-field {% if not saved_program_id %}hidden{% endif %}>
+          <select name="source_program_ids" data-source-program-select data-program-source="{{ source }}">
+            <option value="">Auto / no program</option>
+            {% if saved_program_id %}<option value="{{ saved_program_id }}" selected>Program {{ saved_program_id }} (saved)</option>{% endif %}
+          </select>
+        </label>
+      </div>
+      <div class="stream-source-actions"><button class="button small" type="button" data-source-scan>Scan</button><button class="button ghost-danger small" type="button" data-source-remove aria-label="Remove source">×</button></div>
+    </article>
+    {% endif %}{% endfor %}
+  </div>
+  <input type="hidden" name="input_url" value="{{ channel.input_url if channel else '' }}" data-primary-source-value>
+  <textarea name="backup_inputs" hidden data-backup-source-value>{{ channel.backup_inputs or '' if channel else '' }}</textarea>
+  <small class="field-help">Header syntax: <span class="mono">URL|User-Agent=...&Referer=...&Cookie=...</span>. Failover follows this displayed order.</small>
+</div>
+<div class="wide identity-compact-row">
+  <label class="check failback-toggle"><input type="checkbox" name="failback_enabled" {% if not channel or channel.failback_enabled %}checked{% endif %}><span>Return automatically to input 1 when it becomes available</span></label>
+  <label class="compact-field interval-field">Primary-input check interval<input type="number" name="failback_interval" min="10" max="3600" value="{{ channel.failback_interval if channel else 30 }}"></label>
+  {% set selected_category_items = channel_category_list(channel) if channel else [] %}
+  {% set selected_category_ids = selected_category_items|map(attribute='id')|list %}
+  <div class="compact-field category-field category-multi-field"><span class="field-label">Categories</span><details class="category-picker" data-category-picker><summary data-category-picker-summary>{{ selected_category_items|map(attribute='name')|join(', ') if selected_category_items else 'Uncategorized' }}</summary><div class="category-picker-options">{% for category in categories %}<label><input type="checkbox" name="category_ids" value="{{ category.id }}" {% if category.id in selected_category_ids %}checked{% endif %}><span>{{ category.name }}</span></label>{% else %}<span class="source-info-muted">Create categories first</span>{% endfor %}</div></details></div>
+</div>
+{% if can('channels.assign_node') %}
+<div class="wide node-assignment-field">
+<div class="node-assignment-head"><div><span class="field-label">Encoding nodes</span><small class="field-help">Select one or more nodes. Start/Stop/Restart runs this channel on every selected node.</small></div><a class="inline-link" href="/nodes" target="_blank">Manage encoding nodes</a></div>
+<div class="channel-checks compact-node-checks node-source-grid" data-node-checkbox-list>
+{% for node in nodes %}
+<label class="node-source-card">
+  <span class="node-source-title"><input type="checkbox" name="node_ids" value="{{ node.id }}" {% if (channel and node in channel.nodes) or (channel and not channel.nodes and channel.node_id == node.id) or (not channel and node.node_type == 'local') %}checked{% endif %}><span><b>{{ node.name }}</b><small>{{ node.node_type|title }}{% if node.client_prefixes %} · Prefix pinned{% endif %}</small></span></span>
+  {% if node.node_type == 'remote' %}
+  <select name="node_input_modes" aria-label="Input source for {{ node.name }}">
+    <option value="{{ node.id }}:source" {% if (node_input_modes or {}).get(node.id, 'source') != 'local_relay' %}selected{% endif %}>Original/Main input</option>
+    <option value="{{ node.id }}:local_relay" {% if (node_input_modes or {}).get(node.id) == 'local_relay' %}selected{% endif %}>Local Node relay</option>
+  </select>
+  {% else %}<small class="field-help">Local Node always uses the original/main input.</small>{% endif %}
+  {% set encoding = (node_encoding_profiles or {}).get(node.id, {}) %}
+  <input type="hidden" name="node_profile_node_ids" value="{{ node.id }}">
+  <div class="node-encoding-title"><b>Encoding on this node</b><small>Use channel defaults or override this node only.</small></div>
+  {# STREAMFORGE_BULK_PROFILE_EDIT_DISPLAY_V1026: show the resolved profile while preserving inherit controls. #}
+  <div class="node-encoding-effective" data-node-effective-profile>
+    <small>Effective now</small>
+    <b>{{ encoding.get('effective_video_codec', channel.video_codec if channel else 'copy') }} · {{ encoding.get('effective_video_bitrate', channel.video_bitrate if channel else '2500k') }} · {{ encoding.get('effective_resolution', ((channel.width|string ~ 'x' ~ channel.height|string) if channel and channel.width and channel.height else 'source')) }} · {{ encoding.get('effective_audio_codec', channel.audio_codec if channel else 'copy') }} · {{ encoding.get('effective_audio_bitrate', channel.audio_bitrate if channel else '128k') }} · HLS {{ encoding.get('effective_hls_segment_time', channel.hls_segment_time if channel else 1) }}s</b>
+  </div>
+  <div class="node-encoding-grid">
+    <span class="node-encoding-field"><small>Video</small><select name="node_video_codecs" aria-label="Video codec on {{ node.name }}">
+      <option value="inherit" {% if encoding.get('video_codec', 'inherit') == 'inherit' %}selected{% endif %}>Use channel default — {{ channel.video_codec if channel else 'copy' }}</option>
+      <option value="copy" {% if encoding.get('video_codec') == 'copy' %}selected{% endif %}>Copy / Passthrough</option>
+      <option value="auto" {% if encoding.get('video_codec') == 'auto' %}selected{% endif %}>H.264 AUTO — GPU first</option>
+      <option value="h264_nvenc" {% if encoding.get('video_codec') == 'h264_nvenc' %}selected{% endif %}>NVIDIA H.264 NVENC — dedicated GPU</option>
+      <option value="auto_hevc" {% if encoding.get('video_codec') == 'auto_hevc' %}selected{% endif %}>H.265 AUTO — GPU first</option>
+    </select></span>
+    <span class="node-encoding-field"><small>Video bitrate</small><input name="node_video_bitrates" value="{{ encoding.get('video_bitrate', '') }}" placeholder="Channel default {{ channel.video_bitrate if channel else '2500k' }}"></span>
+    <span class="node-encoding-field"><small>Resolution</small><select name="node_resolutions" aria-label="Resolution on {{ node.name }}">
+      <option value="inherit" {% if encoding.get('resolution', 'inherit') == 'inherit' %}selected{% endif %}>Use channel default — {{ (channel.width|string ~ '×' ~ channel.height|string) if channel and channel.width and channel.height else 'Source' }}</option>
+      <option value="source" {% if encoding.get('resolution') == 'source' %}selected{% endif %}>Source / no scaling</option>
+      <option value="3840x2160" {% if encoding.get('resolution') == '3840x2160' %}selected{% endif %}>4K UHD — 3840×2160</option>
+      <option value="2560x1440" {% if encoding.get('resolution') == '2560x1440' %}selected{% endif %}>QHD — 2560×1440</option>
+      <option value="1920x1080" {% if encoding.get('resolution') == '1920x1080' %}selected{% endif %}>Full HD — 1920×1080</option>
+      <option value="1600x900" {% if encoding.get('resolution') == '1600x900' %}selected{% endif %}>HD+ — 1600×900</option>
+      <option value="1280x720" {% if encoding.get('resolution') == '1280x720' %}selected{% endif %}>HD — 1280×720</option>
+      <option value="1024x576" {% if encoding.get('resolution') == '1024x576' %}selected{% endif %}>576p — 1024×576</option>
+      <option value="854x480" {% if encoding.get('resolution') == '854x480' %}selected{% endif %}>480p — 854×480</option>
+      <option value="720x576" {% if encoding.get('resolution') == '720x576' %}selected{% endif %}>PAL — 720×576</option>
+      <option value="720x480" {% if encoding.get('resolution') == '720x480' %}selected{% endif %}>NTSC — 720×480</option>
+      <option value="640x360" {% if encoding.get('resolution') == '640x360' %}selected{% endif %}>360p — 640×360</option>
+      <option value="426x240" {% if encoding.get('resolution') == '426x240' %}selected{% endif %}>240p — 426×240</option>
+    </select></span>
+    <span class="node-encoding-field"><small>Audio</small><select name="node_audio_codecs" aria-label="Audio codec on {{ node.name }}">
+      <option value="inherit" {% if encoding.get('audio_codec', 'inherit') == 'inherit' %}selected{% endif %}>Use channel default — {{ channel.audio_codec if channel else 'copy' }}</option>
+            <option value="copy" {% if encoding.get('audio_codec') in ['copy','auto'] %}selected{% endif %}>Copy / Passthrough</option>
+      <option value="aac" {% if encoding.get('audio_codec') == 'aac' %}selected{% endif %}>AAC-LC</option>
+      <option value="ac3" {% if encoding.get('audio_codec') == 'ac3' %}selected{% endif %}>AC-3 / Dolby Digital</option>
+      <option value="eac3" {% if encoding.get('audio_codec') == 'eac3' %}selected{% endif %}>E-AC-3 / Dolby Digital Plus</option>
+      <option value="mp2" {% if encoding.get('audio_codec') == 'mp2' %}selected{% endif %}>MPEG Layer II / MP2</option>
+      <option value="libmp3lame" {% if encoding.get('audio_codec') == 'libmp3lame' %}selected{% endif %}>MP3</option>
+      <option value="libopus" {% if encoding.get('audio_codec') == 'libopus' %}selected{% endif %}>Opus</option>
+      <option value="flac" {% if encoding.get('audio_codec') == 'flac' %}selected{% endif %}>FLAC</option>
+      <option value="libvorbis" {% if encoding.get('audio_codec') == 'libvorbis' %}selected{% endif %}>Vorbis</option>
+      <option value="pcm_s16le" {% if encoding.get('audio_codec') == 'pcm_s16le' %}selected{% endif %}>PCM 16-bit</option>
+    </select></span>
+    <span class="node-encoding-field"><small>Audio bitrate</small><input name="node_audio_bitrates" value="{{ encoding.get('audio_bitrate', '') }}" placeholder="Channel default {{ channel.audio_bitrate if channel else '128k' }}"></span>
+    <span class="node-encoding-field"><small>HLS segment seconds</small><select name="node_hls_segment_times" aria-label="HLS segment seconds on {{ node.name }}">
+      <option value="inherit" {% if encoding.get('hls_segment_time', 'inherit') == 'inherit' %}selected{% endif %}>Use channel default — {{ channel.hls_segment_time if channel else 1 }} second{{ '' if (channel.hls_segment_time if channel else 1) == 1 else 's' }}</option>
+      {% for seconds in range(1, 21) %}<option value="{{ seconds }}" {% if encoding.get('hls_segment_time') == seconds %}selected{% endif %}>{{ seconds }} second{{ '' if seconds == 1 else 's' }}</option>{% endfor %}
+    </select></span>
+  </div>
+</label>
+{% endfor %}
+</div>
+<input type="hidden" name="remote_input_mode" value="source">
+<small class="field-help wide">Choose the input independently for each remote node. Local relay requires Local Node and HTTP HLS output.</small>
+</div>
+{% else %}
+{% if channel %}{% for node in channel.nodes %}<input type="hidden" name="node_ids" value="{{ node.id }}">{% endfor %}{% elif nodes %}<input type="hidden" name="node_ids" value="{{ nodes[0].id }}">{% endif %}
+<input type="hidden" name="remote_input_mode" value="{{ channel.remote_input_mode if channel else 'source' }}">
+{% endif %}
+<label class="wide">Logo URL
+<input type="url" name="logo_url" value="{% if channel and channel.logo_url and channel.logo_url[:4] == 'http' %}{{ channel.logo_url|versioned_asset }}{% endif %}" placeholder="https://example.com/channel-logo.png">
+<small class="field-help">Use a direct HTTP/HTTPS image URL. A newly uploaded file takes priority over this URL.</small>
+</label>
+<label>Upload logo file
+<input type="file" name="logo_file" accept="image/png,image/jpeg,image/webp,image/gif">
+<small class="field-help">PNG, JPG, WEBP or GIF; maximum 2 MB.</small>
+</label>
+{% if channel and channel.logo_url %}
+<div class="channel-logo-field">
+  <span class="field-label">Current logo</span>
+  <div class="channel-logo-current">
+    <img src="{{ channel.logo_url|versioned_asset }}" alt="{{ channel.name }} logo" onerror="this.closest('.channel-logo-field').hidden=true">
+    <div><b>{{ channel.name }}</b><small>{{ 'Uploaded file' if channel.logo_url[:15] == '/channel-logos/' else 'Remote URL' }}</small></div>
+  </div>
+</div>
+{% endif %}
+<div class="wide channel-toggle-grid">
+  {% if channel and channel.logo_url %}<label class="check logo-remove-check"><input type="checkbox" name="remove_logo"><span>Remove current logo</span></label>{% endif %}
+  <label class="check"><input type="checkbox" name="enabled" {% if not channel or channel.enabled %}checked{% endif %}><span>Enabled</span></label>
+  <label class="check"><input type="checkbox" name="auto_restart" {% if not channel or channel.auto_restart %}checked{% endif %}><span>Auto restart if the stream goes down</span></label>
+</div>
+</div></section>
+
+<section class="panel form-section"><div class="panel-head compact-panel-head"><div><h2>Video encoding</h2></div></div>
+<div class="form-grid compact-encoding-grid video-encoding-grid">
+<label>Codec
+<select name="video_codec">
+<option value="copy" {% if not channel or channel.video_codec=='copy' %}selected{% endif %}>Copy / Passthrough</option>
+<option value="auto" {% if channel and channel.video_codec in ['auto','auto_h264','h264','libx264','h264_qsv','h264_vaapi'] %}selected{% endif %}>H.264 AUTO — GPU first / Chrome safe</option>
+<option value="h264_nvenc" {% if channel and channel.video_codec == 'h264_nvenc' %}selected{% endif %}>NVIDIA H.264 NVENC — dedicated GPU</option>
+<option value="auto_hevc" {% if channel and channel.video_codec in ['auto_hevc','auto_h265','hevc','libx265','hevc_nvenc','hevc_qsv','hevc_vaapi'] %}selected{% endif %}>H.265 AUTO — GPU first / HEVC</option>
+</select></label>
+<label>Video bitrate<input name="video_bitrate" value="{{ channel.video_bitrate if channel else '2500k' }}"></label>
+<label>Resolution preset
+<select id="resolution-preset">
+<option value="source">Source / no scaling</option>
+<option value="3840x2160">4K UHD — 3840×2160</option>
+<option value="2560x1440">QHD — 2560×1440</option>
+<option value="1920x1080">Full HD — 1920×1080</option>
+<option value="1600x900">HD+ — 1600×900</option>
+<option value="1280x720">HD — 1280×720</option>
+<option value="1024x576">576p — 1024×576</option>
+<option value="854x480">480p — 854×480</option>
+<option value="720x576">PAL — 720×576</option>
+<option value="720x480">NTSC — 720×480</option>
+<option value="640x360">360p — 640×360</option>
+<option value="426x240">240p — 426×240</option>
+<option value="custom">Custom</option>
+</select>
+</label>
+<label>FPS<input type="number" min="1" max="120" name="fps" value="{{ channel.fps or '' if channel else '' }}" placeholder="Blank keeps source FPS"></label>
+<label>Width<input id="video-width" type="number" min="2" step="2" name="width" value="{{ channel.width or '' if channel else '' }}" placeholder="Source width"></label>
+<label>Height<input id="video-height" type="number" min="2" step="2" name="height" value="{{ channel.height or '' if channel else '' }}" placeholder="Source height"></label>
+<label>CPU preset<select name="preset">{% for p in ['ultrafast','superfast','veryfast','faster','fast','medium'] %}<option value="{{ p }}" {% if (channel and channel.preset==p) or (not channel and p=='ultrafast') %}selected{% endif %}>{{ p }}</option>{% endfor %}</select></label>
+</div></section>
+
+<section class="panel form-section"><div class="panel-head compact-panel-head"><div><h2>Audio & output</h2></div></div>
+<div class="form-grid compact-encoding-grid audio-output-grid">
+<label>Audio codec
+<select name="audio_codec">
+<option value="copy" {% if not channel or channel.audio_codec in ['copy','auto'] %}selected{% endif %}>Copy / Passthrough</option>
+<option value="aac" {% if channel and channel.audio_codec=='aac' %}selected{% endif %}>AAC-LC</option>
+<option value="ac3" {% if channel and channel.audio_codec=='ac3' %}selected{% endif %}>AC-3 / Dolby Digital</option>
+<option value="eac3" {% if channel and channel.audio_codec=='eac3' %}selected{% endif %}>E-AC-3 / Dolby Digital Plus</option>
+<option value="mp2" {% if channel and channel.audio_codec=='mp2' %}selected{% endif %}>MPEG Layer II / MP2</option>
+<option value="libmp3lame" {% if channel and channel.audio_codec=='libmp3lame' %}selected{% endif %}>MP3</option>
+<option value="libopus" {% if channel and channel.audio_codec=='libopus' %}selected{% endif %}>Opus</option>
+<option value="flac" {% if channel and channel.audio_codec=='flac' %}selected{% endif %}>FLAC</option>
+<option value="libvorbis" {% if channel and channel.audio_codec=='libvorbis' %}selected{% endif %}>Vorbis</option>
+<option value="pcm_s16le" {% if channel and channel.audio_codec=='pcm_s16le' %}selected{% endif %}>PCM 16-bit</option>
+</select></label>
+<label>Audio bitrate<input name="audio_bitrate" value="{{ channel.audio_bitrate if channel else '128k' }}"></label>
+<label>Output type<select name="output_type" id="output-type">
+<option value="hls" {% if not channel or channel.output_type=='hls' %}selected{% endif %}>HTTP HLS — panel URL / node proxy</option>
+<option value="http_post" {% if channel and channel.output_type in ['http','http_post'] %}selected{% endif %}>HTTP MPEG-TS push — POST</option>
+<option value="http_put" {% if channel and channel.output_type=='http_put' %}selected{% endif %}>HTTP MPEG-TS push — PUT</option>
+<option value="udp" {% if channel and channel.output_type=='udp' %}selected{% endif %}>UDP MPEG-TS</option>
+<option value="srt" {% if channel and channel.output_type=='srt' %}selected{% endif %}>SRT MPEG-TS</option>
+</select></label>
+<label>HLS segment seconds<input type="number" min="1" max="20" name="hls_segment_time" value="{{ channel.hls_segment_time if channel else 1 }}"></label>
+<div class="wide remote-output-editor" data-remote-output-editor>
+  <div class="remote-output-head"><div><span class="field-label">Remote HTTP/UDP/SRT output URLs</span><small class="field-help">Optional with HLS. Add multiple destinations; one failed mirror will not stop the primary HLS/first output.</small></div><button class="button small" type="button" data-remote-output-add>+ Add output</button></div>
+  <div class="remote-output-list" data-remote-output-list>
+    {% set remote_outputs = channel.output_url.splitlines() if channel and channel.output_url else [''] %}
+    {% for remote_output in remote_outputs %}<div class="remote-output-row" data-remote-output-row><span class="source-rank" data-remote-output-rank>{{ loop.index }}</span><input name="output_urls" value="{{ remote_output }}" placeholder="http://receiver:8080/ingest/channel.ts, udp://239.20.20.10:5000 or srt://host:port"><button class="button ghost-danger small" type="button" data-remote-output-remove>×</button></div>{% endfor %}
+  </div>
+</div>
+</div></section>
+<div class="form-actions channel-editor-actions"><a class="button" href="/channels">Cancel</a><button class="button primary">Save channel</button></div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// STREAMFORGE_MULTI_REMOTE_OUTPUT_EDITOR_V54
+// STREAMFORGE_MAIN_MULTI_REMOTE_OUTPUT_EDITOR_EXEC_V55
+(()=>{const editor=document.querySelector('[data-remote-output-editor]');if(!editor)return;const list=editor.querySelector('[data-remote-output-list]');const add=editor.querySelector('[data-remote-output-add]');const output=document.getElementById('output-type');const rows=()=>[...list.querySelectorAll('[data-remote-output-row]')];function sync(){const current=rows();current.forEach((row,i)=>{const rank=row.querySelector('[data-remote-output-rank]');if(rank)rank.textContent=String(i+1);const input=row.querySelector('input[name="output_urls"]');if(input)input.required=Boolean(output&&output.value!=='hls'&&i===0);const remove=row.querySelector('[data-remote-output-remove]');if(remove)remove.disabled=current.length<=1;});}function bind(row){if(row.dataset.remoteOutputBound==='1')return;row.dataset.remoteOutputBound='1';row.querySelector('[data-remote-output-remove]')?.addEventListener('click',()=>{if(rows().length<=1){const input=row.querySelector('input[name="output_urls"]');if(input)input.value='';sync();return;}row.remove();sync();});}function addRow(){const row=document.createElement('div');row.className='remote-output-row';row.dataset.remoteOutputRow='';row.innerHTML='<span class="source-rank" data-remote-output-rank></span><input name="output_urls" placeholder="http://receiver:8080/ingest/channel.ts, udp://239.20.20.10:5000 or srt://host:port"><button class="button ghost-danger small" type="button" data-remote-output-remove>×</button>';list.appendChild(row);bind(row);sync();row.querySelector('input[name="output_urls"]')?.focus();}rows().forEach(bind);add?.addEventListener('click',addRow);output?.addEventListener('change',sync);sync();})();
+</script>
+{% endblock %}

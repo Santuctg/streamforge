@@ -1,0 +1,12 @@
+[Unit]
+Description=Retry StreamForge Remote Node managed TLS reconciliation
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=2min
+RandomizedDelaySec=60
+Persistent=true
+Unit=streamforge-node-tls.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,282 @@
+#!/usr/bin/env python3
+"""Start the StreamForge Public plane with a hardware-aware worker count.
+
+STREAMFORGE_PUBLIC_HARDWARE_AWARE_WORKERS_V65R1
+
+Auto mode intentionally leaves CPU headroom for Nginx, Redis, the control
+plane, kernel/network work and FFmpeg.  The ceiling defaults to the detected
+CPU allocation rather than a fixed worker cap.  Multi-worker mode remains
+gated by Redis shared state.
+"""
+from __future__ import annotations
+
+import json
+import math
+import os
+import sqlite3
+from pathlib import Path
+
+
+def _int_env(name: str, default: int, low: int, high: int) -> int:
+    try:
+        value = int(str(os.getenv(name, default)).strip())
+    except (TypeError, ValueError):
+        value = default
+    return max(low, min(high, value))
+
+
+def _cpu_limit() -> int:
+    try:
+        detected = max(1, len(os.sched_getaffinity(0)))
+    except Exception:
+        detected = max(1, int(os.cpu_count() or 1))
+    try:
+        raw = Path('/sys/fs/cgroup/cpu.max').read_text().strip().split()
+        if len(raw) == 2 and raw[0] != 'max':
+            quota, period = int(raw[0]), int(raw[1])
+            if quota > 0 and period > 0:
+                detected = min(detected, max(1, math.ceil(quota / period)))
+    except Exception:
+        pass
+    return detected
+
+
+def _available_memory_mb() -> int:
+    mem_available_kb = 0
+    try:
+        for line in Path('/proc/meminfo').read_text().splitlines():
+            if line.startswith('MemAvailable:'):
+                mem_available_kb = int(line.split()[1])
+                break
+    except Exception:
+        pass
+    available = max(256, mem_available_kb // 1024) if mem_available_kb else 1024
+    try:
+        limit_raw = Path('/sys/fs/cgroup/memory.max').read_text().strip()
+        current_raw = Path('/sys/fs/cgroup/memory.current').read_text().strip()
+        if limit_raw != 'max':
+            remaining = max(0, int(limit_raw) - int(current_raw)) // (1024 * 1024)
+            if remaining:
+                available = min(available, remaining)
+    except Exception:
+        pass
+    return max(256, available)
+
+
+def _redis_ready() -> bool:
+    enabled = str(os.getenv('STREAMFORGE_REDIS_ENABLED', '1')).strip().lower() in {'1', 'true', 'yes', 'on'}
+    if not enabled:
+        return False
+    url = str(os.getenv('STREAMFORGE_REDIS_URL', 'redis://127.0.0.1:6379/0')).strip()
+    timeout_ms = _int_env('STREAMFORGE_REDIS_TIMEOUT_MS', 150, 25, 2000)
+    try:
+        import redis
+        client = redis.Redis.from_url(
+            url,
+            socket_connect_timeout=timeout_ms / 1000.0,
+            socket_timeout=timeout_ms / 1000.0,
+            decode_responses=True,
+        )
+        return bool(client.ping())
+    except Exception:
+        return False
+
+
+def _ffmpeg_process_count() -> int:
+    """Count live ffmpeg processes cheaply; called only at service start."""
+    count = 0
+    proc = Path('/proc')
+    try:
+        entries = list(proc.iterdir())
+    except OSError:
+        return 0
+    for entry in entries:
+        if not entry.name.isdigit():
+            continue
+        try:
+            raw = (entry / 'cmdline').read_bytes()
+        except OSError:
+            continue
+        if not raw:
+            continue
+        first = raw.split(b'\0', 1)[0].decode('utf-8', errors='ignore')
+        if Path(first).name == 'ffmpeg':
+            count += 1
+    return count
+
+
+# STREAMFORGE_MAIN_PUBLIC_DESIRED_FFMPEG_RESERVE_V121:
+def _desired_local_ffmpeg_count() -> int:
+    """Count Main-assigned channels that should be running after restore.
+
+    streamforge-public intentionally starts before the dedicated channel
+    supervisor. Counting only /proc here therefore reports zero FFmpeg
+    processes during a normal boot/update and over-allocates public workers.
+    The persisted desired state is the authoritative startup workload.
+    """
+    db_path = str(os.getenv('STREAMFORGE_DATABASE_PATH', '/var/lib/streamforge/streamforge.db') or '').strip()
+    if not db_path:
+        return 0
+    try:
+        connection = sqlite3.connect(f'file:{db_path}?mode=ro', uri=True, timeout=1.0)
+        try:
+            row = connection.execute(
+                """
+                SELECT COUNT(DISTINCT c.id)
+                FROM channels c
+                WHERE c.enabled = 1
+                  AND c.desired_running = 1
+                  AND (
+                    EXISTS (
+                      SELECT 1
+                      FROM channel_nodes cn
+                      JOIN nodes n ON n.id = cn.node_id
+                      WHERE cn.channel_id = c.id
+                        AND n.node_type = 'local'
+                        AND n.enabled = 1
+                    )
+                    OR (
+                      NOT EXISTS (SELECT 1 FROM channel_nodes x WHERE x.channel_id = c.id)
+                      AND EXISTS (
+                        SELECT 1 FROM nodes n2
+                        WHERE n2.id = c.node_id
+                          AND n2.node_type = 'local'
+                          AND n2.enabled = 1
+                      )
+                    )
+                  )
+                """
+            ).fetchone()
+            return max(0, int((row or [0])[0] or 0))
+        finally:
+            connection.close()
+    except (OSError, sqlite3.Error, TypeError, ValueError):
+        return 0
+
+
+def _tier_auto_target(cpu: int) -> int:
+    """Return a conservative public-pool target while leaving system headroom.
+
+    Exact useful anchor: 84 detected CPUs => 48 workers before RAM/FFmpeg caps.
+    """
+    cpu = max(1, int(cpu))
+    if cpu <= 16:
+        return cpu
+    if cpu <= 32:
+        return max(16, math.ceil(cpu * 0.75))
+    if cpu <= 64:
+        return max(24, math.ceil(cpu * 0.625))
+    return max(32, math.ceil(cpu * 4.0 / 7.0))
+
+
+def _worker_ceiling(cpu: int, requested_mode: str) -> tuple[int, str]:
+    raw = str(os.getenv('STREAMFORGE_PUBLIC_MAX_WORKERS', 'auto') or 'auto').strip().lower()
+    # v6.2-v6.5 used 32 as the generated default.  In Auto mode treat that
+    # legacy value as the new hardware ceiling so existing installs scale on
+    # upgrade without requiring an env edit.  Manual worker mode still honors
+    # an explicit numeric ceiling.
+    if raw in {'', 'auto'} or (raw == '32' and requested_mode in {'', 'auto'}):
+        return max(1, min(cpu, 256)), 'auto-cpu'
+    try:
+        return max(1, min(int(raw), cpu, 256)), 'configured'
+    except ValueError:
+        return max(1, min(cpu, 256)), 'invalid-auto-fallback'
+
+
+def _worker_count() -> tuple[int, dict[str, object]]:
+    cpu = _cpu_limit()
+    mem_mb = _available_memory_mb()
+    requested = str(os.getenv('STREAMFORGE_PUBLIC_WORKERS', 'auto') or 'auto').strip().lower()
+    max_workers, max_mode = _worker_ceiling(cpu, requested)
+
+    # Keep a bounded memory assumption per ASGI worker.  Media bytes use the
+    # Nginx fast path, so this is intentionally conservative rather than huge.
+    reserve_mb = min(4096, max(512, mem_mb // 8))
+    usable_mb = max(256, mem_mb - reserve_mb)
+    ram_workers = max(1, usable_mb // 256)
+
+    ffmpeg_processes = _ffmpeg_process_count()
+    desired_local_ffmpeg = _desired_local_ffmpeg_count()
+    # The Public service can be launched several seconds before channel restore.
+    # Reserve against whichever signal reports the larger real workload.
+    ffmpeg_workload = max(ffmpeg_processes, desired_local_ffmpeg)
+    ffmpeg_cpu_reserve = min(max(0, cpu // 4), max(0, ffmpeg_workload // 2))
+    effective_cpu = max(1, cpu - ffmpeg_cpu_reserve)
+    auto_target = _tier_auto_target(effective_cpu)
+
+    mode = 'auto'
+    if requested not in {'', 'auto'}:
+        try:
+            workers = max(1, min(int(requested), max_workers, ram_workers))
+            mode = 'manual'
+        except ValueError:
+            workers = max(1, min(auto_target, max_workers, ram_workers))
+            mode = 'auto-invalid-worker-fallback'
+    else:
+        workers = max(1, min(auto_target, max_workers, ram_workers))
+
+    redis_ok = _redis_ready()
+    if not redis_ok:
+        workers = 1
+        mode += '-redis-safe-single'
+
+    state = {
+        'mode': mode,
+        'cpu': cpu,
+        'effective_cpu': effective_cpu,
+        'mem_available_mb': mem_mb,
+        'ram_worker_ceiling': ram_workers,
+        'ffmpeg_processes': ffmpeg_processes,
+        'desired_local_ffmpeg': desired_local_ffmpeg,
+        'ffmpeg_workload': ffmpeg_workload,
+        'ffmpeg_cpu_reserve': ffmpeg_cpu_reserve,
+        'auto_target': auto_target,
+        'max_workers': max_workers,
+        'max_mode': max_mode,
+        'redis_online': redis_ok,
+        'workers': workers,
+        'port': 8811,
+    }
+    return workers, state
+
+
+def main() -> None:
+    workers, state = _worker_count()
+    port = 8811
+    os.environ['STREAMFORGE_PROCESS_ROLE'] = 'public'
+    print(
+        '[StreamForge Public] '
+        f"mode={state['mode']} cpu={state['cpu']} effective_cpu={state['effective_cpu']} "
+        f"ffmpeg={state['ffmpeg_processes']} desired_local={state['desired_local_ffmpeg']} workload={state['ffmpeg_workload']} mem_available_mb={state['mem_available_mb']} "
+        f"redis={'online' if state['redis_online'] else 'offline'} "
+        f"auto_target={state['auto_target']} max={state['max_workers']} "
+        f"workers={workers} port={port}",
+        flush=True,
+    )
+    try:
+        state_path = Path('/var/lib/streamforge/public-workers.json')
+        state_path.write_text(json.dumps(state, sort_keys=True) + '\n', encoding='utf-8')
+    except Exception as exc:
+        print(f'[StreamForge Public] worker-state write warning: {exc}', flush=True)
+    argv = [
+        '/usr/bin/gunicorn', 'app.main:app',
+        '--bind', f'127.0.0.1:{port}',
+        '--workers', str(workers),
+        '--worker-class', 'uvicorn_worker.UvicornWorker',
+        '--worker-tmp-dir', '/var/lib/streamforge/gunicorn-tmp',
+        '--timeout', '60',
+        '--graceful-timeout', '20',
+        '--keep-alive', '10',
+        '--backlog', '65535',
+        # STREAMFORGE_MAIN_PUBLIC_NO_REQUEST_RECYCLE_V1050:
+        # HLS/WebPlayer traffic can reach a 20k request counter in minutes.
+        # Recycling a worker closes its upstream keep-alives and can create
+        # short playback gaps even while the rest of the pool is healthy.
+        # Keep Public workers stable until a deliberate service/update restart.
+        '--error-logfile', '-',
+    ]
+    os.execvpe(argv[0], argv, os.environ)
+
+
+if __name__ == '__main__':
+    main()

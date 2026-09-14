@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Roles & Permissions · {{ branding.name }}{% endblock %}
+{% block heading %}<h1>Roles & Permissions</h1><p>Customize panel access for administrators and operators</p>{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="panel-head">
+    <div><h2>Access roles</h2><p>Custom roles can be configured permission by permission.</p></div>
+    {# STREAMFORGE_ROLE_ADD_VISIBILITY_FIX_V2265 #}
+{% if can_create_roles %}<a class="button primary" href="/roles/new">+ Add role</a>{% endif %}
+  </div>
+  {% if error %}<div class="alert danger admin-alert">{{ error }}</div>{% endif %}
+  {% if message %}<div class="alert success admin-alert">{{ message }}</div>{% endif %}
+  <div class="role-list">
+    {% for row in role_rows %}
+    <article class="role-row">
+      <div class="role-main">
+        <div class="role-title-line"><h3>{{ row.role.name }}</h3>{% if row.role.is_system %}<span class="role-system-tag">Built-in</span>{% endif %}</div>
+        <p>{{ row.role.description or 'No description' }}</p>
+        <div class="role-meta"><span>{{ row.permission_count }} permission{{ '' if row.permission_count == 1 else 's' }}</span><span>{{ row.role.panel_users|length }} panel user{{ '' if row.role.panel_users|length == 1 else 's' }}</span></div>
+      </div>
+      <div class="role-permission-summary">
+        {% if '*' in row.permissions %}<span class="permission-chip all">All permissions</span>
+        {% else %}{% for permission in row.permissions|sort %}<span class="permission-chip">{{ permission }}</span>{% else %}<span class="muted-tag">No permissions</span>{% endfor %}{% endif %}
+      </div>
+      <div class="role-actions actions">
+        {% if not row.role.is_system %}
+          {% if can('roles.edit') and (is_super_admin or admin.role_id != row.role.id) %}<a class="button small" href="/roles/{{ row.role.id }}/edit">Edit</a>{% endif %}
+          {% if can('roles.delete') and (is_super_admin or admin.role_id != row.role.id) %}<form method="post" action="/roles/{{ row.role.id }}/delete" onsubmit="return confirm('Delete role {{ row.role.name }}?')"><button class="button ghost-danger small">Delete</button></form>{% endif %}
+        {% elif row.role.is_system %}<span class="muted-tag">Locked</span>{% endif %}
+      </div>
+    </article>
+    {% else %}<div class="empty">No roles found.</div>{% endfor %}
+  </div>
+</section>
+{% endblock %}

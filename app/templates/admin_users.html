@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Panel Users · {{ branding.name }}{% endblock %}
+{% block heading %}<h1>Panel users</h1><p>Administrator and operator login accounts for Main Panel and remote nodes</p>{% endblock %}
+{% block content %}
+<section class="panel admin-users-panel">
+  <div class="panel-head">
+    <div><h2>Login accounts</h2><p>Each panel user receives a role and access locations. Remote Node login and active sessions require live Main Panel connectivity; no cached credential fallback is used.</p></div>
+    {% if can('panel_users.create') %}<a class="button primary" href="/admin-users/new">+ Add panel user</a>{% endif %}
+  </div>
+  {% if error %}<div class="alert danger admin-alert">{{ error }}</div>{% endif %}
+  {% if message %}<div class="alert success admin-alert">{{ message }}</div>{% endif %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>User</th><th>Role</th><th>Access locations</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+      <tbody>
+      {% for item in panel_users %}
+        <tr>
+          <td data-label="User"><b>{{ item.username }}</b>{% if item.id == admin.id %}<small class="good">current account</small>{% endif %}</td>
+          <td data-label="Role">{% if item.role %}<span class="role-badge{% if item.role.is_system %} system{% endif %}">{{ item.role.name }}</span>{% else %}<span class="muted-tag">No role</span>{% endif %}</td>
+          <td data-label="Access locations">{% if item.main_panel_access %}<span class="category-badge">Main Panel</span>{% endif %}{% for node in item.nodes %}<span class="node-badge">{{ node.name }}</span>{% endfor %}{% if not item.main_panel_access and not item.nodes %}<span class="muted-tag">No access location</span>{% endif %}</td>
+          <td data-label="Status"><span class="status {{ 'running' if item.is_active else 'stopped' }}">{{ 'Active' if item.is_active else 'Disabled' }}</span></td>
+          <td data-label="Created">{{ item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else '—' }}</td>
+          <td data-label="Actions" class="actions">
+            {% if can('panel_users.edit') %}<a class="button small" href="/admin-users/{{ item.id }}/edit">Edit</a>{% endif %}
+            {% if can('panel_users.delete') and item.id != admin.id %}<form method="post" action="/admin-users/{{ item.id }}/delete" onsubmit="return confirm('Delete panel user {{ item.username }}?')"><button class="button ghost-danger small">Delete</button></form>{% endif %}
+          </td>
+        </tr>
+      {% else %}<tr><td colspan="6" class="empty">No panel users found.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="mobile-record-list mobile-admin-user-list">
+  {% for item in panel_users %}
+    <article class="mobile-record-card">
+      <div class="mobile-record-title"><span>User</span><b>{{ item.username }}</b>{% if item.id == admin.id %}<small class="good">current account</small>{% endif %}</div>
+      <div class="mobile-record-row"><span>Role</span><div>{% if item.role %}<span class="role-badge{% if item.role.is_system %} system{% endif %}">{{ item.role.name }}</span>{% else %}<span class="muted-tag">No role</span>{% endif %}</div></div>
+      <div class="mobile-record-row"><span>Access</span><div>{% if item.main_panel_access %}<span class="category-badge">Main Panel</span>{% endif %}{% for node in item.nodes %}<span class="node-badge">{{ node.name }}</span>{% endfor %}{% if not item.main_panel_access and not item.nodes %}<span class="muted-tag">No access location</span>{% endif %}</div></div>
+      <div class="mobile-record-row"><span>Status</span><div><span class="status {{ 'running' if item.is_active else 'stopped' }}">{{ 'Active' if item.is_active else 'Disabled' }}</span></div></div>
+      <div class="mobile-record-row"><span>Created</span><div>{{ item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else '—' }}</div></div>
+      <div class="mobile-record-actions"><span>Actions</span><div>{% if can('panel_users.edit') %}<a class="button small" href="/admin-users/{{ item.id }}/edit">Edit</a>{% endif %}{% if can('panel_users.delete') and item.id != admin.id %}<form method="post" action="/admin-users/{{ item.id }}/delete" onsubmit="return confirm('Delete panel user {{ item.username }}?')"><button class="button ghost-danger small">Delete</button></form>{% endif %}</div></div>
+    </article>
+  {% else %}
+    <div class="mobile-empty">No panel users found.</div>
+  {% endfor %}
+  </div>
+
+</section>
+{% endblock %}

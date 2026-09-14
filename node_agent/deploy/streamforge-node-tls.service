@@ -1,0 +1,13 @@
+[Unit]
+Description=StreamForge Remote Node managed TLS reconciliation
+After=network-online.target streamforge-node.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+EnvironmentFile=-/etc/streamforge-node.env
+ExecStart=/usr/bin/python3 /usr/local/libexec/streamforge-node/apply_node_tls.py
+TimeoutStartSec=300
+Nice=5

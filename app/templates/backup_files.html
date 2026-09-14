@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="backup-files-page">
+<div class="page-head backup-files-head">
+  <div>
+    <h1>Backup files</h1>
+    <p>{{ target.name }} · {{ target.kind|upper }}</p>
+  </div>
+  <div class="actions">
+    <a class="button" href="/system/backups">Back to backups</a>
+    <a class="button" href="/system/backups/{{ target.id }}/files">Refresh</a>
+  </div>
+</div>
+
+<div class="backup-destination-summary">
+  <div class="backup-destination-label">
+    <span>Destination</span>
+    <b>{{ target.name }}</b>
+  </div>
+  <code>{{ target.destination }}</code>
+</div>
+
+{% if request.query_params.get('message') %}
+<div class="alert success">{{ request.query_params.get('message') }}</div>
+{% endif %}
+{% if request.query_params.get('error') %}
+<div class="alert error">{{ request.query_params.get('error') }}</div>
+{% endif %}
+{% if backup_files_error %}
+<div class="alert error">Could not read this destination: {{ backup_files_error }}</div>
+{% endif %}
+
+<section class="panel backup-file-manager">
+  <div class="panel-head">
+    <div>
+      <h2>{{ target.name }}</h2>
+      <p>{{ backup_files|length }} backup file{% if backup_files|length != 1 %}s{% endif %} found.</p>
+    </div>
+  </div>
+
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Backup file</th>
+          <th>Size</th>
+          <th>Modified</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in backup_files %}
+        <tr>
+          <td><code>{{ item.name }}</code></td>
+          <td>{{ item.size_label }}</td>
+          <td>{{ item.modified_label }}</td>
+          <td>
+            <div class="actions">
+              <a class="button" href="/system/backups/{{ target.id }}/files/{{ item.name }}/download">Download</a>
+              <form method="post" action="/system/backups/{{ target.id }}/files/{{ item.name }}/restore" onsubmit="return confirm('Restore this backup now? Current Main Server data will be replaced and Main will restart.');">
+                <input type="hidden" name="confirm_restore" value="yes">
+                <button class="button danger" type="submit">Restore</button>
+              </form>
+              <form method="post" action="/system/backups/{{ target.id }}/files/{{ item.name }}/delete" onsubmit="return confirm('Delete this backup permanently from this destination?');">
+                <button class="button danger" type="submit">Delete</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" class="empty">No backup files found at this destination.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<style>
+.backup-files-page{
+  display:grid;
+  gap:18px;
+  padding-top:4px;
+}
+.backup-files-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:18px;
+  margin:0!important;
+}
+.backup-files-head>div:first-child{
+  display:grid;
+  gap:4px;
+}
+.backup-files-head h1{
+  margin:0!important;
+}
+.backup-files-head p{
+  margin:0!important;
+  color:var(--muted);
+}
+.backup-files-head>.actions{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin:0;
+  flex:0 0 auto;
+}
+.backup-destination-summary{
+  display:grid;
+  grid-template-columns:180px minmax(0,1fr);
+  align-items:center;
+  gap:14px;
+  margin:0;
+  padding:13px 15px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:var(--surface-2);
+}
+.backup-destination-label{
+  display:grid;
+  gap:3px;
+}
+.backup-destination-label span{
+  color:var(--muted);
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+.backup-destination-label b{
+  font-size:13px;
+}
+.backup-destination-summary code{
+  display:block;
+  min-width:0;
+  overflow-wrap:anywhere;
+  color:var(--text);
+}
+.backup-file-manager{
+  margin:0!important;
+}
+.backup-file-manager .panel-head{
+  padding:17px 18px;
+}
+.backup-file-manager .panel-head h2{
+  margin:0 0 4px;
+}
+.backup-file-manager .panel-head p{
+  margin:0;
+}
+.backup-file-manager table{
+  width:100%;
+  table-layout:auto;
+}
+.backup-file-manager th:last-child,
+.backup-file-manager td:last-child{
+  width:1%;
+  white-space:nowrap;
+}
+.backup-file-manager td code{
+  white-space:normal;
+  overflow-wrap:anywhere;
+}
+.backup-file-manager .actions{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:nowrap;
+}
+.backup-file-manager .actions form{
+  margin:0;
+}
+@media(max-width:900px){
+  .backup-files-head{
+    flex-direction:column;
+  }
+  .backup-files-head>.actions{
+    width:100%;
+  }
+  .backup-destination-summary{
+    grid-template-columns:1fr;
+    gap:8px;
+  }
+  .backup-file-manager .actions{
+    flex-wrap:wrap;
+  }
+  .backup-file-manager th:last-child,
+  .backup-file-manager td:last-child{
+    width:auto;
+    white-space:normal;
+  }
+}
+</style>
+</div>
+{% endblock %}

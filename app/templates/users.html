@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Users · {{ branding.name }}{% endblock %}
+{% block heading %}<h1>Users & Playlists</h1><p>Main Panel users, playlist profiles and load-balancing controls</p>{% endblock %}
+{% block content %}
+{% if error %}<div class="alert danger">{{ error }}</div>{% endif %}
+{% if message %}<div class="alert success">{{ message }}</div>{% endif %}
+
+<section class="panel playlist-profile-panel">
+  <div class="panel-head"><div><h2>Playlist profiles</h2><p>Create a Main Panel channel selection once, then assign it to load-balanced users.</p></div>{% if can('stream_users.create') %}<a class="button primary" href="/playlists/new">+ Create playlist</a>{% endif %}</div>
+  <div class="table-wrap"><table><thead><tr><th>Playlist</th><th>Channels</th><th>Assigned users</th><th>Actions</th></tr></thead><tbody>
+  {% for playlist in playlists %}
+    <tr><td data-label="Playlist"><b>{{ playlist.name }}</b><small>{{ playlist.description or '' }}</small></td><td data-label="Channels">{{ playlist_channel_counts.get(playlist.id, 0) }}<small>{{ "All enabled Main channels" if playlist.all_enabled_channels else "Custom selection" }}</small></td><td data-label="Assigned users">{{ playlist_user_counts.get(playlist.id, 0) }}</td><td data-label="Actions" class="actions">{% if can('stream_users.edit') %}<a class="button small" href="/playlists/{{ playlist.id }}/edit">Edit</a>{% if playlist_channel_counts.get(playlist.id, 0) %}<a class="button small" href="/playlists/{{ playlist.id }}/order">Edit order</a>{% endif %}{% endif %}{% if can('stream_users.delete') %}<form method="post" action="/playlists/{{ playlist.id }}/delete" onsubmit="return confirm('Delete this playlist profile?')"><button class="button ghost-danger small">Delete</button></form>{% endif %}</td></tr>
+  {% else %}<tr><td colspan="4" class="empty">No playlist profiles yet.</td></tr>{% endfor %}
+  </tbody></table></div>
+  <div class="mobile-record-list mobile-playlist-list">
+  {% for playlist in playlists %}
+    <article class="mobile-record-card">
+      <div class="mobile-record-title"><span>Playlist</span><b>{{ playlist.name }}</b></div>
+      {% if playlist.description %}<div class="mobile-record-row"><span>Description</span><div>{{ playlist.description }}</div></div>{% endif %}
+      <div class="mobile-record-row"><span>Channels</span><div><b>{{ playlist_channel_counts.get(playlist.id, 0) }}</b><small>{{ "All enabled Main channels" if playlist.all_enabled_channels else "Custom selection" }}</small></div></div>
+      <div class="mobile-record-row"><span>Assigned users</span><div>{{ playlist_user_counts.get(playlist.id, 0) }}</div></div>
+      <div class="mobile-record-actions"><span>Actions</span><div>{% if can('stream_users.edit') %}<a class="button small" href="/playlists/{{ playlist.id }}/edit">Edit</a>{% if playlist_channel_counts.get(playlist.id, 0) %}<a class="button small" href="/playlists/{{ playlist.id }}/order">Edit order</a>{% endif %}{% endif %}{% if can('stream_users.delete') %}<form method="post" action="/playlists/{{ playlist.id }}/delete" onsubmit="return confirm('Delete this playlist profile?')"><button class="button ghost-danger small">Delete</button></form>{% endif %}</div></div>
+    </article>
+  {% else %}
+    <div class="mobile-empty">No playlist profiles yet.</div>
+  {% endfor %}
+  </div>
+  {% if playlist_page_count > 1 %}
+  <nav class="channel-list-pagination" aria-label="Playlist pages">
+    <a class="button{% if current_playlist_page <= 1 %} disabled{% endif %}" href="{{ playlist_prev_url }}"{% if current_playlist_page <= 1 %} aria-disabled="true" tabindex="-1"{% endif %}>Previous</a>
+    <div class="channel-list-page-numbers">{% for item in playlist_page_links %}<a class="button compact{% if item.current %} primary{% endif %}" href="{{ item.url }}"{% if item.current %} aria-current="page"{% endif %}>{{ item.number }}</a>{% endfor %}</div>
+    <span>Page {{ current_playlist_page }} of {{ playlist_page_count }} · {{ total_playlists }} playlists</span>
+    <a class="button{% if current_playlist_page >= playlist_page_count %} disabled{% endif %}" href="{{ playlist_next_url }}"{% if current_playlist_page >= playlist_page_count %} aria-disabled="true" tabindex="-1"{% endif %}>Next</a>
+  </nav>
+  {% endif %}
+
+</section>
+
+<section class="panel">
+  <div class="panel-head user-list-head">
+    <div><h2>Main streaming users</h2><p>Create Main Panel users and control allowed load-balancing nodes. Node-local users are managed from each Node Panel. Xtream API endpoint: <span class="mono">{{ base_url }}/player_api.php</span></p></div>
+    <div class="user-list-head-actions">
+      <form class="user-node-filter" method="get" action="/users" role="group" aria-label="Filter Main streaming users by allowed node">
+        {% if current_playlist_page > 1 %}<input type="hidden" name="playlist_page" value="{{ current_playlist_page }}">{% endif %}
+        <label class="user-node-filter-field" for="user-node-filter-select"><span class="user-node-filter-label">Filter by allowed node</span><select name="node_id" id="user-node-filter-select" data-auto-submit-filter onchange="this.form.submit()"><option value="" {% if not selected_node_id %}selected{% endif %}>All Main users</option>{% for node in nodes %}<option value="{{ node.id }}" {% if selected_node_id == node.id|string %}selected{% endif %}>{{ node.name }}</option>{% endfor %}</select></label>
+        <label class="user-node-filter-field"><span class="user-node-filter-label">Show</span><select name="limit" data-auto-submit-filter onchange="this.form.submit()">{% for value in user_limit_options %}<option value="{{ value }}" {% if selected_user_limit == value %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
+        {% if selected_node_id %}<a class="button user-node-filter-clear" href="/users{% if current_playlist_page > 1 %}?playlist_page={{ current_playlist_page }}{% endif %}">Clear</a>{% endif %}
+      </form>
+      {% if can('stream_users.create') %}<a class="button primary user-add-button" href="/users/new">+ Add user</a>{% endif %}
+    </div>
+  </div>
+  <div class="table-wrap"><table><thead><tr><th>User</th><th>Delivery</th><th>Access</th><th>Expires</th><th>Profile</th><th>Channels</th><th>Credential access</th><th>Actions</th></tr></thead><tbody>
+  {% for user in users %}
+  <tr>
+    <td data-label="User"><b>{{ user.name }}</b>{% if user.xtream_username %}<small>Login: <span class="mono">{{ user.xtream_username }}</span></small>{% endif %}<small><span class="{{ 'status warning' if user.user_type == 'restream' else 'muted-tag' }}">{{ 'Restreamer' if user.user_type == 'restream' else 'Normal user' }}</span></small>{% if user.user_type == 'restream' and user.restream_allowed_ips %}<small class="mono">{{ user.restream_allowed_ips|replace("\n", ", ") }}</small>{% endif %}<small>{{ user.notes or '' }}</small></td>
+    <td data-label="Delivery"><span class="category-badge">Main/load balanced</span><small>{{ 'Sticky load balance' if user.load_balance_enabled else 'Static preferred + fallback' }}</small></td>
+    <td data-label="Access"><span class="status {{ 'running' if user.enabled else 'stopped' }}">{{ 'enabled' if user.enabled else 'disabled' }}</span><small>{{ ('Unlimited connections' if (user.max_connections or 0) == 0 else ('max ' ~ user.max_connections ~ ' connection(s)')) }}</small><small>{% if user.nodes %}{{ user.nodes|length }} allowed node{% if user.nodes|length != 1 %}s{% endif %}{% else %}all assigned nodes{% endif %}</small></td>
+    <td data-label="Expires">{{ user.expires_at.strftime('%Y-%m-%d %H:%M') if user.expires_at else 'Never' }}</td>
+    <td data-label="Profile">{{ user.playlist.name if user.playlist else 'Custom channels' }}</td>
+    <td data-label="Channels">{{ user_channel_counts.get(user.id, 0) }}</td>
+    <td data-label="Credential access">{% if can('stream_users.playlist') %}
+      <div class="url-stack">
+        {% set xtream_url = user_xtream_urls.get(user.id, '') %}
+        {% if xtream_url %}<div class="copy-row"><input readonly value="{{ xtream_url }}"><button class="button small" type="button" data-copy>Copy</button></div>{% else %}<span class="status warning">Reset this user's password once to reveal a complete Xtream output URL.</span>{% endif %}
+        {% if user.xtream_username %}<small>Username: <span class="mono">{{ user.xtream_username }}</span> · Server: <span class="mono">{{ user_server_urls.get(user.id, base_url) }}/</span></small>{% else %}<span class="status error">Credentials missing</span>{% endif %}
+        <small>The Xtream playlist contains encrypted, IP-bound channel playback keys.</small>
+      </div>
+    {% else %}<span class="muted-tag">Credential details hidden</span>{% endif %}</td>
+    <td data-label="Actions" class="actions">{% if can('stream_users.edit') %}<a class="button small" href="/users/{{ user.id }}/edit">Edit / password</a>{% endif %}{% if can('stream_users.delete') %}<form method="post" action="/users/{{ user.id }}/delete" onsubmit="return confirm('Delete this user?')"><button class="button ghost-danger small">Delete</button></form>{% endif %}</td>
+  </tr>
+  {% else %}<tr><td colspan="8" class="empty">No users yet.</td></tr>{% endfor %}
+  </tbody></table></div>
+  <div class="mobile-record-list mobile-stream-user-list">
+  {% for user in users %}
+    <article class="mobile-record-card">
+      <div class="mobile-record-title"><span>User</span><b>{{ user.name }}</b></div>
+      {% if user.xtream_username %}<div class="mobile-record-row"><span>Login</span><div class="mono break-anywhere">{{ user.xtream_username }}</div></div>{% endif %}
+      <div class="mobile-record-row"><span>Delivery</span><div><span class="category-badge">Main/load balanced</span><small>{{ 'Sticky load balance' if user.load_balance_enabled else 'Static preferred + fallback' }}</small></div></div>
+      <div class="mobile-record-row"><span>Access</span><div><span class="status {{ 'running' if user.enabled else 'stopped' }}">{{ 'enabled' if user.enabled else 'disabled' }}</span><small>{{ ('Unlimited connections' if (user.max_connections or 0) == 0 else ('max ' ~ user.max_connections ~ ' connection(s)')) }}</small><small>{% if user.nodes %}{{ user.nodes|length }} allowed node{% if user.nodes|length != 1 %}s{% endif %}{% else %}all assigned nodes{% endif %}</small></div></div>
+      <div class="mobile-record-row"><span>Expires</span><div>{{ user.expires_at.strftime('%Y-%m-%d %H:%M') if user.expires_at else 'Never' }}</div></div>
+      <div class="mobile-record-row"><span>Profile</span><div>{{ user.playlist.name if user.playlist else 'Custom channels' }}</div></div>
+      <div class="mobile-record-row"><span>Channels</span><div>{{ user_channel_counts.get(user.id, 0) }}</div></div>
+      <div class="mobile-record-row"><span>Credentials</span><div>{% if can('stream_users.playlist') %}{% set xtream_url = user_xtream_urls.get(user.id, '') %}{% if xtream_url %}<div class="copy-row"><input readonly value="{{ xtream_url }}"><button class="button small" type="button" data-copy>Copy</button></div>{% endif %}{% if user.xtream_username %}<small>Username: <span class="mono">{{ user.xtream_username }}</span></small>{% else %}<span class="status error">Credentials missing</span>{% endif %}{% else %}<span class="muted-tag">Credential details hidden</span>{% endif %}</div></div>
+      {% if user.notes %}<div class="mobile-record-row"><span>Notes</span><div class="break-anywhere">{{ user.notes }}</div></div>{% endif %}
+      <div class="mobile-record-actions"><span>Actions</span><div>{% if can('stream_users.edit') %}<a class="button small" href="/users/{{ user.id }}/edit">Edit / password</a>{% endif %}{% if can('stream_users.delete') %}<form method="post" action="/users/{{ user.id }}/delete" onsubmit="return confirm('Delete this user?')"><button class="button ghost-danger small">Delete</button></form>{% endif %}</div></div>
+    </article>
+  {% else %}
+    <div class="mobile-empty">No users yet.</div>
+  {% endfor %}
+  </div>
+  {% if user_page_count > 1 %}
+  <nav class="channel-list-pagination" aria-label="User pages">
+    <a class="button{% if current_user_page <= 1 %} disabled{% endif %}" href="{{ user_prev_url }}"{% if current_user_page <= 1 %} aria-disabled="true" tabindex="-1"{% endif %}>Previous</a>
+    <div class="channel-list-page-numbers">{% for item in user_page_links %}<a class="button compact{% if item.current %} primary{% endif %}" href="{{ item.url }}"{% if item.current %} aria-current="page"{% endif %}>{{ item.number }}</a>{% endfor %}</div>
+    <span>Page {{ current_user_page }} of {{ user_page_count }} · {{ total_users }} users</span>
+    <a class="button{% if current_user_page >= user_page_count %} disabled{% endif %}" href="{{ user_next_url }}"{% if current_user_page >= user_page_count %} aria-disabled="true" tabindex="-1"{% endif %}>Next</a>
+  </nav>
+  {% endif %}
+</section>
+{% endblock %}
