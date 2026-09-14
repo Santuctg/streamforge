@@ -18,8 +18,8 @@ BACKUP_DIR=""
 UPDATE_COMMITTED=0
 MUTATION_STARTED=0
 
-log(){ printf '[StreamForge v12.11] %s\n' "$*"; }
-die(){ printf '[StreamForge v12.11] ERROR: %s\n' "$*" >&2; return 1; }
+log(){ printf '[StreamForge v12.12] %s\n' "$*"; }
+die(){ printf '[StreamForge v12.12] ERROR: %s\n' "$*" >&2; return 1; }
 
 for arg in "$@"; do
   case "$arg" in
@@ -31,20 +31,20 @@ done
 
 [[ ${EUID} -eq 0 ]] || die "Run with sudo/root"
 for cmd in systemctl rsync curl python3 nginx cmp; do command -v "$cmd" >/dev/null 2>&1 || die "$cmd not found"; done
-[[ "$(cat "$SOURCE_DIR/VERSION" 2>/dev/null)" == "12.11" ]] || die "Wrong package version"
-[[ "$(cat "$SOURCE_DIR/node_agent/VERSION" 2>/dev/null)" == "12.11" ]] || die "Wrong Node Agent version"
+[[ "$(cat "$SOURCE_DIR/VERSION" 2>/dev/null)" == "12.12" ]] || die "Wrong package version"
+[[ "$(cat "$SOURCE_DIR/node_agent/VERSION" 2>/dev/null)" == "12.12" ]] || die "Wrong Node Agent version"
 # STREAMFORGE_GITHUB_ZIP_EXECUTABLE_NORMALIZATION_V1210:
 # GitHub-generated ZIP archives may omit Unix executable metadata even though
 # the scripts are present. Restore it before the package integrity guards.
 find "$SOURCE_DIR/scripts" "$SOURCE_DIR/node_agent" -maxdepth 1 -type f \
   \( -name '*.sh' -o -name '*.py' -o -name 'streamforge*' \) \
   -exec chmod 0755 {} +
-grep -Fq 'force_update_v1211.sh' "$SOURCE_DIR/scripts/update.sh" || die "v12.11 update.sh does not select force_update_v1211.sh"
+grep -Fq 'force_update_v1212.sh' "$SOURCE_DIR/scripts/update.sh" || die "v12.12 update.sh does not select force_update_v1212.sh"
 # STREAMFORGE_PACKAGE_CLEAN_V65: a release archive carries one version-specific force updater only.
 mapfile -t _sf_force_updaters < <(find "$SOURCE_DIR/scripts" -maxdepth 1 -type f -name 'force_update_v*.sh' -printf '%f\n' | sort)
-[[ ${#_sf_force_updaters[@]} -eq 1 && "${_sf_force_updaters[0]}" == "force_update_v1211.sh" ]] || die "v12.11 package contains stale/duplicate force updater scripts"
+[[ ${#_sf_force_updaters[@]} -eq 1 && "${_sf_force_updaters[0]}" == "force_update_v1212.sh" ]] || die "v12.12 package contains stale/duplicate force updater scripts"
 # STREAMFORGE_UPDATE_SELF_REFERENCE_CURRENT_UPDATER_V129:
-[[ "$UPDATER_BASENAME" == "force_update_v1211.sh" ]] || die "Unexpected updater filename: $UPDATER_BASENAME"
+[[ "$UPDATER_BASENAME" == "force_update_v1212.sh" ]] || die "Unexpected updater filename: $UPDATER_BASENAME"
 # STREAMFORGE_V1158_MULTI_BRAND_LIVE_ASSET_GUARDS:
 grep -Fq 'STREAMFORGE_WEBPLAYER_BRAND_LIVE_ALIAS_ASSET_DOWNLOAD_V1158' "$SOURCE_DIR/app/main.py" || die "v11.58 Main brand live-alias/download runtime missing"
 grep -Fq 'brand_logo_file: UploadFile | None = File(None)' "$SOURCE_DIR/app/main.py" || die "v11.58 Main brand logo upload handler missing"
@@ -147,16 +147,16 @@ grep -Fq 'STREAMFORGE_NODE_LEGACY_XTREAM_DIRECT_NGINX_V127' "$SOURCE_DIR/node_ag
 grep -Fq 'STREAMFORGE_NODE_HTTP_HOST_ROOT_PUBLIC_BACKEND_V128' "$SOURCE_DIR/node_agent/apply_node_tls.py" || die "v12.8 HTTP Web Player Brand root public routing missing"
 grep -Fq 'def nginx_http_front_blocks(' "$SOURCE_DIR/node_agent/apply_node_tls.py" || die "v12.8 host-aware HTTP frontend builder missing"
 # STREAMFORGE_V129_NODE_PLAYLIST_USER_EXPIRY_EDIT_GUARD:
-grep -Fq 'STREAMFORGE_NODE_PLAYLIST_USER_EDIT_EXPIRY_V129' "$SOURCE_DIR/node_agent/app.py" || die "v12.11 Node Playlist User expiry edit support missing"
-grep -Fq 'current.expires_at = submitted_expires_at' "$SOURCE_DIR/node_agent/app.py" || die "v12.11 Node Playlist User expiry save path missing"
+grep -Fq 'STREAMFORGE_NODE_PLAYLIST_USER_EDIT_EXPIRY_V129' "$SOURCE_DIR/node_agent/app.py" || die "v12.12 Node Playlist User expiry edit support missing"
+grep -Fq 'current.expires_at = submitted_expires_at' "$SOURCE_DIR/node_agent/app.py" || die "v12.12 Node Playlist User expiry save path missing"
 # STREAMFORGE_V1210_NODE_PLAY_START_HOT_PATH_GUARDS:
-grep -Fq 'STREAMFORGE_NODE_PUBLIC_SHARED_PANEL_CONNECTIVITY_V1210' "$SOURCE_DIR/node_agent/app.py" || die "v12.11 shared Main-connectivity playback gate missing"
-grep -Fq 'PANEL_CONNECTIVITY_FILE' "$SOURCE_DIR/node_agent/app.py" || die "v12.11 shared Main-connectivity state file missing"
-grep -Fq 'STREAMFORGE_NODE_SHARED_HEARTBEAT_FAST_PRIME_V1210' "$SOURCE_DIR/node_agent/app.py" || die "v12.11 shared heartbeat startup prime missing"
-grep -Fq 'if NODE_MODE == "public":' "$SOURCE_DIR/node_agent/app.py" || die "v12.11 public workers can still run foreground Main heartbeat"
-grep -Fq 'STREAMFORGE_NODE_DIRECT_STREAM_SINGLE_READY_V1210' "$SOURCE_DIR/node_agent/app.py" || die "v12.11 single-channel direct readiness lookup missing"
-grep -Fq 'STREAMFORGE_NODE_DIRECT_STREAM_HLS_FAST_READY_V1210' "$SOURCE_DIR/node_agent/app.py" || die "v12.11 direct stream local-HLS readiness fast path missing"
-grep -Fq 'if channel is None or not _direct_channel_hls_ready(channel):' "$SOURCE_DIR/node_agent/app.py" || die "v12.11 direct stream lookup does not validate only selected HLS channel"
+grep -Fq 'STREAMFORGE_NODE_PUBLIC_SHARED_PANEL_CONNECTIVITY_V1210' "$SOURCE_DIR/node_agent/app.py" || die "v12.12 shared Main-connectivity playback gate missing"
+grep -Fq 'PANEL_CONNECTIVITY_FILE' "$SOURCE_DIR/node_agent/app.py" || die "v12.12 shared Main-connectivity state file missing"
+grep -Fq 'STREAMFORGE_NODE_SHARED_HEARTBEAT_FAST_PRIME_V1210' "$SOURCE_DIR/node_agent/app.py" || die "v12.12 shared heartbeat startup prime missing"
+grep -Fq 'if NODE_MODE == "public":' "$SOURCE_DIR/node_agent/app.py" || die "v12.12 public workers can still run foreground Main heartbeat"
+grep -Fq 'STREAMFORGE_NODE_DIRECT_STREAM_SINGLE_READY_V1210' "$SOURCE_DIR/node_agent/app.py" || die "v12.12 single-channel direct readiness lookup missing"
+grep -Fq 'STREAMFORGE_NODE_DIRECT_STREAM_HLS_FAST_READY_V1210' "$SOURCE_DIR/node_agent/app.py" || die "v12.12 direct stream local-HLS readiness fast path missing"
+grep -Fq 'if channel is None or not _direct_channel_hls_ready(channel):' "$SOURCE_DIR/node_agent/app.py" || die "v12.12 direct stream lookup does not validate only selected HLS channel"
 grep -Fq 'STREAMFORGE_HLSJS_VERSION:-1.7.1' "$SOURCE_DIR/scripts/fetch_hlsjs.sh" || die "v11.63 HLS.js 1.7.1 fetch default missing"
 # STREAMFORGE_V1151_PUBLIC_ALIAS_RUNTIME_RELOAD_GUARDS:
 grep -Fq 'STREAMFORGE_NODE_PUBLIC_OUTER_ACCESS_RELOAD_V1151' "$SOURCE_DIR/node_agent/app.py" || die "v11.51 outer access-policy reload missing"
@@ -2219,10 +2219,10 @@ grep -Fq 'Same Node configuration as Add manually, plus SSH installation' "$SOUR
 grep -Fq 'Node Panel/API access URLs' "$SOURCE_DIR/app/templates/node_install.html" || die "Auto install Panel/API URL textarea missing from package"
 grep -Fq 'Playlist/App access URLs' "$SOURCE_DIR/app/templates/node_install.html" || die "Auto install Playlist/App URL textarea missing from package"
 grep -Fq 'Verify HTTPS certificate' "$SOURCE_DIR/app/templates/node_install.html" || die "Auto install Verify TLS UI missing from package"
-grep -Fq '[[ "$(cat "$APP_DIR/VERSION")" == "12.11" ]]' "$SOURCE_UPDATER" || die "Live Main VERSION validator is stale in package"
-grep -Fq '[[ "$(cat "$APP_DIR/node_agent/VERSION")" == "12.11" ]]' "$SOURCE_UPDATER" || die "Live Node VERSION validator is stale in package"
+grep -Fq '[[ "$(cat "$APP_DIR/VERSION")" == "12.12" ]]' "$SOURCE_UPDATER" || die "Live Main VERSION validator is stale in package"
+grep -Fq '[[ "$(cat "$APP_DIR/node_agent/VERSION")" == "12.12" ]]' "$SOURCE_UPDATER" || die "Live Node VERSION validator is stale in package"
 grep -Fq 'STREAMFORGE_CANONICAL_PROTOCOL_REDIRECT_V35' "$SOURCE_DIR/app/main.py" || die "v3.5 Main protocol marker missing before install"
-grep -Fq '[[ "$LIVE_VERSION" == "12.11" ]]' "$SOURCE_UPDATER" || die "Live service VERSION validator is stale in package"
+grep -Fq '[[ "$LIVE_VERSION" == "12.12" ]]' "$SOURCE_UPDATER" || die "Live service VERSION validator is stale in package"
 grep -Fq 'set_env_default STREAMFORGE_FFPROBE_BIN /usr/bin/ffprobe' "$SOURCE_UPDATER" || die "Existing-install FFprobe config backfill missing from package"
 grep -Fq 'set_env_default STREAMFORGE_HTTP_USER_AGENT' "$SOURCE_UPDATER" || die "Existing-install HTTP User-Agent backfill missing from package"
 grep -Fq 'set_env_default STREAMFORGE_RELAY_BASE_URL' "$SOURCE_UPDATER" || die "Existing-install relay config backfill missing from package"
@@ -2687,7 +2687,7 @@ grep -Fq 'name="status"' "$SOURCE_DIR/app/templates/channels.html" || die "v11.2
 RUN_LEGACY_MIGRATIONS=1
 if version_ge "$INSTALLED_VERSION" "2.1.203"; then
   RUN_LEGACY_MIGRATIONS=0
-  log "Modern update detected ($INSTALLED_VERSION -> 12.11); historical migrations will NOT be replayed."
+  log "Modern update detected ($INSTALLED_VERSION -> 12.12); historical migrations will NOT be replayed."
 fi
 [[ -n "$BACKUP_VERSION_TAG" ]] || BACKUP_VERSION_TAG="unknown"
 BACKUP_DIR="$BACKUP_ROOT/pre-v${BACKUP_VERSION_TAG}-$TIMESTAMP"
@@ -3805,8 +3805,8 @@ import maxminddb
 print('templates and MaxMind dependency ok')
 PY
 
-[[ "$(cat "$APP_DIR/VERSION")" == "12.11" ]] || die "Live files still have the wrong version"
-[[ "$(cat "$APP_DIR/node_agent/VERSION")" == "12.11" ]] || die "Wrong packaged Node Agent version"
+[[ "$(cat "$APP_DIR/VERSION")" == "12.12" ]] || die "Live files still have the wrong version"
+[[ "$(cat "$APP_DIR/node_agent/VERSION")" == "12.12" ]] || die "Wrong packaged Node Agent version"
 grep -Eq '^yt-dlp\[default\]>=2026\.6\.9$' "$APP_DIR/requirements.txt" || die "Installed Main yt-dlp dependency is stale"
 grep -Eq '^yt-dlp\[default\]>=2026\.6\.9$' "$APP_DIR/node_agent/requirements.txt" || die "Installed Node yt-dlp dependency is stale"
 grep -Fq 'STREAMFORGE_MAIN_YOUTUBE_PROBE_TIMEOUT_V1014' "$APP_DIR/app/stream_info.py" || die "Installed Main YouTube probe timeout fix missing"
@@ -5304,7 +5304,7 @@ grep -Fq 'STREAMFORGE_PUBLIC_PLANE_NGINX_SPLIT_V62' /etc/nginx/sites-available/s
 grep -Fq 'STREAMFORGE_MAIN_ALIAS_LOGO_CANONICAL_UPSTREAM_V1057' /etc/nginx/sites-available/streamforge || die "Active v10.68 Main alias-logo URI normalization is missing"
 grep -Fq 'streamforge_public_backend' /etc/nginx/sites-available/streamforge || die "Active Nginx Public upstream is missing"
 LIVE_VERSION="$(curl -fsS --max-time 3 http://127.0.0.1:8800/version)"
-[[ "$LIVE_VERSION" == "12.11" ]] || die "Service is still running version $LIVE_VERSION"
+[[ "$LIVE_VERSION" == "12.12" ]] || die "Service is still running version $LIVE_VERSION"
 # STREAMFORGE_MAIN_SUPERVISOR_PROCESS_OWNERSHIP_VERIFY_V1115:
 # The Main Gunicorn worker must have zero direct FFmpeg children after migration.
 MAIN_MASTER_PID="$(systemctl show "$SERVICE_NAME" -p MainPID --value 2>/dev/null || true)"
@@ -6015,19 +6015,21 @@ grep -Fq 'STREAMFORGE_NODE_LEGACY_XTREAM_DIRECT_NGINX_V127' "$APP_DIR/node_agent
 grep -Fq 'STREAMFORGE_NODE_HTTP_HOST_ROOT_PUBLIC_BACKEND_V128' "$APP_DIR/node_agent/apply_node_tls.py" || die "Installed v12.8 HTTP Web Player Brand root public routing missing"
 grep -Fq 'def nginx_http_front_blocks(' "$APP_DIR/node_agent/apply_node_tls.py" || die "Installed v12.8 host-aware HTTP frontend builder missing"
 # STREAMFORGE_V129_NODE_PLAYLIST_USER_EXPIRY_EDIT_INSTALLED_GUARD:
-grep -Fq 'STREAMFORGE_NODE_PLAYLIST_USER_EDIT_EXPIRY_V129' "$APP_DIR/node_agent/app.py" || die "Installed v12.11 Node Playlist User expiry edit support missing"
-grep -Fq 'current.expires_at = submitted_expires_at' "$APP_DIR/node_agent/app.py" || die "Installed v12.11 Node Playlist User expiry save path missing"
+grep -Fq 'STREAMFORGE_NODE_PLAYLIST_USER_EDIT_EXPIRY_V129' "$APP_DIR/node_agent/app.py" || die "Installed v12.12 Node Playlist User expiry edit support missing"
+grep -Fq 'current.expires_at = submitted_expires_at' "$APP_DIR/node_agent/app.py" || die "Installed v12.12 Node Playlist User expiry save path missing"
 # STREAMFORGE_V1210_NODE_PLAY_START_HOT_PATH_INSTALLED_GUARDS:
-grep -Fq 'STREAMFORGE_NODE_PUBLIC_SHARED_PANEL_CONNECTIVITY_V1210' "$APP_DIR/node_agent/app.py" || die "Installed v12.11 shared Main-connectivity playback gate missing"
-grep -Fq 'PANEL_CONNECTIVITY_FILE' "$APP_DIR/node_agent/app.py" || die "Installed v12.11 shared Main-connectivity state file missing"
-grep -Fq 'STREAMFORGE_NODE_SHARED_HEARTBEAT_FAST_PRIME_V1210' "$APP_DIR/node_agent/app.py" || die "Installed v12.11 shared heartbeat startup prime missing"
-grep -Fq 'if NODE_MODE == "public":' "$APP_DIR/node_agent/app.py" || die "Installed v12.11 public workers can still run foreground Main heartbeat"
-grep -Fq 'STREAMFORGE_NODE_DIRECT_STREAM_SINGLE_READY_V1210' "$APP_DIR/node_agent/app.py" || die "Installed v12.11 single-channel direct readiness lookup missing"
-grep -Fq 'STREAMFORGE_NODE_DIRECT_STREAM_HLS_FAST_READY_V1210' "$APP_DIR/node_agent/app.py" || die "Installed v12.11 direct stream local-HLS readiness fast path missing"
-grep -Fq 'if channel is None or not _direct_channel_hls_ready(channel):' "$APP_DIR/node_agent/app.py" || die "Installed v12.11 direct stream lookup does not validate only selected HLS channel"
+grep -Fq 'STREAMFORGE_NODE_PUBLIC_SHARED_PANEL_CONNECTIVITY_V1210' "$APP_DIR/node_agent/app.py" || die "Installed v12.12 shared Main-connectivity playback gate missing"
+grep -Fq 'PANEL_CONNECTIVITY_FILE' "$APP_DIR/node_agent/app.py" || die "Installed v12.12 shared Main-connectivity state file missing"
+grep -Fq 'STREAMFORGE_NODE_SHARED_HEARTBEAT_FAST_PRIME_V1210' "$APP_DIR/node_agent/app.py" || die "Installed v12.12 shared heartbeat startup prime missing"
+grep -Fq 'if NODE_MODE == "public":' "$APP_DIR/node_agent/app.py" || die "Installed v12.12 public workers can still run foreground Main heartbeat"
+grep -Fq 'STREAMFORGE_NODE_DIRECT_STREAM_SINGLE_READY_V1210' "$APP_DIR/node_agent/app.py" || die "Installed v12.12 single-channel direct readiness lookup missing"
+grep -Fq 'STREAMFORGE_NODE_DIRECT_STREAM_HLS_FAST_READY_V1210' "$APP_DIR/node_agent/app.py" || die "Installed v12.12 direct stream local-HLS readiness fast path missing"
+grep -Fq 'if channel is None or not _direct_channel_hls_ready(channel):' "$APP_DIR/node_agent/app.py" || die "Installed v12.12 direct stream lookup does not validate only selected HLS channel"
+# STREAMFORGE_V1212_NODE_WEBPLAYER_IDENTITY_INSTALLED_GUARD:
+grep -Fq 'STREAMFORGE_NODE_WEBPLAYER_IDENTITY_DISK_AUTHORITATIVE_V1212' "$APP_DIR/node_agent/app.py" || die "Installed v12.12 Node Web Player live logo identity reload missing"
 [[ -r /var/cache/streamforge/main-static/style.css ]] || die "Installed v12.3 published style.css missing"
 [[ -r /var/cache/streamforge/main-static/panel_nav.js ]] || die "Installed v12.3 published panel_nav.js missing"
-log "SUCCESS — StreamForge v12.11 is live."
+log "SUCCESS — StreamForge v12.12 is live."
 log "ASN database: $ASN_FILE"
 log "Country database: $COUNTRY_FILE"
 log "Backup: $BACKUP_DIR"

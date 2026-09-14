@@ -14869,7 +14869,7 @@ def _settings_page(user: PanelAccessUser, message: str = '', error: str = '') ->
 # STREAMFORGE_NODE_PANEL_LOGIN_LOGO_ROUTE_V2288:
 @app.get("/panel/logo")
 def node_panel_logo():
-    logo = str(manager.node_logo_url or "").strip()
+    _node_name, logo = _node_identity_snapshot()
     if not logo.startswith("/node-logos/"):
         raise HTTPException(404)
     filename = Path(logo[len("/node-logos/"):]).name
@@ -15645,11 +15645,29 @@ def _node_webplayer_theme_snapshot(request: Request | None = None) -> dict[str, 
     }
 
 
+def _node_identity_snapshot() -> tuple[str, str]:
+    """Read Main-owned Node identity from the shared atomic panel snapshot."""
+    node_name = str(manager.node_name or "").strip()
+    node_logo_url = str(manager.node_logo_url or "").strip()
+    # STREAMFORGE_NODE_WEBPLAYER_IDENTITY_DISK_AUTHORITATIVE_V1212:
+    # Logo/name sync is received by the single control worker, while Web Player
+    # requests run in separate long-lived public workers. Read panel-users.json
+    # per page/asset request so branding changes are immediately cross-process.
+    try:
+        raw = json.loads(PANEL_USERS_FILE.read_text(encoding="utf-8"))
+        if isinstance(raw, dict):
+            node_name = str(raw.get("node_name") or node_name).strip()
+            node_logo_url = str(raw.get("node_logo_url") or "").strip()
+    except (OSError, ValueError, TypeError):
+        pass
+    return node_name, node_logo_url
+
+
 def _node_webplayer_update_logo_url() -> str:
     # STREAMFORGE_NODE_UPDATE_JSON_SERVER_LOCAL_LOGO_V1010:
     # A synchronized Node logo is exposed through the stream-role logo route,
     # keeping update.json bound to the Node that actually served the request.
-    logo = str(manager.node_logo_url or "").strip()
+    _node_name, logo = _node_identity_snapshot()
     if logo.startswith("/node-logos/"):
         raw_name = logo[len("/node-logos/"):]
         filename = Path(raw_name).name
@@ -15742,12 +15760,13 @@ def _node_web_page(user: NodeUserConfig | None, request: Request, error: str = "
         if download_html or logout_html else ""
     )
     brand = _node_webplayer_brand(request) or {}
-    brand_name = str(brand.get("name") or manager.node_name or "Node").strip()
+    synchronized_node_name, synchronized_node_logo_url = _node_identity_snapshot()
+    brand_name = str(brand.get("name") or synchronized_node_name or "Node").strip()
     favicon = _node_web_favicon_link(prefix, request)
     # STREAMFORGE_NODE_WEB_PLAYER_LOGIN_CENTER_V2200:
     # Use the configured Node logo on the login page when available, remove the
     # redundant subtitle/helper copy, and center the entire login shell.
-    login_logo_url = str(brand.get("logo_url") or manager.node_logo_url or "").strip()
+    login_logo_url = str(brand.get("logo_url") or synchronized_node_logo_url or "").strip()
     if str(brand.get("logo_asset") or "").strip():
         login_logo_url = f"{prefix.rstrip('/')}/web-player/logo"
     # STREAMFORGE_NODE_WEB_PLAYER_LOGO_URL_V2202:
@@ -15978,7 +15997,7 @@ def node_web_player_logo(request: Request):
     return FileResponse(
         path,
         media_type=media.get(path.suffix.lower(), "application/octet-stream"),
-        headers={"Cache-Control": "public, max-age=3600"},
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"},
     )
 
 

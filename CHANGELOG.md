@@ -1,3 +1,10 @@
+# StreamForge v12.12
+
+- Fixed Main-managed Node logo changes not appearing in the Node Web Player.
+- Node Web Player name/logo lookup now reads the latest shared synchronized identity across public worker processes.
+- Local Node Web Player logo responses now disable browser caching so replacements at the same URL appear immediately.
+- Release updater advanced to `force_update_v1212.sh`.
+
 # StreamForge v12.11
 
 - Fixed Main Channels page ID/row order synchronization after saving a playlist hierarchy.
