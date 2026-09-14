@@ -68,8 +68,8 @@ if [[ -f /opt/streamforge/VERSION ]]; then
 fi
 VERSION_TAG="${PACKAGE_VERSION//./}"
 UPDATER="$SOURCE_DIR/scripts/force_update_v${VERSION_TAG}.sh"
-[[ -x "$UPDATER" ]] || UPDATER="$SOURCE_DIR/scripts/update.sh"
-[[ -x "$UPDATER" ]] || { echo "ERROR: updater missing from package" >&2; exit 1; }
+[[ -f "$UPDATER" ]] || UPDATER="$SOURCE_DIR/scripts/update.sh"
+[[ -f "$UPDATER" ]] || { echo "ERROR: updater missing from package" >&2; exit 1; }
 
 printf '[StreamForge Update] Using package: %s\n' "$PACKAGE"
 printf '[StreamForge Update] Installed version: %s\n' "${INSTALLED_VERSION:-not installed}"
