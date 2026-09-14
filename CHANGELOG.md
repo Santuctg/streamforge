@@ -1,3 +1,10 @@
+# StreamForge v12.11
+
+- Fixed Main Channels page ID/row order synchronization after saving a playlist hierarchy.
+- Playlist category/channel order now updates the authoritative Main catalogue sort order while preserving database primary keys.
+- GitHub-generated ZIP updates now normalize script permissions automatically.
+- Release updater advanced to `force_update_v1211.sh` so v12.10 installations perform a real version upgrade.
+
 # StreamForge v12.10
 
 - Fixed intermittent multi-second Remote Node channel-start latency.
