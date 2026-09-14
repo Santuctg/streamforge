@@ -33,6 +33,12 @@ done
 for cmd in systemctl rsync curl python3 nginx cmp; do command -v "$cmd" >/dev/null 2>&1 || die "$cmd not found"; done
 [[ "$(cat "$SOURCE_DIR/VERSION" 2>/dev/null)" == "12.10" ]] || die "Wrong package version"
 [[ "$(cat "$SOURCE_DIR/node_agent/VERSION" 2>/dev/null)" == "12.10" ]] || die "Wrong Node Agent version"
+# STREAMFORGE_GITHUB_ZIP_EXECUTABLE_NORMALIZATION_V1210:
+# GitHub-generated ZIP archives may omit Unix executable metadata even though
+# the scripts are present. Restore it before the package integrity guards.
+find "$SOURCE_DIR/scripts" "$SOURCE_DIR/node_agent" -maxdepth 1 -type f \
+  \( -name '*.sh' -o -name '*.py' -o -name 'streamforge*' \) \
+  -exec chmod 0755 {} +
 grep -Fq 'force_update_v1210.sh' "$SOURCE_DIR/scripts/update.sh" || die "v12.10 update.sh does not select force_update_v1210.sh"
 # STREAMFORGE_PACKAGE_CLEAN_V65: a release archive carries one version-specific force updater only.
 mapfile -t _sf_force_updaters < <(find "$SOURCE_DIR/scripts" -maxdepth 1 -type f -name 'force_update_v*.sh' -printf '%f\n' | sort)
