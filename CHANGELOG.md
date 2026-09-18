@@ -1,3 +1,10 @@
+# StreamForge v12.15
+
+- Reduced Main and Brand Web Player startup latency for regular HLS channels.
+- Main and Remote Node players now begin at the newest complete segment with immediate fragment prefetch.
+- Reconnect recovery retains the wider stable buffer for unreliable links.
+- Release updater advanced to `force_update_v1215.sh`.
+
 # StreamForge v12.14
 
 - Fixed server-level Web Player saves clearing existing Remote Node Web Player Brand host mappings.

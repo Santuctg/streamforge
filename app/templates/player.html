@@ -385,13 +385,13 @@ html{background:#000!important}
     // Stay a couple of segments behind the edge so normal WAN jitter does not drain the player.
     return {
       // STREAMFORGE_MAIN_WEBPLAYER_FAST_CHANNEL_SWITCH_BUFFER_V1113:
-      // 1-second HLS can start from one segment behind live edge. Prefetch the
-      // first fragment immediately; reconnect fallback still uses the wider
-      // stable buffer above when WAN jitter requires it.
+      // STREAMFORGE_MAIN_WEBPLAYER_ONE_SEGMENT_START_V1215:
+      // Start regular live streams from the newest complete segment and fetch
+      // it immediately. Reconnect fallback keeps the wider stable buffer.
       enableWorker: true,
       lowLatencyMode: false,
-      liveSyncDurationCount: 2,
-      liveMaxLatencyDurationCount: 5,
+      liveSyncDurationCount: 1,
+      liveMaxLatencyDurationCount: 3,
       startFragPrefetch: true,
       backBufferLength: 20,
       maxBufferLength: 12,
