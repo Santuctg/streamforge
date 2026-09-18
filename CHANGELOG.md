@@ -1,3 +1,9 @@
+## 12.20 - 2026-09-18
+
+- Fixed the Main Web Player showing Waiting channels through its stale persisted-status fallback.
+- Main Web Player now uses the same authoritative online-channel resolver as Main M3U and Xtream catalogues.
+- Channels are exposed only when an assigned local or remote playback target reports both alive and HLS ready.
+
 ## 12.19 - 2026-09-18
 
 - Fixed the v12.18 updater integrity check incorrectly searching for the Node channel-switch marker under the v12.18 suffix instead of its original v12.17 marker.

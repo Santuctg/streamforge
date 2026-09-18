@@ -12981,45 +12981,16 @@ def webplayer_authorized_channel(user: StreamUser, slug: str) -> Channel | None:
 
 
 def webplayer_fast_catalog_channels(user: StreamUser) -> list[Channel]:
-    """Return a zero-network Web Player catalogue with Static fallback support.
+    """Return only authoritative Up/HLS-ready channels for the Main Web Player.
 
-    STREAMFORGE_MAIN_WEBPLAYER_ZERO_NETWORK_CATALOG_V55
-    STREAMFORGE_PUBLIC_CATALOG_LOCAL_STATE_V62R2
-    STREAMFORGE_MAIN_WEBPLAYER_LOCAL_HLS_AUTHORITY_V100
-    STREAMFORGE_MAIN_WEBPLAYER_LB_LOCAL_HLS_V100
-    STREAMFORGE_WEBPLAYER_STATIC_FALLBACK_CATALOG_V100: fixed users can display
-    a channel when either their preferred Node or another assigned fallback is
-    locally ready / represented by a live persisted Remote state.
+    STREAMFORGE_MAIN_WEBPLAYER_STRICT_ONLINE_CATALOG_V1220:
+    The former zero-network fallback appended channels solely because their
+    persisted status was running/starting/restarting.  That status can remain
+    set while delivery is Waiting.  Reuse the same readiness resolver as M3U
+    and Xtream so every Main catalogue requires an actually ready local or
+    remote playback target.
     """
-    result: list[Channel] = []
-    live_states = {"running", "degraded", "starting", "restarting"}
-    public_role = str(os.getenv("STREAMFORGE_PROCESS_ROLE", "control") or "control").strip().lower() == "public"
-    for channel in _webplayer_prefetched_ordered_channels(user):
-        if not channel.enabled or channel.output_type != "hls":
-            continue
-        permitted = playback_candidate_nodes(user, channel, pinned=None)
-        if not permitted:
-            continue
-        local_nodes = [node for node in permitted if node.node_type == "local"]
-        # STREAMFORGE_MAIN_WEBPLAYER_ASYNC_LOCAL_READY_V1112:
-        # Catalogue HTML must never synchronously read index.m3u8/segment files
-        # for every channel.  Consume the 3-second readiness cache and schedule
-        # refreshes in NodeController's bounded background executor.  Persisted
-        # live state below preserves the existing warm-up/fallback visibility.
-        if public_role:
-            local_alive = bool(channel.desired_running)
-        else:
-            local_alive = bool(stream_manager.runtime_snapshot(int(channel.id)).get("alive"))
-        if local_alive and any(
-            node_controller.cached_local_hls_ready(channel, node, alive=local_alive)
-            for node in local_nodes
-        ):
-            result.append(channel)
-            continue
-        if str(channel.status or "").strip().lower() in live_states:
-            result.append(channel)
-    return result
-
+    return online_user_channels(user)
 
 def playlist_category_rank(playlist: PlaylistProfile, channel: Channel) -> int:
     positions = category_position_map(playlist_profile_channels(playlist), playlist.category_order)
