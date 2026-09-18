@@ -12981,7 +12981,7 @@ def webplayer_authorized_channel(user: StreamUser, slug: str) -> Channel | None:
 
 
 def webplayer_fast_catalog_channels(user: StreamUser) -> list[Channel]:
-    """Return only authoritative Up/HLS-ready channels for the Main Web Player.
+    """Return a network-free, strictly ready Main Web Player catalogue.
 
     STREAMFORGE_MAIN_WEBPLAYER_ZERO_NETWORK_CATALOG_V55
     STREAMFORGE_PUBLIC_CATALOG_LOCAL_STATE_V62R2
@@ -12989,17 +12989,23 @@ def webplayer_fast_catalog_channels(user: StreamUser) -> list[Channel]:
     STREAMFORGE_MAIN_WEBPLAYER_LB_LOCAL_HLS_V100
     STREAMFORGE_WEBPLAYER_STATIC_FALLBACK_CATALOG_V100
     STREAMFORGE_MAIN_WEBPLAYER_ASYNC_LOCAL_READY_V1112
-    Compatibility markers above are retained for package integrity checks; the
-    stale status-only fallback they originally described is no longer used.
-
-    STREAMFORGE_MAIN_WEBPLAYER_STRICT_ONLINE_CATALOG_V1220:
-    The former zero-network fallback appended channels solely because their
-    persisted status was running/starting/restarting.  That status can remain
-    set while delivery is Waiting.  Reuse the same readiness resolver as M3U
-    and Xtream so every Main catalogue requires an actually ready local or
-    remote playback target.
+    STREAMFORGE_MAIN_WEBPLAYER_STRICT_ONLINE_CATALOG_V1220
+    STREAMFORGE_MAIN_WEBPLAYER_CACHED_STRICT_READY_V1222:
+    Use recent per-Node HLS readiness only.  Remote cache misses are excluded
+    instead of triggering synchronous network calls or trusting stale channel
+    status, so login remains fast and Waiting channels remain hidden.
     """
-    return online_user_channels(user)
+    result: list[Channel] = []
+    for channel in _webplayer_prefetched_ordered_channels(user):
+        if not channel.enabled or channel.output_type != "hls":
+            continue
+        permitted = playback_candidate_nodes(user, channel, pinned=None)
+        if any(
+            node_controller.cached_hls_ready_state(channel, node, max_age=20.0) is True
+            for node in permitted
+        ):
+            result.append(channel)
+    return result
 
 def playlist_category_rank(playlist: PlaylistProfile, channel: Channel) -> int:
     positions = category_position_map(playlist_profile_channels(playlist), playlist.category_order)

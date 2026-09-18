@@ -1,3 +1,9 @@
+## 12.22 - 2026-09-18
+
+- Fixed v12.21 post-install verification looking for the v12.16 safe-prefetch markers under an incorrect v12.18 suffix.
+- Restored fast Main Web Player login by using network-free per-Node readiness cache instead of synchronous Remote Node status requests.
+- Preserved strict filtering: cached unknown, Waiting, Down and non-HLS-ready channels remain excluded.
+
 ## 12.21 - 2026-09-18
 
 - Fixed the v12.20 updater rejecting the package after the Main Web Player strict-online refactor removed historical compatibility markers.
