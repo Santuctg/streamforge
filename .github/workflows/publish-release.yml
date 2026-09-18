@@ -44,9 +44,9 @@ jobs:
         run: |
           set -euo pipefail
           version="${{ steps.version.outputs.version }}"
-          awk -v heading="# StreamForge v$version" '
-            $0 == heading {capture=1; next}
-            capture && /^# StreamForge v/ {exit}
+          awk -v version="$version" '
+            $0 ~ "^## " version "([[:space:]]|$)" {capture=1; next}
+            capture && /^## [0-9]+\.[0-9]+/ {exit}
             capture {print}
           ' CHANGELOG.md > release-notes.md
           if [[ ! -s release-notes.md ]]; then

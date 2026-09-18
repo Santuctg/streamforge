@@ -1,3 +1,9 @@
+## 12.26 - 2026-09-18
+
+- Fixed the v12.25 updater rejecting the new flat Node Web Player media bootstrap because it still required the superseded v6.8 same-origin compatibility marker.
+- Package and installed-file validation now accept either the legacy same-origin implementation or the v12.25 root-relative flat-media implementation.
+- Advanced the release updater to `force_update_v1226.sh` for a clean upgrade from v12.24 and v12.25.
+
 ## 12.25 - 2026-09-18
 
 - Fixed the measured Node Web Player startup bottleneck where master.m3u8 and index.m3u8 each spent about 1.25-1.30 seconds in serial authorization.
