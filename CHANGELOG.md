@@ -1,3 +1,9 @@
+## 12.27 - 2026-09-18
+
+- Fixed the v12.26 updater rejecting the flat Node Web Player media bootstrap because a second historical v6.5 direct-HLS marker check was still stale.
+- Audited all positive package marker guards against the current source so the release does not fail one legacy check at a time.
+- Advanced the release updater to `force_update_v1227.sh`.
+
 ## 12.26 - 2026-09-18
 
 - Fixed the v12.25 updater rejecting the new flat Node Web Player media bootstrap because it still required the superseded v6.8 same-origin compatibility marker.
