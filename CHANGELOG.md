@@ -1,3 +1,9 @@
+## 12.23 - 2026-09-18
+
+- Removed the dedicated supervisor RPC from Node Web Player and playlist catalogue loading.
+- Node catalogues now use the co-located fresh HLS playlist and newest segment as the authoritative Up signal, eliminating the possible three-second supervisor wait.
+- Waiting, Down and stale-output channels remain excluded.
+
 ## 12.22 - 2026-09-18
 
 - Fixed v12.21 post-install verification looking for the v12.16 safe-prefetch markers under an incorrect v12.18 suffix.
