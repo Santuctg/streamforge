@@ -1,3 +1,10 @@
+## 12.31 - 2026-09-18
+
+- Removed periodic live-playlist stalls caused by the first request after each two-second Nginx authorization-cache expiry waiting synchronously for Python/Redis.
+- Nginx now serves the last successful authorization immediately while refreshing the live-session heartbeat in the background; initial playback authorization remains synchronous and fail-closed.
+- Applied the behavior to both managed HTTPS and host-aware HTTP Node frontends.
+- Advanced the release updater to `force_update_v1231.sh`.
+
 ## 12.30 - 2026-09-18
 
 - Removed the remaining Node WebPlayer startup bottleneck by sending the initial player and channel-switch URLs directly to Nginx's authenticated live `index.m3u8` route.
