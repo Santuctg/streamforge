@@ -16224,7 +16224,18 @@ def node_web_player_watch(channel_key: str, request: Request):
     sid = manager.catalog_session_id(user, request)
     playback_key = issue_node_playback_key(user, channel, request, sid)
     stream_id = _node_stream_id(channel)
-    stream_url = f"{prefix}/node-play/{urllib.parse.quote(playback_key, safe='')}/{stream_id}/master.m3u8"
+    # STREAMFORGE_NODE_WEBPLAYER_DIRECT_NGINX_INDEX_V1230:
+    # The WebPlayer already owns a session-wide playback grant, so start at
+    # Nginx's authenticated live playlist instead of paying for an additional
+    # Python/Redis master request. External playlist clients retain the legacy
+    # /node-play/.../master.m3u8 compatibility endpoint below.
+    safe_channel_key = manager.safe_key(channel.key)
+    stream_url = (
+        f"/_sf-node-media/"
+        f"{urllib.parse.quote(playback_key, safe='')}/{urllib.parse.quote(sid, safe='')}/"
+        f"{urllib.parse.quote(str(stream_id), safe='')}/"
+        f"{urllib.parse.quote(safe_channel_key, safe='')}/index.m3u8"
+    )
     card_items = []
     for item in channels:
         names = _node_channel_categories(item) or ["Uncategorized"]
@@ -16235,7 +16246,13 @@ def node_web_player_watch(channel_key: str, request: Request):
         # issued above instead of making one Redis round-trip per sidebar card.
         item_playback_key = playback_key
         item_stream_id = _node_stream_id(item)
-        item_stream_url = f"{prefix}/node-play/{urllib.parse.quote(item_playback_key, safe='')}/{item_stream_id}/master.m3u8"
+        item_safe_channel_key = manager.safe_key(item.key)
+        item_stream_url = (
+            f"/_sf-node-media/"
+            f"{urllib.parse.quote(item_playback_key, safe='')}/{urllib.parse.quote(sid, safe='')}/"
+            f"{urllib.parse.quote(str(item_stream_id), safe='')}/"
+            f"{urllib.parse.quote(item_safe_channel_key, safe='')}/index.m3u8"
+        )
         item_watch_url = f"{prefix}/web-player/watch/{urllib.parse.quote(item.key, safe='')}"
         if logo:
             thumb = '<div class="channel-thumb"><img src="' + html.escape(logo, quote=True) + '" alt="" loading="lazy"></div>'

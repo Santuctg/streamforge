@@ -1,3 +1,10 @@
+## 12.30 - 2026-09-18
+
+- Removed the remaining Node WebPlayer startup bottleneck by sending the initial player and channel-switch URLs directly to Nginx's authenticated live `index.m3u8` route.
+- WebPlayer playback no longer waits for the Python/Redis `master.m3u8` control-plane request; Nginx continues to enforce live authorization, connection reservation and session heartbeats.
+- Preserved `/node-play/.../master.m3u8` for external M3U and non-WebPlayer compatibility.
+- Advanced the release updater to `force_update_v1230.sh`.
+
 ## 12.29 - 2026-09-18
 
 - Re-published the v12.28 Main-parity Node HLS change with lossless source blobs after the GitHub v12.28 `node_agent/app.py` object was truncated during connector upload.
