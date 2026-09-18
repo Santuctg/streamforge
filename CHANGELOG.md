@@ -1,3 +1,10 @@
+## 12.28 - 2026-09-18
+
+- Restored Main-parity two-stage HLS delivery on Remote Node Web Players: Python authorizes the static master once, while Nginx directly refreshes the live media playlist and serves segments.
+- Removed the v12.25 flat-media behavior that made every one-second `master.m3u8` refresh repeat Python/Redis authorization and caused intermittent 1–2.65 second server TTFB.
+- Preserved same-origin multi-URL routing, strict connection limits, live-session heartbeats and Nginx direct segment delivery.
+- Advanced the release updater to `force_update_v1228.sh`.
+
 ## 12.27 - 2026-09-18
 
 - Fixed the v12.26 updater rejecting the flat Node Web Player media bootstrap because a second historical v6.5 direct-HLS marker check was still stale.
