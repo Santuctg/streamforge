@@ -1,3 +1,9 @@
+## 12.17 - 2026-09-18
+
+- Fixed Node Web Player channel switching getting stuck on CONNECTING after rapidly selecting two or more channels.
+- Isolated each HLS playback generation so delayed callbacks from a destroyed channel can no longer load, recover, or overwrite the newly selected channel.
+- Reset playback freshness tracking on every in-page channel switch for reliable startup and stall detection.
+
 # StreamForge v12.16
 
 - Fixed repeated Web Player `RECONNECTING` loops introduced by the one-segment live-edge startup.
