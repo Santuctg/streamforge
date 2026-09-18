@@ -1,3 +1,9 @@
+## 12.29 - 2026-09-18
+
+- Re-published the v12.28 Main-parity Node HLS change with lossless source blobs after the GitHub v12.28 `node_agent/app.py` object was truncated during connector upload.
+- Added release verification against the committed GitHub blob so UTF-8 decoding, compatibility markers and the two-stage Nginx media implementation are confirmed before deployment.
+- Advanced the release updater to `force_update_v1229.sh`.
+
 ## 12.28 - 2026-09-18
 
 - Restored Main-parity two-stage HLS delivery on Remote Node Web Players: Python authorizes the static master once, while Nginx directly refreshes the live media playlist and serves segments.
