@@ -1,3 +1,9 @@
+## 12.25 - 2026-09-18
+
+- Fixed the measured Node Web Player startup bottleneck where master.m3u8 and index.m3u8 each spent about 1.25-1.30 seconds in serial authorization.
+- The authorized Node master endpoint now returns the media playlist directly, eliminating the second control-plane playlist request while retaining direct Nginx segment delivery.
+- Viewer metadata is recorded after the master response; connection-limit reservation remains synchronous and fail-closed.
+
 ## 12.24 - 2026-09-18
 
 - Fixed remaining Node Web Player 2-3 second page delay on large channel lineups.

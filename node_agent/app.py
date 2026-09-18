@@ -16701,29 +16701,52 @@ def node_user_master(token: str, key: str, request: Request, sid: str = ""):
         raise HTTPException(404)
     sid = manager.request_session_id(request, sid or grant_sid or manager.catalog_session_id(user, request))
     require_panel_and_user(user.token, request, enforce_connection=True, session_id=sid, playback_start=True)
-    manager.touch_viewer(user.token, channel_key, request, sid)
     base = _node_public_base(request)
     if request.headers.get("X-StreamForge-Node-Media-FastPath") == "1":
-        # STREAMFORGE_NODE_NGINX_DIRECT_HLS_V65: after one playback-start auth,
-        # Nginx serves the media playlist and all relative segments directly.
-        # STREAMFORGE_NODE_MULTI_URL_SAME_ORIGIN_MEDIA_V68:
-        # Keep the Nginx media handoff root-relative.  The browser/HLS client
-        # therefore stays on whichever configured Playlist/App authority it
-        # used to open the WebPlayer instead of inheriting the first saved URL.
-        media_url = (
+        # STREAMFORGE_NODE_WEBPLAYER_FLAT_MEDIA_BOOTSTRAP_V1225:
+        # The old master returned another authenticated index.m3u8 URL, making
+        # first play/channel switch wait for two serial Python/Redis control
+        # requests. The already-authorized master now returns the live media
+        # playlist directly while segment bytes remain on the Nginx fast path.
+        safe_channel_key = manager.safe_key(channel_key)
+        playlist_path = HLS_ROOT / safe_channel_key / "index.m3u8"
+        if not playlist_path.is_file():
+            raise HTTPException(503, "Stream is not ready")
+        media_prefix = (
             f"/_sf-node-media/"
             f"{urllib.parse.quote(token, safe='')}/{urllib.parse.quote(sid, safe='')}/"
-            f"{urllib.parse.quote(key, safe='')}/{urllib.parse.quote(manager.safe_key(channel_key), safe='')}/index.m3u8"
+            f"{urllib.parse.quote(key, safe='')}/{urllib.parse.quote(safe_channel_key, safe='')}"
         )
-        return PlainTextResponse(
-            f"#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-STREAM-INF:BANDWIDTH=3000000\n{media_url}\n",
+        lines: list[str] = []
+        for raw_line in playlist_path.read_text(errors="replace").splitlines():
+            line = raw_line.strip()
+            if line and not line.startswith("#"):
+                lines.append(f"{media_prefix}/{urllib.parse.quote(Path(line).name, safe='')}")
+            else:
+                lines.append(raw_line)
+        response = PlainTextResponse(
+            "\n".join(lines) + "\n",
             media_type="application/vnd.apple.mpegurl",
             headers={
-                "Cache-Control": "no-store", "Access-Control-Allow-Origin": "*",
-                "X-StreamForge-Media-Path": "nginx-direct-auth-cache",
+                "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+                "Access-Control-Allow-Origin": "*",
+                "X-StreamForge-Media-Path": "node-flat-media-bootstrap-v1225",
             },
+            # STREAMFORGE_NODE_WEBPLAYER_ASYNC_VIEWER_TOUCH_V1225:
+            # Connection limits are reserved synchronously above; the larger
+            # viewer metadata transaction does not need to delay first video.
+            background=BackgroundTask(
+                manager.touch_viewer, user.token, channel_key, request, sid
+            ),
         )
-    return PlainTextResponse(f"#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-STREAM-INF:BANDWIDTH=3000000\n{base}/node-play/{token}/{urllib.parse.quote(key)}/index.m3u8?sid={urllib.parse.quote(sid)}\n", media_type="application/vnd.apple.mpegurl", headers={"Cache-Control": "no-store", "Access-Control-Allow-Origin": "*"})
+        return response
+    manager.touch_viewer(user.token, channel_key, request, sid)
+    return PlainTextResponse(
+        f"#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-STREAM-INF:BANDWIDTH=3000000\n"
+        f"{base}/node-play/{token}/{urllib.parse.quote(key)}/index.m3u8?sid={urllib.parse.quote(sid)}\n",
+        media_type="application/vnd.apple.mpegurl",
+        headers={"Cache-Control": "no-store", "Access-Control-Allow-Origin": "*"},
+    )
 
 
 @app.get("/node-play/{token}/{key}/index.m3u8", response_class=PlainTextResponse)
