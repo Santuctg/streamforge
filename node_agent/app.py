@@ -15255,9 +15255,28 @@ def _channel_playback_ready(channel_key: str) -> bool:
         return False
     return bool(ready and fresh)
 
+_NODE_CATALOG_READY_EXECUTOR = ThreadPoolExecutor(
+    max_workers=max(4, min(16, int(os.getenv("STREAMFORGE_NODE_CATALOG_READY_WORKERS", "12") or 12))),
+    thread_name_prefix="node-catalog-ready",
+)
+
+
 def _online_effective_user_channels(user: NodeUserConfig) -> list[NodeUserChannel]:
-    """Filter a Node user's catalogue to live, playback-ready HLS outputs."""
-    return [channel for channel in _effective_user_channels(user) if _channel_playback_ready(channel.key)]
+    """Filter the Node catalogue with bounded parallel local-HLS checks.
+
+    STREAMFORGE_NODE_PARALLEL_CATALOG_READY_V1224:
+    Large lineups previously opened every playlist and newest segment
+    sequentially. Preserve saved order while overlapping independent local
+    filesystem reads, with no supervisor or Remote Node network wait.
+    """
+    channels = _effective_user_channels(user)
+    if not channels:
+        return []
+    ready = list(_NODE_CATALOG_READY_EXECUTOR.map(
+        _channel_playback_ready,
+        (channel.key for channel in channels),
+    ))
+    return [channel for channel, is_ready in zip(channels, ready) if is_ready]
 
 
 # STREAMFORGE_NODE_WEBPLAYER_RUNTIME_SOURCE_LOOKUP_V1024:
@@ -16211,7 +16230,10 @@ def node_web_player_watch(channel_key: str, request: Request):
         names = _node_channel_categories(item) or ["Uncategorized"]
         logo = _node_channel_logo_public_url(item.logo_url, request)
         categories_attr = html.escape("|".join(names), quote=True)
-        item_playback_key = issue_node_playback_key(user, item, request, sid)
+        # STREAMFORGE_NODE_WEBPLAYER_SINGLE_PAGE_GRANT_V1224:
+        # The grant is session-wide (channel_key="*"); reuse the one key already
+        # issued above instead of making one Redis round-trip per sidebar card.
+        item_playback_key = playback_key
         item_stream_id = _node_stream_id(item)
         item_stream_url = f"{prefix}/node-play/{urllib.parse.quote(item_playback_key, safe='')}/{item_stream_id}/master.m3u8"
         item_watch_url = f"{prefix}/web-player/watch/{urllib.parse.quote(item.key, safe='')}"

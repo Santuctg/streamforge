@@ -1,3 +1,9 @@
+## 12.24 - 2026-09-18
+
+- Fixed remaining Node Web Player 2-3 second page delay on large channel lineups.
+- Parallelized independent local HLS readiness checks with a bounded worker pool while preserving playlist order and strict Waiting-channel exclusion.
+- Reused one session-wide wildcard playback grant for every channel card on a watch page, eliminating one Redis round-trip per channel.
+
 ## 12.23 - 2026-09-18
 
 - Removed the dedicated supervisor RPC from Node Web Player and playlist catalogue loading.
