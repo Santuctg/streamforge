@@ -385,13 +385,14 @@ html{background:#000!important}
     // Stay a couple of segments behind the edge so normal WAN jitter does not drain the player.
     return {
       // STREAMFORGE_MAIN_WEBPLAYER_FAST_CHANNEL_SWITCH_BUFFER_V1113:
-      // STREAMFORGE_MAIN_WEBPLAYER_ONE_SEGMENT_START_V1215:
-      // Start regular live streams from the newest complete segment and fetch
-      // it immediately. Reconnect fallback keeps the wider stable buffer.
+      // STREAMFORGE_MAIN_WEBPLAYER_SAFE_PREFETCH_START_V1216:
+      // Prefetch immediately, but remain two complete segments behind the live
+      // edge. A one-segment edge could race an in-progress segment and loop
+      // through 404/stall reconnects on otherwise healthy channels.
       enableWorker: true,
       lowLatencyMode: false,
-      liveSyncDurationCount: 1,
-      liveMaxLatencyDurationCount: 3,
+      liveSyncDurationCount: 2,
+      liveMaxLatencyDurationCount: 5,
       startFragPrefetch: true,
       backBufferLength: 20,
       maxBufferLength: 12,

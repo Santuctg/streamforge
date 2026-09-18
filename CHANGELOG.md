@@ -1,3 +1,10 @@
+# StreamForge v12.16
+
+- Fixed repeated Web Player `RECONNECTING` loops introduced by the one-segment live-edge startup.
+- Main and Remote Node players retain immediate fragment prefetch while starting two complete segments behind the live edge.
+- Prevented races against an in-progress HLS segment that could produce intermittent 404/stall recovery cycles.
+- Release updater advanced to `force_update_v1216.sh`.
+
 # StreamForge v12.15
 
 - Reduced Main and Brand Web Player startup latency for regular HLS channels.
