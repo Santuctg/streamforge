@@ -12983,6 +12983,15 @@ def webplayer_authorized_channel(user: StreamUser, slug: str) -> Channel | None:
 def webplayer_fast_catalog_channels(user: StreamUser) -> list[Channel]:
     """Return only authoritative Up/HLS-ready channels for the Main Web Player.
 
+    STREAMFORGE_MAIN_WEBPLAYER_ZERO_NETWORK_CATALOG_V55
+    STREAMFORGE_PUBLIC_CATALOG_LOCAL_STATE_V62R2
+    STREAMFORGE_MAIN_WEBPLAYER_LOCAL_HLS_AUTHORITY_V100
+    STREAMFORGE_MAIN_WEBPLAYER_LB_LOCAL_HLS_V100
+    STREAMFORGE_WEBPLAYER_STATIC_FALLBACK_CATALOG_V100
+    STREAMFORGE_MAIN_WEBPLAYER_ASYNC_LOCAL_READY_V1112
+    Compatibility markers above are retained for package integrity checks; the
+    stale status-only fallback they originally described is no longer used.
+
     STREAMFORGE_MAIN_WEBPLAYER_STRICT_ONLINE_CATALOG_V1220:
     The former zero-network fallback appended channels solely because their
     persisted status was running/starting/restarting.  That status can remain

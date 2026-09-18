@@ -1,3 +1,8 @@
+## 12.21 - 2026-09-18
+
+- Fixed the v12.20 updater rejecting the package after the Main Web Player strict-online refactor removed historical compatibility markers.
+- Restored legacy integrity markers without restoring the stale status-only fallback; Main Web Player continues to hide Waiting channels.
+
 ## 12.20 - 2026-09-18
 
 - Fixed the Main Web Player showing Waiting channels through its stale persisted-status fallback.
