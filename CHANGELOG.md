@@ -1,3 +1,9 @@
+## 12.18 - 2026-09-18
+
+- Fixed Node playlist and Web Player catalogues including channels whose supervisor status was stale after the channel entered Waiting.
+- Catalogue loading now requires both current Up status and a real, fresh local HLS playlist/segment before exposing a channel.
+- Waiting, Down, stopped, stale-HLS, and non-ready channels are excluded from newly loaded M3U, Xtream and Web Player catalogues.
+
 ## 12.17 - 2026-09-18
 
 - Fixed Node Web Player channel switching getting stuck on CONNECTING after rapidly selecting two or more channels.

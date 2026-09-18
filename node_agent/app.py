@@ -15238,11 +15238,27 @@ def _channel_playback_ready(channel_key: str) -> bool:
     # STREAMFORGE_NODE_SINGLE_CHANNEL_READY_V65: hot playback/auth paths must
     # validate only the granted channel instead of rebuilding/scanning the
     # user's full catalogue for every cached-auth refresh.
+    # STREAMFORGE_NODE_CATALOG_FRESH_HLS_AUTHORITY_V1218:
+    # Supervisor status is intentionally cached and can briefly report the
+    # previous Up state after FFmpeg has moved to Waiting.  Catalogue responses
+    # must additionally verify the actual local playlist and newest segment so
+    # Waiting/Down channels never leak into a freshly loaded playlist/player.
     try:
         status = manager.status(channel_key)
-    except (KeyError, ValueError):
+        segment_time = 1
+        with manager.lock:
+            runtime = manager.channels.get(channel_key)
+            if runtime is not None:
+                segment_time = max(1, int(runtime.config.hls_segment_time or 1))
+        ready, fresh = manager._hls_output_state(channel_key, segment_time)
+    except (KeyError, ValueError, TypeError, OSError):
         return False
-    return bool(status.get("alive")) and bool(status.get("hls_ready"))
+    return (
+        bool(status.get("alive"))
+        and bool(status.get("hls_ready"))
+        and bool(ready)
+        and bool(fresh)
+    )
 
 
 def _online_effective_user_channels(user: NodeUserConfig) -> list[NodeUserChannel]:
