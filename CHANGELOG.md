@@ -1,3 +1,8 @@
+## 12.19 - 2026-09-18
+
+- Fixed the v12.18 updater integrity check incorrectly searching for the Node channel-switch marker under the v12.18 suffix instead of its original v12.17 marker.
+- Preserved the v12.18 fresh-HLS catalogue filtering while allowing clean upgrades from v12.17 and v12.18 packages.
+
 ## 12.18 - 2026-09-18
 
 - Fixed Node playlist and Web Player catalogues including channels whose supervisor status was stale after the channel entered Waiting.
