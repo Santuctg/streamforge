@@ -10706,7 +10706,13 @@ def _cleanup_node_playback_keys(now: float) -> None:
     _node_playback_last_cleanup = now
 
 
-def issue_node_playback_key(user: NodeUserConfig, channel: NodeUserChannel, request: Request, session_id: str) -> str:
+def issue_node_playback_key(
+    user: NodeUserConfig,
+    channel: NodeUserChannel,
+    request: Request,
+    session_id: str,
+    authorized_channels: dict[str, str] | None = None,
+) -> str:
     now = time.time()
     ttl = NODE_RESTREAM_KEY_TTL_SECONDS if user.user_type == "restream" else NODE_PLAYBACK_KEY_TTL_SECONDS
     ip_text = manager._client_ip(request)
@@ -10715,11 +10721,23 @@ def issue_node_playback_key(user: NodeUserConfig, channel: NodeUserChannel, requ
     # shared by all channels in the same user/IP/session catalogue. Large M3U
     # playlists therefore create O(sessions), not O(sessions * channels),
     # runtime grants. Channel permission is still revalidated when resolved.
-    index_key = (user.token, "*", ip_text, resolved_session_id)
+    # STREAMFORGE_NODE_WEBPLAYER_GRANT_CHANNEL_MAP_V1235: WebPlayer already
+    # built its authorized online catalogue. Persist that compact lookup in the
+    # session grant so cold media auth does not rebuild/enrich/sort every
+    # assigned channel just to resolve one stream ID. Use a separate grant
+    # index namespace so sessions created by older releases cannot be reused.
+    grant_scope = "web-map-v1235" if authorized_channels else "*"
+    index_key = (user.token, grant_scope, ip_text, resolved_session_id)
     grant = {
         "user_token": user.token, "channel_key": "*", "ip": ip_text,
         "exp": int(now) + int(ttl), "sid": resolved_session_id,
     }
+    if authorized_channels:
+        grant["channel_map"] = {
+            str(reference)[:96]: str(channel_key)[:160]
+            for reference, channel_key in authorized_channels.items()
+            if str(reference).strip() and str(channel_key).strip()
+        }
     # STREAMFORGE_NODE_REDIS_PLAYBACK_KEYS_V65: every public worker resolves
     # the same playback grants without rewriting playback-keys.json.
     if node_redis is not None and node_redis.available:
@@ -10773,6 +10791,10 @@ def resolve_node_playback_key(playback_key: str, channel_ref: str, request: Requ
         user = require_panel_and_user(str(grant.get("user_token") or ""), request)
         granted_channel_key = str(grant.get("channel_key") or "")
         if granted_channel_key == "*":
+            channel_map = grant.get("channel_map")
+            mapped_key = str(channel_map.get(str(channel_ref)) or "") if isinstance(channel_map, dict) else ""
+            if mapped_key:
+                return user, str(grant.get("sid") or "")[:96], mapped_key
             channel = next(
                 (item for item in _effective_user_channels(user)
                  if str(channel_ref) in {item.key, str(_node_stream_id(item))}),
@@ -16222,7 +16244,13 @@ def node_web_player_watch(channel_key: str, request: Request):
     if not channel:
         raise HTTPException(404)
     sid = manager.catalog_session_id(user, request)
-    playback_key = issue_node_playback_key(user, channel, request, sid)
+    authorized_channel_map: dict[str, str] = {}
+    for authorized_channel in channels:
+        authorized_channel_map[authorized_channel.key] = authorized_channel.key
+        authorized_channel_map[str(_node_stream_id(authorized_channel))] = authorized_channel.key
+    playback_key = issue_node_playback_key(
+        user, channel, request, sid, authorized_channels=authorized_channel_map
+    )
     stream_id = _node_stream_id(channel)
     # STREAMFORGE_NODE_WEBPLAYER_DIRECT_NGINX_INDEX_V1230:
     # The WebPlayer already owns a session-wide playback grant, so start at

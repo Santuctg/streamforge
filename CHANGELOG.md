@@ -1,3 +1,10 @@
+## 12.35 - 2026-09-19
+
+- Eliminated the measured ~1.32-second `sf-grant` cold-channel delay by embedding the WebPlayer's already-authorized online channel references in its session playback grant.
+- Cold media authorization now resolves stream ID or channel key with a direct grant-map lookup instead of rebuilding, enriching and sorting the user's complete channel catalogue.
+- Kept IP binding, user validity, channel assignment, fresh-HLS validation and connection limits enforced; older and external playback grants retain the compatible catalogue-validation fallback.
+- Advanced the release updater to `force_update_v1235.sh`.
+
 ## 12.34 - 2026-09-19
 
 - Shortened the first `index.m3u8` request on every WebPlayer channel switch by removing duplicate panel/user validation from the already-validated playback-grant path.
