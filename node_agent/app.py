@@ -16672,7 +16672,9 @@ def node_internal_media_auth(request: Request):
     hls_key = str(request.headers.get("x-streamforge-hls-key") or "").strip()[:96]
     if not playback_key or not sid or not channel_ref or not hls_key:
         raise HTTPException(403)
+    auth_started = time.perf_counter()
     user, grant_sid, channel_key = resolve_node_playback_key(playback_key, channel_ref, request)
+    grant_ms = (time.perf_counter() - auth_started) * 1000.0
     if grant_sid and not hmac.compare_digest(str(grant_sid), sid):
         raise HTTPException(403, "Playback session mismatch")
     if manager.safe_key(channel_key) != hls_key:
@@ -16684,11 +16686,18 @@ def node_internal_media_auth(request: Request):
     # its SID after a short >VIEWER_TTL network/HLS gap. Cached media-segment
     # auth remains non-starting, so trailing segments cannot resurrect a slot.
     heartbeat_request = str(request.headers.get("x-streamforge-viewer-heartbeat") or "").strip() == "1"
-    require_panel_and_user(
-        user.token, request, enforce_connection=True, session_id=sid,
-        playback_start=heartbeat_request,
-    )
-    manager.touch_viewer(user.token, channel_key, request, sid)
+    # STREAMFORGE_NODE_MEDIA_AUTH_COLD_PATH_V1234:
+    # resolve_node_playback_key() already validated panel state, the user,
+    # restream IP rules and channel assignment. Do not repeat that work here.
+    # Keep connection reservation synchronous/fail-closed, but move the much
+    # larger viewer metadata transaction behind the auth response so a cold
+    # channel switch waits for only the security-critical Redis operations.
+    reserve_started = time.perf_counter()
+    if not manager.allow_connection(
+        user, request, session_id=sid, playback_start=heartbeat_request
+    ):
+        raise HTTPException(429, "Connection limit reached")
+    reserve_ms = (time.perf_counter() - reserve_started) * 1000.0
     # STREAMFORGE_NODE_LIVE_SESSION_HEARTBEAT_V90:
     # STREAMFORGE_NODE_LIVE_SESSION_STABLE_TTL_V90R3: VIEWER_TTL is now
     # reloaded from shared access.json in every long-lived public worker.
@@ -16702,11 +16711,15 @@ def node_internal_media_auth(request: Request):
     cache_seconds = 2 if heartbeat_request else NODE_MEDIA_AUTH_CACHE_SECONDS
     return Response(
         status_code=200,
+        background=BackgroundTask(
+            manager.touch_viewer, user.token, channel_key, request, sid
+        ),
         headers={
             "Cache-Control": f"public, max-age={cache_seconds}",
             "X-StreamForge-Media-Authorized": "1",
             "X-StreamForge-Media-Auth-Cache": str(cache_seconds),
             "X-StreamForge-Viewer-Heartbeat": "1" if heartbeat_request else "0",
+            "Server-Timing": f"sf-grant;dur={grant_ms:.2f}, sf-reserve;dur={reserve_ms:.2f}",
         },
     )
 

@@ -1,3 +1,10 @@
+## 12.34 - 2026-09-19
+
+- Shortened the first `index.m3u8` request on every WebPlayer channel switch by removing duplicate panel/user validation from the already-validated playback-grant path.
+- Kept playback-grant validation and connection-limit reservation synchronous and fail-closed while moving the larger viewer metadata Redis transaction behind the authorization response.
+- Added `Server-Timing` propagation for cold live-playlist authorization, exposing separate `sf-grant` and `sf-reserve` durations in browser DevTools.
+- Advanced the release updater to `force_update_v1234.sh`.
+
 ## 12.33 - 2026-09-19
 
 - Removed per-worker Nginx AIO thread pools from Remote Node direct HLS segment delivery; a measured 40-worker Node was creating about 1,280 unnecessary threads and reporting 1,322 service tasks.
