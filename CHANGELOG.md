@@ -1,3 +1,10 @@
+## 12.36 - 2026-09-19
+
+- Reduced measured post-auth WebPlayer channel-switch latency by moving the normal local-HLS profile from a two-segment to a one-segment live edge.
+- Kept safe fragment prefetch and retained the two-segment stable fallback profile for recovery from unstable sources.
+- This change targets browser startup buffering only; v12.35 server timings remain sub-10ms and authorization behavior is unchanged.
+- Advanced the release updater to `force_update_v1236.sh`.
+
 ## 12.35 - 2026-09-19
 
 - Eliminated the measured ~1.32-second `sf-grant` cold-channel delay by embedding the WebPlayer's already-authorized online channel references in its session playback grant.

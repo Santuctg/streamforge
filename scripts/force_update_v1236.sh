@@ -18,8 +18,8 @@ BACKUP_DIR=""
 UPDATE_COMMITTED=0
 MUTATION_STARTED=0
 
-log(){ printf '[StreamForge v12.35] %s\n' "$*"; }
-die(){ printf '[StreamForge v12.35] ERROR: %s\n' "$*" >&2; return 1; }
+log(){ printf '[StreamForge v12.36] %s\n' "$*"; }
+die(){ printf '[StreamForge v12.36] ERROR: %s\n' "$*" >&2; return 1; }
 
 for arg in "$@"; do
   case "$arg" in
@@ -31,20 +31,20 @@ done
 
 [[ ${EUID} -eq 0 ]] || die "Run with sudo/root"
 for cmd in systemctl rsync curl python3 nginx cmp; do command -v "$cmd" >/dev/null 2>&1 || die "$cmd not found"; done
-[[ "$(cat "$SOURCE_DIR/VERSION" 2>/dev/null)" == "12.35" ]] || die "Wrong package version"
-[[ "$(cat "$SOURCE_DIR/node_agent/VERSION" 2>/dev/null)" == "12.35" ]] || die "Wrong Node Agent version"
+[[ "$(cat "$SOURCE_DIR/VERSION" 2>/dev/null)" == "12.36" ]] || die "Wrong package version"
+[[ "$(cat "$SOURCE_DIR/node_agent/VERSION" 2>/dev/null)" == "12.36" ]] || die "Wrong Node Agent version"
 # STREAMFORGE_GITHUB_ZIP_EXECUTABLE_NORMALIZATION_V1210:
 # GitHub-generated ZIP archives may omit Unix executable metadata even though
 # the scripts are present. Restore it before the package integrity guards.
 find "$SOURCE_DIR/scripts" "$SOURCE_DIR/node_agent" -maxdepth 1 -type f \
   \( -name '*.sh' -o -name '*.py' -o -name 'streamforge*' \) \
   -exec chmod 0755 {} +
-grep -Fq 'force_update_v1235.sh' "$SOURCE_DIR/scripts/update.sh" || die "v12.35 update.sh does not select force_update_v1235.sh"
+grep -Fq 'force_update_v1236.sh' "$SOURCE_DIR/scripts/update.sh" || die "v12.36 update.sh does not select force_update_v1236.sh"
 # STREAMFORGE_PACKAGE_CLEAN_V65: a release archive carries one version-specific force updater only.
 mapfile -t _sf_force_updaters < <(find "$SOURCE_DIR/scripts" -maxdepth 1 -type f -name 'force_update_v*.sh' -printf '%f\n' | sort)
-[[ ${#_sf_force_updaters[@]} -eq 1 && "${_sf_force_updaters[0]}" == "force_update_v1235.sh" ]] || die "v12.35 package contains stale/duplicate force updater scripts"
+[[ ${#_sf_force_updaters[@]} -eq 1 && "${_sf_force_updaters[0]}" == "force_update_v1236.sh" ]] || die "v12.36 package contains stale/duplicate force updater scripts"
 # STREAMFORGE_UPDATE_SELF_REFERENCE_CURRENT_UPDATER_V129:
-[[ "$UPDATER_BASENAME" == "force_update_v1235.sh" ]] || die "Unexpected updater filename: $UPDATER_BASENAME"
+[[ "$UPDATER_BASENAME" == "force_update_v1236.sh" ]] || die "Unexpected updater filename: $UPDATER_BASENAME"
 # STREAMFORGE_V1158_MULTI_BRAND_LIVE_ASSET_GUARDS:
 grep -Fq 'STREAMFORGE_WEBPLAYER_BRAND_LIVE_ALIAS_ASSET_DOWNLOAD_V1158' "$SOURCE_DIR/app/main.py" || die "v11.58 Main brand live-alias/download runtime missing"
 grep -Fq 'brand_logo_file: UploadFile | None = File(None)' "$SOURCE_DIR/app/main.py" || die "v11.58 Main brand logo upload handler missing"
@@ -97,43 +97,46 @@ grep -Fq 'local_hls_delete_threshold = max(3, (30 + local_hls_time - 1) // local
 ! grep -Fq 'Date.now() - lastPlaybackProgressAt >= 10000' "$SOURCE_DIR/app/templates/player.html" || die "v11.67 obsolete Main currentTime-only 10s reconnect still present"
 ! grep -Fq 'Date.now()-lastProgressAt>=10000' "$SOURCE_DIR/node_agent/app.py" || die "v11.67 obsolete Node currentTime-only 10s reconnect still present"
 # STREAMFORGE_V1218_NODE_SWITCH_GENERATION_GUARD:
-grep -Fq 'STREAMFORGE_NODE_WEBPLAYER_SWITCH_GENERATION_V1217' "$SOURCE_DIR/node_agent/app.py" || die "v12.35 Node Web Player switch-generation guard missing"
+grep -Fq 'STREAMFORGE_NODE_WEBPLAYER_SWITCH_GENERATION_V1217' "$SOURCE_DIR/node_agent/app.py" || die "v12.36 Node Web Player switch-generation guard missing"
 # STREAMFORGE_V1218_CATALOG_FRESH_HLS_GUARD:
-grep -Fq 'STREAMFORGE_NODE_CATALOG_FRESH_HLS_AUTHORITY_V1218' "$SOURCE_DIR/node_agent/app.py" || die "v12.35 fresh-HLS catalogue filter missing"
+grep -Fq 'STREAMFORGE_NODE_CATALOG_FRESH_HLS_AUTHORITY_V1218' "$SOURCE_DIR/node_agent/app.py" || die "v12.36 fresh-HLS catalogue filter missing"
 # STREAMFORGE_V1220_MAIN_STRICT_WEBPLAYER_CATALOG_GUARD:
-grep -Fq 'STREAMFORGE_MAIN_WEBPLAYER_STRICT_ONLINE_CATALOG_V1220' "$SOURCE_DIR/app/main.py" || die "v12.35 Main strict Web Player catalogue filter missing"
+grep -Fq 'STREAMFORGE_MAIN_WEBPLAYER_STRICT_ONLINE_CATALOG_V1220' "$SOURCE_DIR/app/main.py" || die "v12.36 Main strict Web Player catalogue filter missing"
 # STREAMFORGE_V1221_MAIN_WEBPLAYER_COMPAT_MARKER_GUARD:
-grep -Fq 'STREAMFORGE_MAIN_WEBPLAYER_ASYNC_LOCAL_READY_V1112' "$SOURCE_DIR/app/main.py" || die "v12.35 Main Web Player compatibility markers missing"
+grep -Fq 'STREAMFORGE_MAIN_WEBPLAYER_ASYNC_LOCAL_READY_V1112' "$SOURCE_DIR/app/main.py" || die "v12.36 Main Web Player compatibility markers missing"
 # STREAMFORGE_V1222_MAIN_CACHED_STRICT_READY_GUARD:
-grep -Fq 'STREAMFORGE_MAIN_WEBPLAYER_CACHED_STRICT_READY_V1222' "$SOURCE_DIR/app/main.py" || die "v12.35 Main cached strict Web Player readiness missing"
+grep -Fq 'STREAMFORGE_MAIN_WEBPLAYER_CACHED_STRICT_READY_V1222' "$SOURCE_DIR/app/main.py" || die "v12.36 Main cached strict Web Player readiness missing"
 # STREAMFORGE_V1223_NODE_CATALOG_NO_SUPERVISOR_WAIT_GUARD:
-grep -Fq 'STREAMFORGE_NODE_CATALOG_NO_SUPERVISOR_WAIT_V1223' "$SOURCE_DIR/node_agent/app.py" || die "v12.35 Node catalogue no-supervisor-wait optimization missing"
+grep -Fq 'STREAMFORGE_NODE_CATALOG_NO_SUPERVISOR_WAIT_V1223' "$SOURCE_DIR/node_agent/app.py" || die "v12.36 Node catalogue no-supervisor-wait optimization missing"
 # STREAMFORGE_V1224_NODE_WEBPLAYER_HOT_PATH_GUARDS:
-grep -Fq 'STREAMFORGE_NODE_PARALLEL_CATALOG_READY_V1224' "$SOURCE_DIR/node_agent/app.py" || die "v12.35 Node parallel catalogue readiness missing"
-grep -Fq 'STREAMFORGE_NODE_WEBPLAYER_SINGLE_PAGE_GRANT_V1224' "$SOURCE_DIR/node_agent/app.py" || die "v12.35 Node single-page playback grant reuse missing"
+grep -Fq 'STREAMFORGE_NODE_PARALLEL_CATALOG_READY_V1224' "$SOURCE_DIR/node_agent/app.py" || die "v12.36 Node parallel catalogue readiness missing"
+grep -Fq 'STREAMFORGE_NODE_WEBPLAYER_SINGLE_PAGE_GRANT_V1224' "$SOURCE_DIR/node_agent/app.py" || die "v12.36 Node single-page playback grant reuse missing"
 # STREAMFORGE_V1225_NODE_FLAT_BOOTSTRAP_GUARDS:
-grep -Fq 'STREAMFORGE_NODE_WEBPLAYER_TWO_STAGE_NGINX_MEDIA_V1228' "$SOURCE_DIR/node_agent/app.py" || die "v12.35 Node two-stage Nginx media flow missing"
-grep -Fq 'STREAMFORGE_NODE_WEBPLAYER_ASYNC_VIEWER_TOUCH_V1225' "$SOURCE_DIR/node_agent/app.py" || die "v12.35 Node asynchronous viewer touch missing"
+grep -Fq 'STREAMFORGE_NODE_WEBPLAYER_TWO_STAGE_NGINX_MEDIA_V1228' "$SOURCE_DIR/node_agent/app.py" || die "v12.36 Node two-stage Nginx media flow missing"
+grep -Fq 'STREAMFORGE_NODE_WEBPLAYER_ASYNC_VIEWER_TOUCH_V1225' "$SOURCE_DIR/node_agent/app.py" || die "v12.36 Node asynchronous viewer touch missing"
 # STREAMFORGE_V1230_NODE_DIRECT_NGINX_INDEX_GUARD:
-grep -Fq 'STREAMFORGE_NODE_WEBPLAYER_DIRECT_NGINX_INDEX_V1230' "$SOURCE_DIR/node_agent/app.py" || die "v12.35 Node WebPlayer direct Nginx index missing"
+grep -Fq 'STREAMFORGE_NODE_WEBPLAYER_DIRECT_NGINX_INDEX_V1230' "$SOURCE_DIR/node_agent/app.py" || die "v12.36 Node WebPlayer direct Nginx index missing"
 # STREAMFORGE_V1231_NODE_LIVE_AUTH_BACKGROUND_REFRESH_GUARD:
-[[ "$(grep -Fc 'STREAMFORGE_NODE_LIVE_AUTH_BACKGROUND_REFRESH_V1231' "$SOURCE_DIR/node_agent/apply_node_tls.py")" -eq 2 ]] || die "v12.35 Node live-auth background refresh missing"
-[[ "$(grep -Fc 'proxy_cache_background_update on;' "$SOURCE_DIR/node_agent/apply_node_tls.py")" -eq 2 ]] || die "v12.35 Node live-auth background update directive missing"
+[[ "$(grep -Fc 'STREAMFORGE_NODE_LIVE_AUTH_BACKGROUND_REFRESH_V1231' "$SOURCE_DIR/node_agent/apply_node_tls.py")" -eq 2 ]] || die "v12.36 Node live-auth background refresh missing"
+[[ "$(grep -Fc 'proxy_cache_background_update on;' "$SOURCE_DIR/node_agent/apply_node_tls.py")" -eq 2 ]] || die "v12.36 Node live-auth background update directive missing"
 # STREAMFORGE_V1232_NODE_NGINX_RELOAD_DEDUP_GUARDS:
-grep -Fq 'STREAMFORGE_NODE_NGINX_RELOAD_DEDUP_V1232' "$SOURCE_DIR/node_agent/apply_node_tls.py" || die "v12.35 Node Nginx reload deduplication missing"
-grep -Fq 'NGINX_RUNTIME_FINGERPRINT' "$SOURCE_DIR/node_agent/apply_node_tls.py" || die "v12.35 Node Nginx runtime fingerprint missing"
-grep -Fq 'action = "restart" if _nginx_master_count() > 1 else "reload-or-restart"' "$SOURCE_DIR/node_agent/apply_node_tls.py" || die "v12.35 accumulated Nginx generation cleanup missing"
+grep -Fq 'STREAMFORGE_NODE_NGINX_RELOAD_DEDUP_V1232' "$SOURCE_DIR/node_agent/apply_node_tls.py" || die "v12.36 Node Nginx reload deduplication missing"
+grep -Fq 'NGINX_RUNTIME_FINGERPRINT' "$SOURCE_DIR/node_agent/apply_node_tls.py" || die "v12.36 Node Nginx runtime fingerprint missing"
+grep -Fq 'action = "restart" if _nginx_master_count() > 1 else "reload-or-restart"' "$SOURCE_DIR/node_agent/apply_node_tls.py" || die "v12.36 accumulated Nginx generation cleanup missing"
 # STREAMFORGE_V1233_NODE_DIRECT_MEDIA_NO_AIO_GUARDS:
-[[ "$(grep -Fc 'STREAMFORGE_NODE_DIRECT_MEDIA_SENDFILE_NO_AIO_V1233' "$SOURCE_DIR/node_agent/apply_node_tls.py")" -eq 2 ]] || die "v12.35 Node direct-media sendfile marker missing"
-! grep -Fq 'aio threads;' "$SOURCE_DIR/node_agent/apply_node_tls.py" || die "v12.35 Node direct-media AIO thread pools still present"
+[[ "$(grep -Fc 'STREAMFORGE_NODE_DIRECT_MEDIA_SENDFILE_NO_AIO_V1233' "$SOURCE_DIR/node_agent/apply_node_tls.py")" -eq 2 ]] || die "v12.36 Node direct-media sendfile marker missing"
+! grep -Fq 'aio threads;' "$SOURCE_DIR/node_agent/apply_node_tls.py" || die "v12.36 Node direct-media AIO thread pools still present"
 # STREAMFORGE_V1234_NODE_COLD_MEDIA_AUTH_GUARDS:
-grep -Fq 'STREAMFORGE_NODE_MEDIA_AUTH_COLD_PATH_V1234' "$SOURCE_DIR/node_agent/app.py" || die "v12.35 Node cold media-auth optimization missing"
-[[ "$(grep -Fc 'auth_request_set $sf_node_auth_timing $upstream_http_server_timing;' "$SOURCE_DIR/node_agent/apply_node_tls.py")" -eq 2 ]] || die "v12.35 Node auth timing propagation missing"
-[[ "$(grep -Fc 'add_header Server-Timing $sf_node_auth_timing always;' "$SOURCE_DIR/node_agent/apply_node_tls.py")" -eq 2 ]] || die "v12.35 Node auth timing response header missing"
+grep -Fq 'STREAMFORGE_NODE_MEDIA_AUTH_COLD_PATH_V1234' "$SOURCE_DIR/node_agent/app.py" || die "v12.36 Node cold media-auth optimization missing"
+[[ "$(grep -Fc 'auth_request_set $sf_node_auth_timing $upstream_http_server_timing;' "$SOURCE_DIR/node_agent/apply_node_tls.py")" -eq 2 ]] || die "v12.36 Node auth timing propagation missing"
+[[ "$(grep -Fc 'add_header Server-Timing $sf_node_auth_timing always;' "$SOURCE_DIR/node_agent/apply_node_tls.py")" -eq 2 ]] || die "v12.36 Node auth timing response header missing"
 # STREAMFORGE_V1235_NODE_WEBPLAYER_GRANT_MAP_GUARDS:
-grep -Fq 'STREAMFORGE_NODE_WEBPLAYER_GRANT_CHANNEL_MAP_V1235' "$SOURCE_DIR/node_agent/app.py" || die "v12.35 Node WebPlayer grant channel map missing"
-grep -Fq 'grant_scope = "web-map-v1235" if authorized_channels else "*"' "$SOURCE_DIR/node_agent/app.py" || die "v12.35 Node WebPlayer versioned grant scope missing"
-grep -Fq 'mapped_key = str(channel_map.get(str(channel_ref)) or "")' "$SOURCE_DIR/node_agent/app.py" || die "v12.35 Node direct grant-map resolution missing"
+grep -Fq 'STREAMFORGE_NODE_WEBPLAYER_GRANT_CHANNEL_MAP_V1235' "$SOURCE_DIR/node_agent/app.py" || die "v12.36 Node WebPlayer grant channel map missing"
+grep -Fq 'grant_scope = "web-map-v1235" if authorized_channels else "*"' "$SOURCE_DIR/node_agent/app.py" || die "v12.36 Node WebPlayer versioned grant scope missing"
+grep -Fq 'mapped_key = str(channel_map.get(str(channel_ref)) or "")' "$SOURCE_DIR/node_agent/app.py" || die "v12.36 Node direct grant-map resolution missing"
+# STREAMFORGE_V1236_NODE_ONE_SEGMENT_FAST_SWITCH_GUARDS:
+grep -Fq 'STREAMFORGE_NODE_WEBPLAYER_ONE_SEGMENT_FAST_SWITCH_V1236' "$SOURCE_DIR/node_agent/app.py" || die "v12.36 Node one-segment fast switch missing"
+grep -Fq 'liveSyncDurationCount:1,liveMaxLatencyDurationCount:3,startFragPrefetch:true' "$SOURCE_DIR/node_agent/app.py" || die "v12.36 Node fast-switch HLS profile missing"
 # STREAMFORGE_V123_LOGIN_STATIC_REGRESSION_GUARDS:
 # STREAMFORGE_V121_RUNTIME_AUDIT_FIX_GUARDS:
 grep -Fq 'STREAMFORGE_MAIN_PUBLIC_DESIRED_FFMPEG_RESERVE_V121' "$SOURCE_DIR/scripts/streamforge-public-start" || die "v12.1 Main desired-FFmpeg public worker reserve missing"
@@ -185,16 +188,16 @@ grep -Fq 'STREAMFORGE_NODE_LEGACY_XTREAM_DIRECT_NGINX_V127' "$SOURCE_DIR/node_ag
 grep -Fq 'STREAMFORGE_NODE_HTTP_HOST_ROOT_PUBLIC_BACKEND_V128' "$SOURCE_DIR/node_agent/apply_node_tls.py" || die "v12.8 HTTP Web Player Brand root public routing missing"
 grep -Fq 'def nginx_http_front_blocks(' "$SOURCE_DIR/node_agent/apply_node_tls.py" || die "v12.8 host-aware HTTP frontend builder missing"
 # STREAMFORGE_V129_NODE_PLAYLIST_USER_EXPIRY_EDIT_GUARD:
-grep -Fq 'STREAMFORGE_NODE_PLAYLIST_USER_EDIT_EXPIRY_V129' "$SOURCE_DIR/node_agent/app.py" || die "v12.35 Node Playlist User expiry edit support missing"
-grep -Fq 'current.expires_at = submitted_expires_at' "$SOURCE_DIR/node_agent/app.py" || die "v12.35 Node Playlist User expiry save path missing"
+grep -Fq 'STREAMFORGE_NODE_PLAYLIST_USER_EDIT_EXPIRY_V129' "$SOURCE_DIR/node_agent/app.py" || die "v12.36 Node Playlist User expiry edit support missing"
+grep -Fq 'current.expires_at = submitted_expires_at' "$SOURCE_DIR/node_agent/app.py" || die "v12.36 Node Playlist User expiry save path missing"
 # STREAMFORGE_V1210_NODE_PLAY_START_HOT_PATH_GUARDS:
-grep -Fq 'STREAMFORGE_NODE_PUBLIC_SHARED_PANEL_CONNECTIVITY_V1210' "$SOURCE_DIR/node_agent/app.py" || die "v12.35 shared Main-connectivity playback gate missing"
-grep -Fq 'PANEL_CONNECTIVITY_FILE' "$SOURCE_DIR/node_agent/app.py" || die "v12.35 shared Main-connectivity state file missing"
-grep -Fq 'STREAMFORGE_NODE_SHARED_HEARTBEAT_FAST_PRIME_V1210' "$SOURCE_DIR/node_agent/app.py" || die "v12.35 shared heartbeat startup prime missing"
-grep -Fq 'if NODE_MODE == "public":' "$SOURCE_DIR/node_agent/app.py" || die "v12.35 public workers can still run foreground Main heartbeat"
-grep -Fq 'STREAMFORGE_NODE_DIRECT_STREAM_SINGLE_READY_V1210' "$SOURCE_DIR/node_agent/app.py" || die "v12.35 single-channel direct readiness lookup missing"
-grep -Fq 'STREAMFORGE_NODE_DIRECT_STREAM_HLS_FAST_READY_V1210' "$SOURCE_DIR/node_agent/app.py" || die "v12.35 direct stream local-HLS readiness fast path missing"
-grep -Fq 'if channel is None or not _direct_channel_hls_ready(channel):' "$SOURCE_DIR/node_agent/app.py" || die "v12.35 direct stream lookup does not validate only selected HLS channel"
+grep -Fq 'STREAMFORGE_NODE_PUBLIC_SHARED_PANEL_CONNECTIVITY_V1210' "$SOURCE_DIR/node_agent/app.py" || die "v12.36 shared Main-connectivity playback gate missing"
+grep -Fq 'PANEL_CONNECTIVITY_FILE' "$SOURCE_DIR/node_agent/app.py" || die "v12.36 shared Main-connectivity state file missing"
+grep -Fq 'STREAMFORGE_NODE_SHARED_HEARTBEAT_FAST_PRIME_V1210' "$SOURCE_DIR/node_agent/app.py" || die "v12.36 shared heartbeat startup prime missing"
+grep -Fq 'if NODE_MODE == "public":' "$SOURCE_DIR/node_agent/app.py" || die "v12.36 public workers can still run foreground Main heartbeat"
+grep -Fq 'STREAMFORGE_NODE_DIRECT_STREAM_SINGLE_READY_V1210' "$SOURCE_DIR/node_agent/app.py" || die "v12.36 single-channel direct readiness lookup missing"
+grep -Fq 'STREAMFORGE_NODE_DIRECT_STREAM_HLS_FAST_READY_V1210' "$SOURCE_DIR/node_agent/app.py" || die "v12.36 direct stream local-HLS readiness fast path missing"
+grep -Fq 'if channel is None or not _direct_channel_hls_ready(channel):' "$SOURCE_DIR/node_agent/app.py" || die "v12.36 direct stream lookup does not validate only selected HLS channel"
 grep -Fq 'STREAMFORGE_HLSJS_VERSION:-1.7.1' "$SOURCE_DIR/scripts/fetch_hlsjs.sh" || die "v11.63 HLS.js 1.7.1 fetch default missing"
 # STREAMFORGE_V1151_PUBLIC_ALIAS_RUNTIME_RELOAD_GUARDS:
 grep -Fq 'STREAMFORGE_NODE_PUBLIC_OUTER_ACCESS_RELOAD_V1151' "$SOURCE_DIR/node_agent/app.py" || die "v11.51 outer access-policy reload missing"
@@ -2257,10 +2260,10 @@ grep -Fq 'Same Node configuration as Add manually, plus SSH installation' "$SOUR
 grep -Fq 'Node Panel/API access URLs' "$SOURCE_DIR/app/templates/node_install.html" || die "Auto install Panel/API URL textarea missing from package"
 grep -Fq 'Playlist/App access URLs' "$SOURCE_DIR/app/templates/node_install.html" || die "Auto install Playlist/App URL textarea missing from package"
 grep -Fq 'Verify HTTPS certificate' "$SOURCE_DIR/app/templates/node_install.html" || die "Auto install Verify TLS UI missing from package"
-grep -Fq '[[ "$(cat "$APP_DIR/VERSION")" == "12.35" ]]' "$SOURCE_UPDATER" || die "Live Main VERSION validator is stale in package"
-grep -Fq '[[ "$(cat "$APP_DIR/node_agent/VERSION")" == "12.35" ]]' "$SOURCE_UPDATER" || die "Live Node VERSION validator is stale in package"
+grep -Fq '[[ "$(cat "$APP_DIR/VERSION")" == "12.36" ]]' "$SOURCE_UPDATER" || die "Live Main VERSION validator is stale in package"
+grep -Fq '[[ "$(cat "$APP_DIR/node_agent/VERSION")" == "12.36" ]]' "$SOURCE_UPDATER" || die "Live Node VERSION validator is stale in package"
 grep -Fq 'STREAMFORGE_CANONICAL_PROTOCOL_REDIRECT_V35' "$SOURCE_DIR/app/main.py" || die "v3.5 Main protocol marker missing before install"
-grep -Fq '[[ "$LIVE_VERSION" == "12.35" ]]' "$SOURCE_UPDATER" || die "Live service VERSION validator is stale in package"
+grep -Fq '[[ "$LIVE_VERSION" == "12.36" ]]' "$SOURCE_UPDATER" || die "Live service VERSION validator is stale in package"
 grep -Fq 'set_env_default STREAMFORGE_FFPROBE_BIN /usr/bin/ffprobe' "$SOURCE_UPDATER" || die "Existing-install FFprobe config backfill missing from package"
 grep -Fq 'set_env_default STREAMFORGE_HTTP_USER_AGENT' "$SOURCE_UPDATER" || die "Existing-install HTTP User-Agent backfill missing from package"
 grep -Fq 'set_env_default STREAMFORGE_RELAY_BASE_URL' "$SOURCE_UPDATER" || die "Existing-install relay config backfill missing from package"
@@ -2725,7 +2728,7 @@ grep -Fq 'name="status"' "$SOURCE_DIR/app/templates/channels.html" || die "v11.2
 RUN_LEGACY_MIGRATIONS=1
 if version_ge "$INSTALLED_VERSION" "2.1.203"; then
   RUN_LEGACY_MIGRATIONS=0
-  log "Modern update detected ($INSTALLED_VERSION -> 12.35); historical migrations will NOT be replayed."
+  log "Modern update detected ($INSTALLED_VERSION -> 12.36); historical migrations will NOT be replayed."
 fi
 [[ -n "$BACKUP_VERSION_TAG" ]] || BACKUP_VERSION_TAG="unknown"
 BACKUP_DIR="$BACKUP_ROOT/pre-v${BACKUP_VERSION_TAG}-$TIMESTAMP"
@@ -3843,8 +3846,8 @@ import maxminddb
 print('templates and MaxMind dependency ok')
 PY
 
-[[ "$(cat "$APP_DIR/VERSION")" == "12.35" ]] || die "Live files still have the wrong version"
-[[ "$(cat "$APP_DIR/node_agent/VERSION")" == "12.35" ]] || die "Wrong packaged Node Agent version"
+[[ "$(cat "$APP_DIR/VERSION")" == "12.36" ]] || die "Live files still have the wrong version"
+[[ "$(cat "$APP_DIR/node_agent/VERSION")" == "12.36" ]] || die "Wrong packaged Node Agent version"
 grep -Eq '^yt-dlp\[default\]>=2026\.6\.9$' "$APP_DIR/requirements.txt" || die "Installed Main yt-dlp dependency is stale"
 grep -Eq '^yt-dlp\[default\]>=2026\.6\.9$' "$APP_DIR/node_agent/requirements.txt" || die "Installed Node yt-dlp dependency is stale"
 grep -Fq 'STREAMFORGE_MAIN_YOUTUBE_PROBE_TIMEOUT_V1014' "$APP_DIR/app/stream_info.py" || die "Installed Main YouTube probe timeout fix missing"
@@ -3905,17 +3908,19 @@ grep -Fq 'STREAMFORGE_NODE_MEDIA_AUTH_CLIENT_IP_V67' "$APP_DIR/node_agent/app.py
 grep -Fq 'STREAMFORGE_NODE_MEDIA_AUTH_PROXY_IP_V67' "$APP_DIR/node_agent/apply_node_tls.py" || die "Installed v6.8 Node Nginx media-auth proxy-IP fix missing"
 grep -Fq 'STREAMFORGE_NODE_LIVE_PLAYLIST_NO_OPEN_FILE_CACHE_V77' "$APP_DIR/node_agent/apply_node_tls.py" || die "Installed v7.9 Node live-playlist cache bypass missing"
 grep -Eq 'STREAMFORGE_NODE_(MULTI_URL_SAME_ORIGIN_MEDIA_V68|WEBPLAYER_TWO_STAGE_NGINX_MEDIA_V1228)' "$APP_DIR/node_agent/app.py" || die "Installed Node same-origin media path fix missing"
-grep -Fq 'STREAMFORGE_NODE_WEBPLAYER_DIRECT_NGINX_INDEX_V1230' "$APP_DIR/node_agent/app.py" || die "Installed v12.35 Node WebPlayer direct Nginx index missing"
-[[ "$(grep -Fc 'STREAMFORGE_NODE_LIVE_AUTH_BACKGROUND_REFRESH_V1231' "$APP_DIR/node_agent/apply_node_tls.py")" -eq 2 ]] || die "Installed v12.35 Node live-auth background refresh missing"
-[[ "$(grep -Fc 'proxy_cache_background_update on;' "$APP_DIR/node_agent/apply_node_tls.py")" -eq 2 ]] || die "Installed v12.35 Node live-auth background update directive missing"
-grep -Fq 'STREAMFORGE_NODE_NGINX_RELOAD_DEDUP_V1232' "$APP_DIR/node_agent/apply_node_tls.py" || die "Installed v12.35 Node Nginx reload deduplication missing"
-grep -Fq 'NGINX_RUNTIME_FINGERPRINT' "$APP_DIR/node_agent/apply_node_tls.py" || die "Installed v12.35 Node Nginx runtime fingerprint missing"
-[[ "$(grep -Fc 'STREAMFORGE_NODE_DIRECT_MEDIA_SENDFILE_NO_AIO_V1233' "$APP_DIR/node_agent/apply_node_tls.py")" -eq 2 ]] || die "Installed v12.35 Node direct-media sendfile marker missing"
-! grep -Fq 'aio threads;' "$APP_DIR/node_agent/apply_node_tls.py" || die "Installed v12.35 Node direct-media AIO thread pools still present"
-grep -Fq 'STREAMFORGE_NODE_MEDIA_AUTH_COLD_PATH_V1234' "$APP_DIR/node_agent/app.py" || die "Installed v12.35 Node cold media-auth optimization missing"
-[[ "$(grep -Fc 'auth_request_set $sf_node_auth_timing $upstream_http_server_timing;' "$APP_DIR/node_agent/apply_node_tls.py")" -eq 2 ]] || die "Installed v12.35 Node auth timing propagation missing"
-grep -Fq 'STREAMFORGE_NODE_WEBPLAYER_GRANT_CHANNEL_MAP_V1235' "$APP_DIR/node_agent/app.py" || die "Installed v12.35 Node WebPlayer grant channel map missing"
-grep -Fq 'grant_scope = "web-map-v1235" if authorized_channels else "*"' "$APP_DIR/node_agent/app.py" || die "Installed v12.35 Node WebPlayer versioned grant scope missing"
+grep -Fq 'STREAMFORGE_NODE_WEBPLAYER_DIRECT_NGINX_INDEX_V1230' "$APP_DIR/node_agent/app.py" || die "Installed v12.36 Node WebPlayer direct Nginx index missing"
+[[ "$(grep -Fc 'STREAMFORGE_NODE_LIVE_AUTH_BACKGROUND_REFRESH_V1231' "$APP_DIR/node_agent/apply_node_tls.py")" -eq 2 ]] || die "Installed v12.36 Node live-auth background refresh missing"
+[[ "$(grep -Fc 'proxy_cache_background_update on;' "$APP_DIR/node_agent/apply_node_tls.py")" -eq 2 ]] || die "Installed v12.36 Node live-auth background update directive missing"
+grep -Fq 'STREAMFORGE_NODE_NGINX_RELOAD_DEDUP_V1232' "$APP_DIR/node_agent/apply_node_tls.py" || die "Installed v12.36 Node Nginx reload deduplication missing"
+grep -Fq 'NGINX_RUNTIME_FINGERPRINT' "$APP_DIR/node_agent/apply_node_tls.py" || die "Installed v12.36 Node Nginx runtime fingerprint missing"
+[[ "$(grep -Fc 'STREAMFORGE_NODE_DIRECT_MEDIA_SENDFILE_NO_AIO_V1233' "$APP_DIR/node_agent/apply_node_tls.py")" -eq 2 ]] || die "Installed v12.36 Node direct-media sendfile marker missing"
+! grep -Fq 'aio threads;' "$APP_DIR/node_agent/apply_node_tls.py" || die "Installed v12.36 Node direct-media AIO thread pools still present"
+grep -Fq 'STREAMFORGE_NODE_MEDIA_AUTH_COLD_PATH_V1234' "$APP_DIR/node_agent/app.py" || die "Installed v12.36 Node cold media-auth optimization missing"
+[[ "$(grep -Fc 'auth_request_set $sf_node_auth_timing $upstream_http_server_timing;' "$APP_DIR/node_agent/apply_node_tls.py")" -eq 2 ]] || die "Installed v12.36 Node auth timing propagation missing"
+grep -Fq 'STREAMFORGE_NODE_WEBPLAYER_GRANT_CHANNEL_MAP_V1235' "$APP_DIR/node_agent/app.py" || die "Installed v12.36 Node WebPlayer grant channel map missing"
+grep -Fq 'grant_scope = "web-map-v1235" if authorized_channels else "*"' "$APP_DIR/node_agent/app.py" || die "Installed v12.36 Node WebPlayer versioned grant scope missing"
+grep -Fq 'STREAMFORGE_NODE_WEBPLAYER_ONE_SEGMENT_FAST_SWITCH_V1236' "$APP_DIR/node_agent/app.py" || die "Installed v12.36 Node one-segment fast switch missing"
+grep -Fq 'liveSyncDurationCount:1,liveMaxLatencyDurationCount:3,startFragPrefetch:true' "$APP_DIR/node_agent/app.py" || die "Installed v12.36 Node fast-switch HLS profile missing"
 grep -Fq 'STREAMFORGE_NODE_MULTI_URL_MEDIA_CLIENT_IP_V68' "$APP_DIR/node_agent/app.py" || die "Installed v6.8 Node multi-URL client-IP fix missing"
 grep -Fq 'STREAMFORGE_NODE_MULTI_URL_PROXY_CLIENT_IP_V68' "$APP_DIR/node_agent/apply_node_tls.py" || die "Installed v6.8 Node proxy client-IP forwarding fix missing"
 grep -Fq 'STREAMFORGE_BRANDED_BROWSER_TITLES_V68' "$APP_DIR/app/templates/base.html" || die "Installed v6.8 branded browser-title fix missing"
@@ -5353,7 +5358,7 @@ grep -Fq 'STREAMFORGE_PUBLIC_PLANE_NGINX_SPLIT_V62' /etc/nginx/sites-available/s
 grep -Fq 'STREAMFORGE_MAIN_ALIAS_LOGO_CANONICAL_UPSTREAM_V1057' /etc/nginx/sites-available/streamforge || die "Active v10.68 Main alias-logo URI normalization is missing"
 grep -Fq 'streamforge_public_backend' /etc/nginx/sites-available/streamforge || die "Active Nginx Public upstream is missing"
 LIVE_VERSION="$(curl -fsS --max-time 3 http://127.0.0.1:8800/version)"
-[[ "$LIVE_VERSION" == "12.35" ]] || die "Service is still running version $LIVE_VERSION"
+[[ "$LIVE_VERSION" == "12.36" ]] || die "Service is still running version $LIVE_VERSION"
 # STREAMFORGE_MAIN_SUPERVISOR_PROCESS_OWNERSHIP_VERIFY_V1115:
 # The Main Gunicorn worker must have zero direct FFmpeg children after migration.
 MAIN_MASTER_PID="$(systemctl show "$SERVICE_NAME" -p MainPID --value 2>/dev/null || true)"
@@ -6064,30 +6069,30 @@ grep -Fq 'STREAMFORGE_NODE_LEGACY_XTREAM_DIRECT_NGINX_V127' "$APP_DIR/node_agent
 grep -Fq 'STREAMFORGE_NODE_HTTP_HOST_ROOT_PUBLIC_BACKEND_V128' "$APP_DIR/node_agent/apply_node_tls.py" || die "Installed v12.8 HTTP Web Player Brand root public routing missing"
 grep -Fq 'def nginx_http_front_blocks(' "$APP_DIR/node_agent/apply_node_tls.py" || die "Installed v12.8 host-aware HTTP frontend builder missing"
 # STREAMFORGE_V129_NODE_PLAYLIST_USER_EXPIRY_EDIT_INSTALLED_GUARD:
-grep -Fq 'STREAMFORGE_NODE_PLAYLIST_USER_EDIT_EXPIRY_V129' "$APP_DIR/node_agent/app.py" || die "Installed v12.35 Node Playlist User expiry edit support missing"
-grep -Fq 'current.expires_at = submitted_expires_at' "$APP_DIR/node_agent/app.py" || die "Installed v12.35 Node Playlist User expiry save path missing"
+grep -Fq 'STREAMFORGE_NODE_PLAYLIST_USER_EDIT_EXPIRY_V129' "$APP_DIR/node_agent/app.py" || die "Installed v12.36 Node Playlist User expiry edit support missing"
+grep -Fq 'current.expires_at = submitted_expires_at' "$APP_DIR/node_agent/app.py" || die "Installed v12.36 Node Playlist User expiry save path missing"
 # STREAMFORGE_V1210_NODE_PLAY_START_HOT_PATH_INSTALLED_GUARDS:
-grep -Fq 'STREAMFORGE_NODE_PUBLIC_SHARED_PANEL_CONNECTIVITY_V1210' "$APP_DIR/node_agent/app.py" || die "Installed v12.35 shared Main-connectivity playback gate missing"
-grep -Fq 'PANEL_CONNECTIVITY_FILE' "$APP_DIR/node_agent/app.py" || die "Installed v12.35 shared Main-connectivity state file missing"
-grep -Fq 'STREAMFORGE_NODE_SHARED_HEARTBEAT_FAST_PRIME_V1210' "$APP_DIR/node_agent/app.py" || die "Installed v12.35 shared heartbeat startup prime missing"
-grep -Fq 'if NODE_MODE == "public":' "$APP_DIR/node_agent/app.py" || die "Installed v12.35 public workers can still run foreground Main heartbeat"
-grep -Fq 'STREAMFORGE_NODE_DIRECT_STREAM_SINGLE_READY_V1210' "$APP_DIR/node_agent/app.py" || die "Installed v12.35 single-channel direct readiness lookup missing"
-grep -Fq 'STREAMFORGE_NODE_DIRECT_STREAM_HLS_FAST_READY_V1210' "$APP_DIR/node_agent/app.py" || die "Installed v12.35 direct stream local-HLS readiness fast path missing"
-grep -Fq 'if channel is None or not _direct_channel_hls_ready(channel):' "$APP_DIR/node_agent/app.py" || die "Installed v12.35 direct stream lookup does not validate only selected HLS channel"
+grep -Fq 'STREAMFORGE_NODE_PUBLIC_SHARED_PANEL_CONNECTIVITY_V1210' "$APP_DIR/node_agent/app.py" || die "Installed v12.36 shared Main-connectivity playback gate missing"
+grep -Fq 'PANEL_CONNECTIVITY_FILE' "$APP_DIR/node_agent/app.py" || die "Installed v12.36 shared Main-connectivity state file missing"
+grep -Fq 'STREAMFORGE_NODE_SHARED_HEARTBEAT_FAST_PRIME_V1210' "$APP_DIR/node_agent/app.py" || die "Installed v12.36 shared heartbeat startup prime missing"
+grep -Fq 'if NODE_MODE == "public":' "$APP_DIR/node_agent/app.py" || die "Installed v12.36 public workers can still run foreground Main heartbeat"
+grep -Fq 'STREAMFORGE_NODE_DIRECT_STREAM_SINGLE_READY_V1210' "$APP_DIR/node_agent/app.py" || die "Installed v12.36 single-channel direct readiness lookup missing"
+grep -Fq 'STREAMFORGE_NODE_DIRECT_STREAM_HLS_FAST_READY_V1210' "$APP_DIR/node_agent/app.py" || die "Installed v12.36 direct stream local-HLS readiness fast path missing"
+grep -Fq 'if channel is None or not _direct_channel_hls_ready(channel):' "$APP_DIR/node_agent/app.py" || die "Installed v12.36 direct stream lookup does not validate only selected HLS channel"
 # STREAMFORGE_V1212_NODE_WEBPLAYER_IDENTITY_INSTALLED_GUARD:
-grep -Fq 'STREAMFORGE_NODE_WEBPLAYER_IDENTITY_DISK_AUTHORITATIVE_V1212' "$APP_DIR/node_agent/app.py" || die "Installed v12.35 Node Web Player live logo identity reload missing"
+grep -Fq 'STREAMFORGE_NODE_WEBPLAYER_IDENTITY_DISK_AUTHORITATIVE_V1212' "$APP_DIR/node_agent/app.py" || die "Installed v12.36 Node Web Player live logo identity reload missing"
 # STREAMFORGE_V1213_WEBPLAYER_BRAND_ASSET_ISOLATION_INSTALLED_GUARDS:
-grep -Fq 'STREAMFORGE_WEBPLAYER_BRAND_ASSET_ISOLATION_V1213' "$APP_DIR/app/main.py" || die "Installed v12.35 Main Web Player brand asset isolation missing"
-grep -Fq 'STREAMFORGE_NODE_WEBPLAYER_BRAND_ASSET_ISOLATION_V1213' "$APP_DIR/node_agent/app.py" || die "Installed v12.35 Node Web Player brand asset isolation missing"
+grep -Fq 'STREAMFORGE_WEBPLAYER_BRAND_ASSET_ISOLATION_V1213' "$APP_DIR/app/main.py" || die "Installed v12.36 Main Web Player brand asset isolation missing"
+grep -Fq 'STREAMFORGE_NODE_WEBPLAYER_BRAND_ASSET_ISOLATION_V1213' "$APP_DIR/node_agent/app.py" || die "Installed v12.36 Node Web Player brand asset isolation missing"
 # STREAMFORGE_V1214_WEBPLAYER_BRAND_SAVE_INSTALLED_GUARD:
-grep -Fq 'STREAMFORGE_WEBPLAYER_MAIN_SAVE_PRESERVE_BRANDS_V1214' "$APP_DIR/app/main.py" || die "Installed v12.35 Main Web Player save brand preservation missing"
+grep -Fq 'STREAMFORGE_WEBPLAYER_MAIN_SAVE_PRESERVE_BRANDS_V1214' "$APP_DIR/app/main.py" || die "Installed v12.36 Main Web Player save brand preservation missing"
 # STREAMFORGE_V1215_WEBPLAYER_START_LATENCY_INSTALLED_GUARDS:
-grep -Fq 'STREAMFORGE_NODE_WEBPLAYER_SAFE_PREFETCH_START_V1216' "$APP_DIR/node_agent/app.py" || die "Installed v12.35 Node Web Player safe-prefetch startup missing"
+grep -Fq 'STREAMFORGE_NODE_WEBPLAYER_SAFE_PREFETCH_START_V1216' "$APP_DIR/node_agent/app.py" || die "Installed v12.36 Node Web Player safe-prefetch startup missing"
 # STREAMFORGE_V1218_WEBPLAYER_RECONNECT_LOOP_INSTALLED_GUARDS:
-grep -Fq 'STREAMFORGE_MAIN_WEBPLAYER_SAFE_PREFETCH_START_V1216' "$APP_DIR/app/templates/player.html" || die "Installed v12.35 Main Web Player safe-prefetch startup missing"
+grep -Fq 'STREAMFORGE_MAIN_WEBPLAYER_SAFE_PREFETCH_START_V1216' "$APP_DIR/app/templates/player.html" || die "Installed v12.36 Main Web Player safe-prefetch startup missing"
 [[ -r /var/cache/streamforge/main-static/style.css ]] || die "Installed v12.3 published style.css missing"
 [[ -r /var/cache/streamforge/main-static/panel_nav.js ]] || die "Installed v12.3 published panel_nav.js missing"
-log "SUCCESS — StreamForge v12.35 is live."
+log "SUCCESS — StreamForge v12.36 is live."
 log "ASN database: $ASN_FILE"
 log "Country database: $COUNTRY_FILE"
 log "Backup: $BACKUP_DIR"
