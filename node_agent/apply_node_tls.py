@@ -9,6 +9,7 @@ route and publishes TLS-only Nginx listeners that proxy to the native Agent.
 from __future__ import annotations
 
 import ipaddress
+import hashlib
 import json
 import os
 import re
@@ -42,6 +43,7 @@ SITE_AVAILABLE = Path("/etc/nginx/sites-available/streamforge-node-tls")
 SITE_ENABLED = Path("/etc/nginx/sites-enabled/streamforge-node-tls")
 AUTH_CACHE_CONF = Path("/etc/nginx/conf.d/streamforge-node-auth-cache.conf")
 AUTH_CACHE_DIR = Path("/var/cache/nginx/streamforge-node-auth")
+NGINX_RUNTIME_FINGERPRINT = TLS_ROOT / "nginx-runtime.sha256"
 LETSENCRYPT_LIVE = Path("/etc/letsencrypt/live")
 STREAMFORGE_CERTBOT_BIN = Path("/opt/streamforge-certbot/bin/certbot")
 HOST_RE = re.compile(r"^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$", re.I)
@@ -917,6 +919,38 @@ def nginx_server(host: str, ports: set[int], control_backend_port: int, public_b
     ])
 
 
+def _nginx_runtime_fingerprint(config_text: str, cache_text: str) -> str:
+    """Track config and certificate contents so the 2-minute timer is a no-op."""
+    digest = hashlib.sha256()
+    digest.update(config_text.encode("utf-8"))
+    digest.update(b"\0")
+    digest.update(cache_text.encode("utf-8"))
+    certificate_paths = sorted(set(re.findall(
+        r"(?m)^\s*ssl_certificate(?:_key)?\s+([^;]+);", config_text
+    )))
+    for raw_path in certificate_paths:
+        path = Path(raw_path.strip().strip('"\''))
+        digest.update(b"\0")
+        digest.update(str(path).encode("utf-8", errors="replace"))
+        try:
+            digest.update(path.read_bytes())
+        except OSError:
+            digest.update(b"<missing>")
+    return digest.hexdigest()
+
+
+def _nginx_master_count() -> int:
+    count = 0
+    for cmdline in Path("/proc").glob("[0-9]*/cmdline"):
+        try:
+            command = cmdline.read_bytes().replace(b"\0", b" ").decode("utf-8", errors="ignore")
+        except OSError:
+            continue
+        if command.startswith("nginx: master process"):
+            count += 1
+    return count
+
+
 def install_nginx_config(blocks: list[str]) -> tuple[bool, str]:
     nginx = shutil.which("nginx")
     if not nginx:
@@ -926,6 +960,14 @@ def install_nginx_config(blocks: list[str]) -> tuple[bool, str]:
     previous = SITE_AVAILABLE.read_bytes() if SITE_AVAILABLE.exists() else None
     previous_link = SITE_ENABLED.is_symlink() or SITE_ENABLED.exists()
     previous_cache = AUTH_CACHE_CONF.read_bytes() if AUTH_CACHE_CONF.exists() else None
+    cache_text = (
+        "# STREAMFORGE_NODE_AUTH_CACHE_V65\n"
+        "proxy_cache_path /var/cache/nginx/streamforge-node-auth levels=1:2 "
+        "keys_zone=streamforge_node_auth:32m max_size=256m inactive=10m use_temp_path=off;\n"
+    ) if blocks else ""
+    config_text = "# Managed by StreamForge Remote Node TLS.\n# Native Node HTTP listener remains separate.\n\n" + "\n".join(blocks) if blocks else ""
+    previous_fingerprint = NGINX_RUNTIME_FINGERPRINT.read_text(encoding="utf-8", errors="ignore").strip() if NGINX_RUNTIME_FINGERPRINT.exists() else ""
+    desired_fingerprint = _nginx_runtime_fingerprint(config_text, cache_text)
     if blocks:
         AUTH_CACHE_CONF.parent.mkdir(parents=True, exist_ok=True)
         AUTH_CACHE_DIR.mkdir(parents=True, exist_ok=True)
@@ -933,16 +975,10 @@ def install_nginx_config(blocks: list[str]) -> tuple[bool, str]:
             shutil.chown(AUTH_CACHE_DIR, user="www-data", group="www-data")
         except Exception:
             pass
-        AUTH_CACHE_CONF.write_text(
-            "# STREAMFORGE_NODE_AUTH_CACHE_V65\n"
-            "proxy_cache_path /var/cache/nginx/streamforge-node-auth levels=1:2 "
-            "keys_zone=streamforge_node_auth:32m max_size=256m inactive=10m use_temp_path=off;\n",
-            encoding="utf-8",
-        )
+        AUTH_CACHE_CONF.write_text(cache_text, encoding="utf-8")
         os.chmod(AUTH_CACHE_CONF, 0o644)
-        text = "# Managed by StreamForge Remote Node TLS.\n# Native Node HTTP listener remains separate.\n\n" + "\n".join(blocks)
         temp = SITE_AVAILABLE.with_suffix(".tmp")
-        temp.write_text(text, encoding="utf-8")
+        temp.write_text(config_text, encoding="utf-8")
         os.chmod(temp, 0o644)
         temp.replace(SITE_AVAILABLE)
         if SITE_ENABLED.exists() or SITE_ENABLED.is_symlink():
@@ -969,9 +1005,21 @@ def install_nginx_config(blocks: list[str]) -> tuple[bool, str]:
             AUTH_CACHE_CONF.write_bytes(previous_cache)
         return False, (tested.stderr or tested.stdout or "nginx -t failed")[-3000:]
     subprocess.run(["systemctl", "enable", "nginx"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
-    reloaded = subprocess.run(["systemctl", "reload-or-restart", "nginx"], text=True, capture_output=True, check=False)
+    active = subprocess.run(["systemctl", "is-active", "--quiet", "nginx"], check=False).returncode == 0
+    # STREAMFORGE_NODE_NGINX_RELOAD_DEDUP_V1232: the TLS timer runs every two
+    # minutes. Reload only for an actual config/certificate change. Repeated
+    # no-op reloads otherwise strand old HLS keep-alive worker generations.
+    if active and previous_fingerprint == desired_fingerprint:
+        return True, "nginx HTTP/TLS listener configuration unchanged"
+    # Clean up already-accumulated generations once; future no-op timer runs
+    # are skipped by the fingerprint above.
+    action = "restart" if _nginx_master_count() > 1 else "reload-or-restart"
+    reloaded = subprocess.run(["systemctl", action, "nginx"], text=True, capture_output=True, check=False)
     if reloaded.returncode != 0:
         return False, (reloaded.stderr or reloaded.stdout or "nginx reload failed")[-3000:]
+    NGINX_RUNTIME_FINGERPRINT.parent.mkdir(parents=True, exist_ok=True)
+    NGINX_RUNTIME_FINGERPRINT.write_text(desired_fingerprint + "\n", encoding="utf-8")
+    os.chmod(NGINX_RUNTIME_FINGERPRINT, 0o600)
     return True, "nginx HTTP/TLS listener configuration applied"
 
 

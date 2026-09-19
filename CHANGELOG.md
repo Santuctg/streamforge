@@ -1,3 +1,10 @@
+## 12.32 - 2026-09-19
+
+- Stopped the two-minute Node TLS reconciliation timer from reloading Nginx when neither generated configuration nor certificate contents changed.
+- Added a persistent runtime fingerprint covering the managed Nginx configuration, authorization-cache configuration and referenced certificate/key contents.
+- Detects accumulated Nginx master generations and performs one clean restart during the first required reconciliation, preventing hundreds of stranded HLS keep-alive workers from causing intermittent login and playback latency.
+- Advanced the release updater to `force_update_v1232.sh`.
+
 ## 12.31 - 2026-09-18
 
 - Removed periodic live-playlist stalls caused by the first request after each two-second Nginx authorization-cache expiry waiting synchronously for Python/Redis.
