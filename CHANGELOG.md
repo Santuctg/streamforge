@@ -1,3 +1,10 @@
+## 12.33 - 2026-09-19
+
+- Removed per-worker Nginx AIO thread pools from Remote Node direct HLS segment delivery; a measured 40-worker Node was creating about 1,280 unnecessary threads and reporting 1,322 service tasks.
+- Retained zero-copy `sendfile`, `tcp_nopush` and segment `open_file_cache` for high-throughput local immutable HLS delivery.
+- Applied the fix to every managed HTTP and HTTPS Node frontend and added updater guards preventing `aio threads` from returning.
+- Advanced the release updater to `force_update_v1233.sh`.
+
 ## 12.32 - 2026-09-19
 
 - Stopped the two-minute Node TLS reconciliation timer from reloading Nginx when neither generated configuration nor certificate contents changed.
