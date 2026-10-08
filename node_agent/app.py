@@ -14773,10 +14773,8 @@ def _settings_page(user: PanelAccessUser, message: str = '', error: str = '') ->
     youtube_cookies_remove = '<label class="check"><input type="checkbox" name="remove_youtube_cookies_file"><span>Remove saved YouTube cookies</span></label>' if youtube_cookie_configured() else ''
     content = alert + f'''<div class="form-layout node-settings-layout">
 <section class="panel-form form-section">
-<div class="panel-head"><div><h2>Node access settings</h2><p>Configure the public Panel/API and Playlist/App aliases synchronized with the Main Server.</p></div></div>
+<div class="panel-head"><div><h2>Node access settings</h2><p>Configure Node operational, monitoring and security settings.</p></div></div>
 <form method="post" enctype="multipart/form-data" class="form-grid" id="node-settings-form">
-<label class="wide">Node Panel/API access URLs<textarea name="panel_urls" required>{panel_urls_value}</textarea><small class="field-help">One full URL per line. Without an explicit public port, HTTP uses 80 and HTTPS uses 443; the internal Node listener is separate. The saved scheme is canonical and opposite-protocol requests redirect automatically. Standalone Nodes use delegated DNS-01 managed TLS; even an HTTP-canonical hostname keeps a certificate on 443 so HTTPS mistakes can redirect to HTTP without a certificate warning.</small></label>
-<label class="wide">Playlist/App access URLs<textarea name="stream_urls" required>{stream_urls_value}</textarea><small class="field-help">One full URL per line. Public HTTP defaults to 80 and HTTPS to 443 when no port is written; backend listener ports remain separate. The saved scheme is canonical and opposite-protocol requests redirect automatically. Delegated DNS-01 certificates are independent of whether the hostname resolves to a public or private/local IP.</small></label>
 {_node_settings_tls_panel()}
 <label>Log retention<select name="log_retention_days">{''.join(f'<option value="{days}" {"selected" if days == log_retention_days else ""}>{days} day{"s" if days != 1 else ""}</option>' for days in [1,3,7,14,30,60,90,180,365])}</select><small class="field-help">Activity, Access, Client and System logs older than this are removed automatically.</small></label>
 <label>Metrics history retention (days)<input type="number" min="1" max="3650" name="metrics_retention_days" value="{metrics_retention_days}"></label>
@@ -14802,20 +14800,6 @@ def _settings_page(user: PanelAccessUser, message: str = '', error: str = '') ->
 <label class="check geo-maxmind-field"><input type="checkbox" name="remove_maxmind_key"><span>Remove saved MaxMind key</span></label>
 <div class="credential-card geo-maxmind-field"><span>MaxMind credentials</span><b>{maxmind_state}</b><small>Account ID: {maxmind_account or 'Not saved'} · {maxmind_saved}</small></div>
 
-<div class="wide settings-divider"><h3>Panel access rules</h3><p>Independent browser Panel policy. All configured rules must pass.</p></div>
-<div class="wide access-rule-row">
-<label>Panel IP whitelist<textarea name="panel_ip_whitelist">{html.escape(manager.panel_ip_whitelist)}</textarea></label>
-<label>Panel IP blacklist<textarea name="panel_ip_blacklist">{html.escape(manager.panel_ip_blacklist)}</textarea></label>
-<label>Panel ASN whitelist<textarea name="panel_asn_whitelist">{html.escape(manager.panel_asn_whitelist)}</textarea></label>
-<label>Panel ASN blacklist<textarea name="panel_asn_blacklist">{html.escape(manager.panel_asn_blacklist)}</textarea></label>
-</div>
-<div class="wide settings-divider"><h3>Playback & catalog access rules</h3><p>Playlist, Xtream, Web Player catalogue and playback policy. All configured rules must pass.</p></div>
-<div class="wide access-rule-row">
-<label>Playback IP whitelist<textarea name="ip_whitelist">{html.escape(manager.ip_whitelist)}</textarea></label>
-<label>Playback IP blacklist<textarea name="ip_blacklist">{html.escape(manager.ip_blacklist)}</textarea></label>
-<label>ASN whitelist<textarea name="asn_whitelist">{html.escape(manager.asn_whitelist)}</textarea></label>
-<label>ASN blacklist<textarea name="asn_blacklist">{html.escape(manager.asn_blacklist)}</textarea></label>
-</div>
 <div class="form-actions wide"><button>Save settings</button></div>
 </form>
 </section>
@@ -14976,8 +14960,10 @@ async def independent_settings_save(request: Request):
         # back-sync first; public listener/TLS changes are reconciled after the
         # response so saving Settings cannot tear down its own HTTPS request.
         manager.sync_access(AccessSettingsPayload(
-            panel_urls=str(f.get('panel_urls') or '').replace('\r','').split('\n'),
-            stream_urls=str(f.get('stream_urls') or '').replace('\r','').split('\n'),
+            # STREAMFORGE_NODE_ACCESS_PANEL_PRESERVE_CONFIG_V1240: these values are Main-managed;
+            # the standalone Node Settings page no longer exposes or clears them.
+            panel_urls=list(manager.panel_urls),
+            stream_urls=list(manager.stream_urls),
             access_slug="",
             stream_slug="",
             stream_port=None,
@@ -14986,12 +14972,12 @@ async def independent_settings_save(request: Request):
             # rewrites it when saving unrelated settings.
             total_max_connections=int(manager.total_max_connections),
             client_session_reset_offline_minutes=max(1, min(10080, int(f.get('client_session_reset_offline_minutes') or 60))),
-            panel_ip_whitelist=str(f.get('panel_ip_whitelist') or ''),
-            panel_ip_blacklist=str(f.get('panel_ip_blacklist') or ''),
-            panel_asn_whitelist=str(f.get('panel_asn_whitelist') or ''),
-            panel_asn_blacklist=str(f.get('panel_asn_blacklist') or ''),
-            ip_whitelist=str(f.get('ip_whitelist') or ''), ip_blacklist=str(f.get('ip_blacklist') or ''),
-            asn_whitelist=str(f.get('asn_whitelist') or ''), asn_blacklist=str(f.get('asn_blacklist') or ''),
+            panel_ip_whitelist=manager.panel_ip_whitelist,
+            panel_ip_blacklist=manager.panel_ip_blacklist,
+            panel_asn_whitelist=manager.panel_asn_whitelist,
+            panel_asn_blacklist=manager.panel_asn_blacklist,
+            ip_whitelist=manager.ip_whitelist, ip_blacklist=manager.ip_blacklist,
+            asn_whitelist=manager.asn_whitelist, asn_blacklist=manager.asn_blacklist,
         ), apply_listeners=False)
         try:
             manager.back_sync_access_to_main()
