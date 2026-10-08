@@ -1,3 +1,12 @@
+## 12.39 - 2026-10-09
+
+- Fixed the Remote Node TLS `PathChanged=` watcher causing PID 1/systemd to consume ~100% CPU after `tls-reconcile.request` was deleted by the reconciler.
+- Kept `/var/lib/streamforge-node/tls-reconcile.request` persistent across successful TLS reconciliation and seeded it before enabling the path watcher during install/update.
+- Guarded repeated `systemctl enable nginx` calls with `systemctl is-enabled --quiet nginx`, avoiding unnecessary systemd manager work during periodic TLS reconciliation.
+- Added a regression guard and GitHub Actions check for the persistent request-file behavior and conditional Nginx enable logic.
+- Production validation on the affected Node showed PID 1 current CPU at 0.00%, ~95% CPU idle, active TLS path/timer units, successful request-triggered TLS reconciliation, and the request file remaining present afterward.
+- Added `force_update_v1239.sh` as an update-safe bridge around the proven v12.36 full updater so existing installations can deploy the v12.39 source and Node Agent fixes through `streamforge-update`.
+
 ## 12.36 - 2026-09-19
 
 - Reduced measured post-auth WebPlayer channel-switch latency by moving the normal local-HLS profile from a two-segment to a one-segment live edge.

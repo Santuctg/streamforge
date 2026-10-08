@@ -1,0 +1,40 @@
+name: Release sanity
+
+on:
+  pull_request:
+    paths:
+      - VERSION
+      - node_agent/VERSION
+      - scripts/update.sh
+      - scripts/force_update_v*.sh
+      - scripts/verify_node_tls_reconcile_fix.py
+      - CHANGELOG.md
+      - .github/workflows/release-sanity.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify v12.39 versions and updater
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(tr -d '[:space:]' < VERSION)" == "12.39" ]]
+          [[ "$(tr -d '[:space:]' < node_agent/VERSION)" == "12.39" ]]
+          grep -Fq 'force_update_v1239.sh' scripts/update.sh
+          test -f scripts/force_update_v1239.sh
+          bash -n scripts/force_update_v1239.sh
+          bash -n scripts/update.sh
+      - name: Verify TLS regression guard
+        run: python3 scripts/verify_node_tls_reconcile_fix.py
+      - name: Verify release notes
+        shell: bash
+        run: grep -Fq '## 12.39 - 2026-10-09' CHANGELOG.md
+      - name: Check diff whitespace
+        run: git diff --check origin/main...HEAD
