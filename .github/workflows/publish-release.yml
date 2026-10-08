@@ -7,6 +7,7 @@ on:
     paths:
       - VERSION
       - CHANGELOG.md
+      - release-notes/**
       - .github/workflows/publish-release.yml
   workflow_dispatch:
 
@@ -44,11 +45,16 @@ jobs:
         run: |
           set -euo pipefail
           version="${{ steps.version.outputs.version }}"
-          awk -v version="$version" '
-            $0 ~ "^## " version "([[:space:]]|$)" {capture=1; next}
-            capture && /^## [0-9]+\.[0-9]+/ {exit}
-            capture {print}
-          ' CHANGELOG.md > release-notes.md
+          dedicated="release-notes/v${version}.md"
+          if [[ -s "$dedicated" ]]; then
+            cp "$dedicated" release-notes.md
+          else
+            awk -v version="$version" '
+              $0 ~ "^## " version "([[:space:]]|$)" {capture=1; next}
+              capture && /^## [0-9]+\.[0-9]+/ {exit}
+              capture {print}
+            ' CHANGELOG.md > release-notes.md
+          fi
           if [[ ! -s release-notes.md ]]; then
             printf 'StreamForge v%s\n' "$version" > release-notes.md
           fi
@@ -65,8 +71,8 @@ jobs:
             echo "Release $TAG already exists."
             exit 0
           fi
-          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
-            gh release create "$TAG"               --repo "$GITHUB_REPOSITORY"               --target "$GITHUB_SHA"               --title "StreamForge v$VERSION"               --notes-file release-notes.md
-          else
-            gh release create "$TAG"               --repo "$GITHUB_REPOSITORY"               --target "$GITHUB_SHA"               --title "StreamForge v$VERSION"               --notes-file release-notes.md
-          fi
+          gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "StreamForge v$VERSION" \
+            --notes-file release-notes.md
