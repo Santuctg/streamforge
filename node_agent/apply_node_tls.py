@@ -1012,7 +1012,8 @@ def install_nginx_config(blocks: list[str]) -> tuple[bool, str]:
         else:
             AUTH_CACHE_CONF.write_bytes(previous_cache)
         return False, (tested.stderr or tested.stdout or "nginx -t failed")[-3000:]
-    subprocess.run(["systemctl", "enable", "nginx"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    if subprocess.run(["systemctl", "is-enabled", "--quiet", "nginx"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False).returncode != 0:
+        subprocess.run(["systemctl", "enable", "nginx"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
     active = subprocess.run(["systemctl", "is-active", "--quiet", "nginx"], check=False).returncode == 0
     # STREAMFORGE_NODE_NGINX_RELOAD_DEDUP_V1232: the TLS timer runs every two
     # minutes. Reload only for an actual config/certificate change. Repeated
@@ -1106,7 +1107,8 @@ def bootstrap_http_front(access: dict[str, Any], control_port: int, control_back
     # possible.  This avoids dropping a valid 443 listener during a Node update.
     tested = subprocess.run([nginx, "-t"], text=True, capture_output=True, check=False)
     if tested.returncode == 0:
-        subprocess.run(["systemctl", "enable", "nginx"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+        if subprocess.run(["systemctl", "is-enabled", "--quiet", "nginx"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False).returncode != 0:
+            subprocess.run(["systemctl", "enable", "nginx"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
         restarted = subprocess.run(["systemctl", "reload-or-restart", "nginx"], text=True, capture_output=True, check=False)
         if restarted.returncode == 0 and http_front_health_ready(control_port, node_token):
             return True, "existing StreamForge nginx HTTP/TLS frontend is healthy"
@@ -1186,7 +1188,7 @@ def main() -> int:
         public_backend_port = 8821 if 8821 not in {control_port, control_backend_port} else 8822
     if external_proxy:
         write_status({"ok": True, "mode": "external-proxy", "message": "Co-located/Main proxy owns TLS", "updated_at": int(time.time())})
-        REQUEST_FILE.unlink(missing_ok=True)
+        # STREAMFORGE_NODE_TLS_REQUEST_PERSISTENT_V1239: keep request file for PathChanged watcher
         return 0
     access = load_access()
     # STREAMFORGE_NODE_HTTP_FRONT_BOOTSTRAP_CLI_V1032: installer-only fast path.
@@ -1254,7 +1256,7 @@ def main() -> int:
         "updated_at": int(time.time()),
     }
     write_status(payload)
-    REQUEST_FILE.unlink(missing_ok=True)
+    # STREAMFORGE_NODE_TLS_REQUEST_PERSISTENT_V1239: keep request file for PathChanged watcher
     # TLS provisioning is intentionally best-effort.  HTTP control must remain
     # online even when DNS/ACME is not ready yet; PathChanged/manual retry can
     # reconcile later without making Node Agent installation fail.
