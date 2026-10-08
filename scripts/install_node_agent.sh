@@ -537,6 +537,14 @@ PY2
 
   # STREAMFORGE_NODE_NATIVE_TLS_TRIGGER_V39: TLS is best-effort and never
   # takes the authenticated native HTTP Agent offline when DNS/ACME is pending.
+  # STREAMFORGE_NODE_TLS_REQUEST_PERSISTENT_V1239: PathChanged must always watch
+  # an existing request file. The reconciler keeps this file and later requests
+  # overwrite it, avoiding systemd's missing-path inotify re-arm loop.
+  if [[ ! -f /var/lib/streamforge-node/tls-reconcile.request ]]; then
+    printf '%s\n' '{"requested_at":0,"force_retry":false}' > /var/lib/streamforge-node/tls-reconcile.request
+    chown streamforge-node:streamforge-node /var/lib/streamforge-node/tls-reconcile.request
+    chmod 0644 /var/lib/streamforge-node/tls-reconcile.request
+  fi
   systemctl enable --now streamforge-node-tls.path streamforge-node-tls.timer >/dev/null 2>&1 || true
   # STREAMFORGE_NODE_DISABLE_DISTRO_CERTBOT_TIMER_V1032: isolated Certbot is
   # renewed by streamforge-node-tls.timer; do not run the distro Certbot timer
