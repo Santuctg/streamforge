@@ -22,23 +22,24 @@ for label in removed_from_node_ui:
     if label not in main_template:
         errors.append(f"Main server node form was unexpectedly changed: {label}")
 
-# Hidden/preserved values must remain available to the Node-side save flow so
-# removing visible controls cannot wipe existing access configuration.
-for marker in (
-    "STREAMFORGE_NODE_ACCESS_PANEL_PRESERVE_HIDDEN_V1240",
-    "name=\"api_url\"",
-    "name=\"playlist_url\"",
-    "name=\"panel_ip_whitelist\"",
-    "name=\"panel_ip_blacklist\"",
-    "name=\"panel_asn_whitelist\"",
-    "name=\"panel_asn_blacklist\"",
-    "name=\"ip_whitelist\"",
-    "name=\"ip_blacklist\"",
-    "name=\"asn_whitelist\"",
-    "name=\"asn_blacklist\"",
-):
+# Removing the controls must not erase values synchronized from Main. The
+# Node-side Settings POST path must carry the current manager values forward.
+required_preservation = (
+    "STREAMFORGE_NODE_ACCESS_PANEL_PRESERVE_CONFIG_V1240",
+    "panel_urls=list(manager.panel_urls)",
+    "stream_urls=list(manager.stream_urls)",
+    "panel_ip_whitelist=manager.panel_ip_whitelist",
+    "panel_ip_blacklist=manager.panel_ip_blacklist",
+    "panel_asn_whitelist=manager.panel_asn_whitelist",
+    "panel_asn_blacklist=manager.panel_asn_blacklist",
+    "ip_whitelist=manager.ip_whitelist",
+    "ip_blacklist=manager.ip_blacklist",
+    "asn_whitelist=manager.asn_whitelist",
+    "asn_blacklist=manager.asn_blacklist",
+)
+for marker in required_preservation:
     if marker not in source:
-        errors.append(f"Node Agent preservation marker/input missing: {marker}")
+        errors.append(f"Node Agent preservation logic missing: {marker}")
 
 if errors:
     raise SystemExit("\n".join(f"FAIL: {item}" for item in errors))
