@@ -8,6 +8,16 @@ Type=oneshot
 User=root
 Group=root
 EnvironmentFile=-/etc/streamforge-node.env
-ExecStart=/usr/bin/python3 /usr/local/libexec/streamforge-node/apply_node_tls.py
+# STREAMFORGE_NODE_TLS_REQUEST_PERSISTENT_V1239:
+# Run a root-owned transient copy of the packaged reconciler. Older packages
+# delete tls-reconcile.request after each run, which leaves PathChanged watching
+# a missing file and can drive PID 1 into an inotify re-arm loop. Also skip the
+# reconciler's unconditional nginx enable; enable it only when actually needed.
+RuntimeDirectory=streamforge-node-tls
+RuntimeDirectoryMode=0755
+ExecStartPre=/usr/bin/cp /usr/local/libexec/streamforge-node/apply_node_tls.py /run/streamforge-node-tls/apply_node_tls.py
+ExecStartPre=/usr/bin/sed -i -e '/^[[:space:]]*REQUEST_FILE\.unlink(missing_ok=True)$/d' -e '/^[[:space:]]*subprocess\.run(\["systemctl", "enable", "nginx"\], stdout=subprocess\.DEVNULL, stderr=subprocess\.DEVNULL, check=False)$/d' /run/streamforge-node-tls/apply_node_tls.py
+ExecStartPre=/bin/sh -c '/usr/bin/systemctl is-enabled --quiet nginx || /usr/bin/systemctl enable nginx'
+ExecStart=/usr/bin/python3 /run/streamforge-node-tls/apply_node_tls.py
 TimeoutStartSec=300
 Nice=5
