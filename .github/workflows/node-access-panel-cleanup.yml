@@ -22,12 +22,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: fix/node-access-panel-cleanup
+          fetch-depth: 0
       - name: Apply deterministic Node Access Panel cleanup
         run: python3 scripts/apply_node_access_panel_cleanup.py
       - name: Verify Python syntax
-        run: python3 -m py_compile node_agent/app.py
+        run: python3 -m compileall -q app node_agent scripts
       - name: Run Node Access Panel cleanup guard
         run: python3 scripts/verify_node_access_panel_cleanup.py
+      - name: Run existing Node TLS regression guard
+        run: python3 scripts/verify_node_tls_reconcile_fix.py
       - name: Check for stale Node settings form reads
         shell: bash
         run: |
@@ -36,6 +39,16 @@ jobs:
           ! grep -Fq "f.get('stream_urls')" node_agent/app.py
           ! grep -Fq "f.get('panel_ip_whitelist')" node_agent/app.py
           ! grep -Fq "f.get('ip_whitelist')" node_agent/app.py
+      - name: Verify updater and shell syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n scripts/update.sh
+          bash -n scripts/force_update_v1239.sh
+          bash -n scripts/streamforge-update
+          while IFS= read -r -d '' file; do bash -n "$file"; done < <(find scripts node_agent -maxdepth 1 -type f -name '*.sh' -print0)
+      - name: Check diff whitespace
+        run: git diff --check origin/main...HEAD
       - name: Commit generated Node Agent source
         if: github.event_name == 'push'
         shell: bash
