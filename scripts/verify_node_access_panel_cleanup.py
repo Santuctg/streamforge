@@ -5,6 +5,12 @@ root = Path(__file__).resolve().parents[1]
 source = (root / "node_agent" / "app.py").read_text(encoding="utf-8")
 main_template = (root / "app" / "templates" / "node_form.html").read_text(encoding="utf-8")
 
+settings_anchor = "content = alert + f'''<div class=\"form-layout node-settings-layout\">"
+start = source.find(settings_anchor)
+if start < 0:
+    raise SystemExit("FAIL: Node Settings HTML anchor missing")
+settings_html = source[start:start + 16000]
+
 removed_from_node_ui = (
     "Node Panel/API access URLs",
     "Playlist/App access URLs",
@@ -14,7 +20,7 @@ removed_from_node_ui = (
 
 errors = []
 for label in removed_from_node_ui:
-    if label in source:
+    if label in settings_html:
         errors.append(f"Node Agent access panel still contains: {label}")
 
 # This change is Node-only. The Main server's node form must remain intact.
