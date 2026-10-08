@@ -1,19 +1,15 @@
 name: Node access panel cleanup
 
 on:
-  push:
-    branches:
-      - fix/node-access-panel-cleanup
   pull_request:
     paths:
       - node_agent/app.py
       - app/templates/node_form.html
-      - scripts/apply_node_access_panel_cleanup.py
       - scripts/verify_node_access_panel_cleanup.py
       - .github/workflows/node-access-panel-cleanup.yml
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   verify:
@@ -21,10 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: fix/node-access-panel-cleanup
           fetch-depth: 0
-      - name: Apply deterministic Node Access Panel cleanup
-        run: python3 scripts/apply_node_access_panel_cleanup.py
       - name: Verify Python syntax
         run: python3 -m compileall -q app node_agent scripts
       - name: Run Node Access Panel cleanup guard
@@ -49,17 +42,3 @@ jobs:
           while IFS= read -r -d '' file; do bash -n "$file"; done < <(find scripts node_agent -maxdepth 1 -type f -name '*.sh' -print0)
       - name: Check diff whitespace
         run: git diff --check origin/main...HEAD
-      - name: Commit generated Node Agent source
-        if: github.event_name == 'push'
-        shell: bash
-        run: |
-          set -euo pipefail
-          if git diff --quiet -- node_agent/app.py; then
-            echo "Node Agent source already clean"
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add node_agent/app.py
-          git commit -m "fix: remove access controls from Node settings panel"
-          git push origin HEAD:fix/node-access-panel-cleanup
