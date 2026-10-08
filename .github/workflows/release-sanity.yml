@@ -8,7 +8,9 @@ on:
       - scripts/update.sh
       - scripts/force_update_v*.sh
       - scripts/verify_node_tls_reconcile_fix.py
-      - CHANGELOG.md
+      - scripts/verify_node_access_panel_cleanup.py
+      - release-notes/**
+      - .github/workflows/publish-release.yml
       - .github/workflows/release-sanity.yml
 
 permissions:
@@ -21,20 +23,28 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Verify v12.39 versions and updater
+      - name: Verify v12.40 versions and updater
         shell: bash
         run: |
           set -euo pipefail
-          [[ "$(tr -d '[:space:]' < VERSION)" == "12.39" ]]
-          [[ "$(tr -d '[:space:]' < node_agent/VERSION)" == "12.39" ]]
-          grep -Fq 'force_update_v1239.sh' scripts/update.sh
-          test -f scripts/force_update_v1239.sh
-          bash -n scripts/force_update_v1239.sh
+          [[ "$(tr -d '[:space:]' < VERSION)" == "12.40" ]]
+          [[ "$(tr -d '[:space:]' < node_agent/VERSION)" == "12.40" ]]
+          grep -Fq 'force_update_v1240.sh' scripts/update.sh
+          test -f scripts/force_update_v1240.sh
+          bash -n scripts/force_update_v1240.sh
           bash -n scripts/update.sh
+      - name: Verify Node Access Panel cleanup
+        run: python3 scripts/verify_node_access_panel_cleanup.py
       - name: Verify TLS regression guard
         run: python3 scripts/verify_node_tls_reconcile_fix.py
-      - name: Verify release notes
+      - name: Verify v12.40 release notes
         shell: bash
-        run: grep -Fq '## 12.39 - 2026-10-09' CHANGELOG.md
+        run: |
+          set -euo pipefail
+          test -s release-notes/v12.40.md
+          grep -Fq 'Node Access Panel cleanup' release-notes/v12.40.md
+          grep -Fq 'streamforge-update --force /root/streamforge-12.40.zip' release-notes/v12.40.md
+      - name: Verify Python syntax
+        run: python3 -m compileall -q app node_agent scripts
       - name: Check diff whitespace
         run: git diff --check origin/main...HEAD
