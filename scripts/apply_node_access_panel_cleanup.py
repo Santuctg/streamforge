@@ -5,6 +5,10 @@ path = Path(__file__).resolve().parents[1] / "node_agent" / "app.py"
 text = path.read_text(encoding="utf-8")
 original = text
 
+if "STREAMFORGE_NODE_ACCESS_PANEL_PRESERVE_CONFIG_V1240" in text:
+    print("Node Access Panel cleanup already applied")
+    raise SystemExit(0)
+
 replacements = {
     '<div class="panel-head"><div><h2>Node access settings</h2><p>Configure the public Panel/API and Playlist/App aliases synchronized with the Main Server.</p></div></div>':
         '<div class="panel-head"><div><h2>Node access settings</h2><p>Configure Node operational, monitoring and security settings.</p></div></div>',
