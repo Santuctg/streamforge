@@ -2,24 +2,52 @@
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
-source = (root / "node_agent" / "apply_node_tls.py").read_text(encoding="utf-8")
-installer = (root / "scripts" / "install_node_agent.sh").read_text(encoding="utf-8")
+source_path = root / "node_agent" / "apply_node_tls.py"
+service_path = root / "node_agent" / "deploy" / "streamforge-node-tls.service"
+source = source_path.read_text(encoding="utf-8")
+service = service_path.read_text(encoding="utf-8")
+
+unlink_line = "REQUEST_FILE.unlink(missing_ok=True)"
+enable_line = 'subprocess.run(["systemctl", "enable", "nginx"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)'
 
 errors = []
 
-if "REQUEST_FILE.unlink(missing_ok=True)" in source:
-    errors.append("apply_node_tls.py still deletes tls-reconcile.request")
+unlink_count = sum(line.strip() == unlink_line for line in source.splitlines())
+enable_count = sum(line.strip() == enable_line for line in source.splitlines())
+if unlink_count != 2:
+    errors.append(f"expected 2 legacy request-file unlink sites, found {unlink_count}")
+if enable_count != 2:
+    errors.append(f"expected 2 legacy unconditional nginx-enable sites, found {enable_count}")
 
-if 'subprocess.run(["systemctl", "is-enabled", "--quiet", "nginx"]' not in source:
-    errors.append("apply_node_tls.py lacks conditional nginx enable guard")
+required_service_fragments = [
+    "STREAMFORGE_NODE_TLS_REQUEST_PERSISTENT_V1239",
+    "RuntimeDirectory=streamforge-node-tls",
+    "ExecStartPre=/usr/bin/cp /usr/local/libexec/streamforge-node/apply_node_tls.py /run/streamforge-node-tls/apply_node_tls.py",
+    "REQUEST_FILE\\.unlink(missing_ok=True)",
+    'subprocess\\.run(\\["systemctl", "enable", "nginx"\\]',
+    "/usr/bin/systemctl is-enabled --quiet nginx || /usr/bin/systemctl enable nginx",
+    "ExecStart=/usr/bin/python3 /run/streamforge-node-tls/apply_node_tls.py",
+]
+for fragment in required_service_fragments:
+    if fragment not in service:
+        errors.append(f"service hardening fragment missing: {fragment}")
 
-if "STREAMFORGE_NODE_TLS_REQUEST_PERSISTENT" not in source:
-    errors.append("persistent TLS request marker missing")
-
-if "STREAMFORGE_NODE_TLS_REQUEST_PERSISTENT" not in installer:
-    errors.append("installer does not seed persistent tls-reconcile.request")
+# Mirror the two service sed deletions and compile the exact runtime source.
+runtime_lines = [
+    line for line in source.splitlines()
+    if line.strip() not in {unlink_line, enable_line}
+]
+runtime_source = "\n".join(runtime_lines) + "\n"
+if unlink_line in runtime_source:
+    errors.append("runtime source still deletes tls-reconcile.request")
+if enable_line in runtime_source:
+    errors.append("runtime source still unconditionally enables nginx")
+try:
+    compile(runtime_source, str(source_path), "exec")
+except SyntaxError as exc:
+    errors.append(f"runtime-filtered TLS helper does not compile: {exc}")
 
 if errors:
     raise SystemExit("\n".join(f"FAIL: {item}" for item in errors))
 
-print("Node TLS reconciliation regression guard: PASS")
+print("Node TLS reconciliation runtime hardening: PASS")
