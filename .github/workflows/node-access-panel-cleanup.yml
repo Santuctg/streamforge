@@ -8,33 +8,45 @@ on:
     paths:
       - node_agent/app.py
       - app/templates/node_form.html
+      - scripts/apply_node_access_panel_cleanup.py
       - scripts/verify_node_access_panel_cleanup.py
       - .github/workflows/node-access-panel-cleanup.yml
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Dump Node Access Panel contexts
-        shell: bash
-        run: |
-          set -u
-          for needle in \
-            'Node Panel/API access URLs' \
-            'Playlist/App access URLs' \
-            'Panel access rules' \
-            'Playback & catalog access rules' \
-            'panel_ip_whitelist' \
-            'ip_whitelist' \
-            'api_url' \
-            'playlist_url'
-          do
-            echo "===== $needle ====="
-            grep -n -F -C 8 -- "$needle" node_agent/app.py || true
-          done
+        with:
+          ref: fix/node-access-panel-cleanup
+      - name: Apply deterministic Node Access Panel cleanup
+        run: python3 scripts/apply_node_access_panel_cleanup.py
+      - name: Verify Python syntax
+        run: python3 -m py_compile node_agent/app.py
       - name: Run Node Access Panel cleanup guard
         run: python3 scripts/verify_node_access_panel_cleanup.py
+      - name: Check for stale Node settings form reads
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -Fq "f.get('panel_urls')" node_agent/app.py
+          ! grep -Fq "f.get('stream_urls')" node_agent/app.py
+          ! grep -Fq "f.get('panel_ip_whitelist')" node_agent/app.py
+          ! grep -Fq "f.get('ip_whitelist')" node_agent/app.py
+      - name: Commit generated Node Agent source
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- node_agent/app.py; then
+            echo "Node Agent source already clean"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add node_agent/app.py
+          git commit -m "fix: remove access controls from Node settings panel"
+          git push origin HEAD:fix/node-access-panel-cleanup
