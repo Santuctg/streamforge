@@ -1,0 +1,22 @@
+name: Node TLS regression
+
+on:
+  push:
+    branches:
+      - fix/node-tls-persistent-request
+  pull_request:
+    paths:
+      - 'node_agent/apply_node_tls.py'
+      - 'scripts/install_node_agent.sh'
+      - 'scripts/verify_node_tls_reconcile_fix.py'
+      - '.github/workflows/node-tls-regression.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify TLS reconcile invariants
+        run: python3 scripts/verify_node_tls_reconcile_fix.py
+      - name: Syntax check TLS helper
+        run: python3 -m py_compile node_agent/apply_node_tls.py
