@@ -19,5 +19,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Dump Node Access Panel contexts
+        shell: bash
+        run: |
+          set -u
+          for needle in \
+            'Node Panel/API access URLs' \
+            'Playlist/App access URLs' \
+            'Panel access rules' \
+            'Playback & catalog access rules' \
+            'panel_ip_whitelist' \
+            'ip_whitelist' \
+            'api_url' \
+            'playlist_url'
+          do
+            echo "===== $needle ====="
+            grep -n -F -C 8 -- "$needle" node_agent/app.py || true
+          done
       - name: Run Node Access Panel cleanup guard
         run: python3 scripts/verify_node_access_panel_cleanup.py
