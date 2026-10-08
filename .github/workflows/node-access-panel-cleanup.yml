@@ -1,0 +1,23 @@
+name: Node access panel cleanup
+
+on:
+  push:
+    branches:
+      - fix/node-access-panel-cleanup
+  pull_request:
+    paths:
+      - node_agent/app.py
+      - app/templates/node_form.html
+      - scripts/verify_node_access_panel_cleanup.py
+      - .github/workflows/node-access-panel-cleanup.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Node Access Panel cleanup guard
+        run: python3 scripts/verify_node_access_panel_cleanup.py
