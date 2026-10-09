@@ -1,0 +1,38 @@
+name: v12.44 dashboard datetime parity
+
+on:
+  push:
+    branches:
+      - feature/v12.44-dashboard-datetime
+  pull_request:
+    paths:
+      - app/static/dashboard.js
+      - node_agent/app.py
+      - scripts/verify_dashboard_datetime_parity_v1244.py
+      - .github/workflows/v1244-dashboard-datetime.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show Node dashboard chart context
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('node_agent/app.py')
+          lines=p.read_text(encoding='utf-8').splitlines()
+          keys=('toLocaleTimeString','Graph time span','data-metric-chart','metrics-history')
+          for i,line in enumerate(lines,1):
+              if any(k in line for k in keys):
+                  lo=max(1,i-2); hi=min(len(lines),i+2)
+                  print(f'--- {lo}:{hi} ---')
+                  for n in range(lo,hi+1):
+                      print(f'{n}: {lines[n-1]}')
+          PY
+      - name: Verify Main/Node date-time parity
+        run: python3 scripts/verify_dashboard_datetime_parity_v1244.py
