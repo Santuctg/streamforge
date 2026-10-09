@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-from app.recovery_policy import (
+from pathlib import Path
+import sys
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from app.recovery_policy import (  # noqa: E402
     dead_input_cycle_exhausted,
     dead_input_recovery_minutes,
     dead_input_recovery_seconds,
