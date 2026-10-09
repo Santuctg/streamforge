@@ -24,15 +24,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Verify v12.41 versions and updater
+      - name: Verify v12.42 versions and updater
         shell: bash
         run: |
           set -euo pipefail
-          [[ "$(tr -d '[:space:]' < VERSION)" == "12.41" ]]
-          [[ "$(tr -d '[:space:]' < node_agent/VERSION)" == "12.41" ]]
-          grep -Fq 'force_update_v1241.sh' scripts/update.sh
-          test -f scripts/force_update_v1241.sh
-          bash -n scripts/force_update_v1241.sh
+          [[ "$(tr -d '[:space:]' < VERSION)" == "12.42" ]]
+          [[ "$(tr -d '[:space:]' < node_agent/VERSION)" == "12.42" ]]
+          grep -Fq 'force_update_v1242.sh' scripts/update.sh
+          test -f scripts/force_update_v1242.sh
+          bash -n scripts/force_update_v1242.sh
           bash -n scripts/update.sh
       - name: Verify updater staging cleanup regression
         run: python3 scripts/verify_release_updater_staging.py
@@ -40,13 +40,17 @@ jobs:
         run: python3 scripts/verify_node_access_panel_cleanup.py
       - name: Verify TLS regression guard
         run: python3 scripts/verify_node_tls_reconcile_fix.py
-      - name: Verify v12.41 release notes
+      - name: Verify dead-input recovery regression
+        run: |
+          python3 scripts/verify_dead_input_recovery_interval_v1242.py
+          python3 scripts/verify_dead_input_recovery_policy_v1242.py
+      - name: Verify v12.42 release notes
         shell: bash
         run: |
           set -euo pipefail
-          test -s release-notes/v12.41.md
-          grep -Fq 'stale/duplicate force updater scripts' release-notes/v12.41.md
-          grep -Fq 'streamforge-update --force /root/streamforge-12.41.zip' release-notes/v12.41.md
+          test -s release-notes/v12.42.md
+          grep -Fq 'dead-input recovery interval' release-notes/v12.42.md
+          grep -Fq 'streamforge-update --force /root/streamforge-12.42.zip' release-notes/v12.42.md
       - name: Verify Python syntax
         run: python3 -m compileall -q app node_agent scripts
       - name: Check diff whitespace
