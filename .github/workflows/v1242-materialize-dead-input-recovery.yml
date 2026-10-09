@@ -21,8 +21,10 @@ jobs:
         run: python3 scripts/apply_v1242_dead_input_recovery.py .
       - name: Verify source guard
         run: python3 scripts/verify_dead_input_recovery_interval_v1242.py
+      - name: Verify recovery policy
+        run: python3 scripts/verify_dead_input_recovery_policy_v1242.py
       - name: Compile changed Python
-        run: python3 -m py_compile app/models.py app/db.py app/main.py app/ffmpeg.py scripts/apply_v1242_dead_input_recovery.py scripts/verify_dead_input_recovery_interval_v1242.py
+        run: python3 -m py_compile app/models.py app/db.py app/main.py app/ffmpeg.py app/recovery_policy.py scripts/apply_v1242_dead_input_recovery.py scripts/verify_dead_input_recovery_interval_v1242.py scripts/verify_dead_input_recovery_policy_v1242.py
       - name: Commit materialized source
         run: |
           if git diff --quiet; then
