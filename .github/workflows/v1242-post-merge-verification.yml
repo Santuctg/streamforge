@@ -1,0 +1,126 @@
+name: v12.42 Post-Merge Verification
+
+on:
+  push:
+    branches:
+      - verify/v12.42-post-merge
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout merged main commit
+        uses: actions/checkout@v4
+        with:
+          ref: 8e4f87bd912ebfb9a44530efb8fc3502c32b2018
+
+      - name: Install migration dependency
+        run: python3 -m pip install --disable-pip-version-check 'SQLAlchemy>=2,<3'
+
+      - name: Verify source wiring
+        run: python3 scripts/verify_dead_input_recovery_interval_v1242.py
+
+      - name: Verify recovery policy and 30-minute default
+        run: |
+          python3 scripts/verify_dead_input_recovery_policy_v1242.py
+          python3 - <<'PY'
+          from app.recovery_policy import (
+              dead_input_cycle_exhausted,
+              dead_input_recovery_minutes,
+              dead_input_recovery_seconds,
+          )
+
+          assert dead_input_recovery_minutes(None) == 30
+          assert dead_input_recovery_seconds(None) == 1800
+          for value in (5, 10, 15, 30, 60):
+              assert dead_input_recovery_minutes(value) == value
+              assert dead_input_recovery_seconds(value) == value * 60
+
+          assert dead_input_cycle_exhausted(1, 3) is False
+          assert dead_input_cycle_exhausted(2, 3) is False
+          assert dead_input_cycle_exhausted(3, 3) is True
+          assert dead_input_cycle_exhausted(1, 1) is True
+          print('OK: default=30 minutes, presets convert correctly, full-cycle threshold correct')
+          PY
+
+      - name: Verify scheduler wiring
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          text = Path('app/ffmpeg.py').read_text(encoding='utf-8')
+          required = {
+              'configured interval used for long delay': 'dead_input_recovery_seconds(configured_recovery)',
+              'short backoff retained before cycle exhaustion': 'else self._restart_delay(attempt)',
+              'consecutive failure counter reset after full cycle': 'self._restart_attempts[channel_id] = 0 if full_cycle_exhausted else attempt',
+              'new cycle resets to primary input': 'channel.active_input_index = 0',
+              'all inputs counted': 'source_count = max(1, len(self.input_urls(channel)))',
+          }
+          missing = [name for name, marker in required.items() if marker not in text]
+          for name in required:
+              print(('FAIL' if name in missing else 'OK') + ': ' + name)
+          if missing:
+              raise SystemExit('Missing scheduler behavior: ' + ', '.join(missing))
+          PY
+
+      - name: Verify additive SQLite migration and default
+        env:
+          STREAMFORGE_DATABASE_URL: sqlite:////tmp/streamforge-v1242-migration.db
+        run: |
+          rm -f /tmp/streamforge-v1242-migration.db
+          python3 - <<'PY'
+          import os
+          import sqlite3
+
+          path = '/tmp/streamforge-v1242-migration.db'
+          conn = sqlite3.connect(path)
+          conn.executescript('''
+          CREATE TABLE channel_categories (
+              id INTEGER PRIMARY KEY,
+              name TEXT
+          );
+          CREATE TABLE channels (
+              id INTEGER PRIMARY KEY,
+              name TEXT,
+              slug TEXT,
+              failback_interval INTEGER NOT NULL DEFAULT 30
+          );
+          INSERT INTO channels(id, name, slug, failback_interval)
+          VALUES (1, 'Legacy Channel', 'legacy-channel', 30);
+          ''')
+          conn.commit()
+          conn.close()
+
+          from app.db import ensure_runtime_schema
+
+          ensure_runtime_schema()
+          ensure_runtime_schema()  # idempotency check
+
+          conn = sqlite3.connect(path)
+          info = {row[1]: row for row in conn.execute('PRAGMA table_info(channels)')}
+          assert 'dead_input_recovery_interval' in info, info.keys()
+          column = info['dead_input_recovery_interval']
+          assert column[3] == 1, column  # NOT NULL
+          assert str(column[4]).strip("'") == '30', column
+
+          existing = conn.execute(
+              'SELECT dead_input_recovery_interval FROM channels WHERE id=1'
+          ).fetchone()[0]
+          assert existing == 30, existing
+
+          conn.execute("INSERT INTO channels(id, name, slug) VALUES (2, 'New Channel', 'new-channel')")
+          conn.commit()
+          inserted = conn.execute(
+              'SELECT dead_input_recovery_interval FROM channels WHERE id=2'
+          ).fetchone()[0]
+          assert inserted == 30, inserted
+          conn.close()
+
+          print('OK: additive migration is idempotent; existing/new rows default to 30 minutes')
+          PY
+
+      - name: Compile changed Python
+        run: >-
+          python3 -m py_compile
+          app/models.py app/db.py app/main.py app/ffmpeg.py app/recovery_policy.py
+          scripts/verify_dead_input_recovery_interval_v1242.py
+          scripts/verify_dead_input_recovery_policy_v1242.py
