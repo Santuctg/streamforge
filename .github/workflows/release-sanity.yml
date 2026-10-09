@@ -13,6 +13,7 @@ on:
       - scripts/verify_node_tls_reconcile_fix.py
       - scripts/verify_node_access_panel_cleanup.py
       - scripts/verify_v1243_schema_order.py
+      - scripts/verify_v1244_updater_carry.py
       - scripts/verify_dashboard_datetime_parity_v1244.py
       - release-notes/**
       - .github/workflows/publish-release.yml
@@ -50,12 +51,7 @@ jobs:
           python3 scripts/verify_dead_input_recovery_interval_v1242.py
           python3 scripts/verify_dead_input_recovery_policy_v1242.py
       - name: Verify schema-order hotfix carry-forward
-        shell: bash
-        run: |
-          set -euo pipefail
-          grep -Fq 'STREAMFORGE_V1244_DEAD_INPUT_SCHEMA_BEFORE_VERIFY' scripts/force_update_v1244.sh
-          grep -Fq 'ALTER TABLE channels ADD COLUMN dead_input_recovery_interval INTEGER NOT NULL DEFAULT 30' scripts/force_update_v1244.sh
-          grep -Fq "if 'dead_input_recovery_interval' not in columns:" scripts/force_update_v1244.sh
+        run: python3 scripts/verify_v1244_updater_carry.py
       - name: Verify Main/Node dashboard date-time parity
         run: python3 scripts/verify_dashboard_datetime_parity_v1244.py
       - name: Verify v12.44 release notes
