@@ -17,8 +17,13 @@ jobs:
         with:
           ref: hotfix/v12.42-dead-input-recovery
           fetch-depth: 0
-      - name: Apply v12.42 source patch
-        run: python3 scripts/apply_v1242_dead_input_recovery.py .
+      - name: Apply v12.42 source patch when needed
+        run: |
+          if grep -q 'STREAMFORGE_DEAD_INPUT_RECOVERY_INTERVAL_V1242' app/models.py; then
+            echo 'Base v12.42 source patch already materialized.'
+          else
+            python3 scripts/apply_v1242_dead_input_recovery.py .
+          fi
       - name: Refine consecutive dead-input cycle behavior
         run: python3 scripts/apply_v1242_dead_input_recovery_cycle_fix.py .
       - name: Verify source guard
