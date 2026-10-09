@@ -1,0 +1,33 @@
+name: v12.42 Dead Input Recovery Check
+
+on:
+  push:
+    branches:
+      - hotfix/v12.42-dead-input-recovery
+  pull_request:
+    paths:
+      - 'app/db.py'
+      - 'app/ffmpeg.py'
+      - 'app/main.py'
+      - 'app/models.py'
+      - 'app/recovery_policy.py'
+      - 'app/templates/channel_form.html'
+      - 'scripts/verify_dead_input_recovery_interval_v1242.py'
+      - 'scripts/verify_dead_input_recovery_policy_v1242.py'
+      - '.github/workflows/v1242-dead-input-recovery-check.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify source wiring
+        run: python3 scripts/verify_dead_input_recovery_interval_v1242.py
+      - name: Verify recovery policy
+        run: python3 scripts/verify_dead_input_recovery_policy_v1242.py
+      - name: Compile changed Python
+        run: >-
+          python3 -m py_compile
+          app/models.py app/db.py app/main.py app/ffmpeg.py app/recovery_policy.py
+          scripts/verify_dead_input_recovery_interval_v1242.py
+          scripts/verify_dead_input_recovery_policy_v1242.py

@@ -10848,6 +10848,7 @@ def channel_create(
     source_program_ids: list[str] = Form(default=[]),
     failback_enabled: Optional[str] = Form(None),
     failback_interval: int = Form(30),
+    dead_input_recovery_interval: int = Form(30),
     program_id: str = Form(""),
     category_id: str = Form(""),
     category_ids: list[int] = Form(default=[]),
@@ -10920,7 +10921,7 @@ def channel_create(
         return render(request, "channel_form.html", db, channel=None, categories=categories, nodes=nodes,
                       node_input_modes={}, node_encoding_profiles={}, error=str(exc), **encoder_template_context())
     channel = Channel(
-        name=name.strip(), slug=final_slug, input_url=input_url.strip(), backup_inputs=backup_inputs.strip() or None, active_input_index=0, failback_enabled=as_bool(failback_enabled), failback_interval=max(10, min(3600, int(failback_interval or 30))), logo_url=final_logo, program_id=normalized_program_ids[0] if normalized_program_ids else None, source_program_ids=json.dumps(normalized_program_ids), category=category, sort_order=next_channel_sort_order(db, category.id if category else None), node=assigned_nodes[0], nodes=assigned_nodes, enabled=as_bool(enabled),
+        name=name.strip(), slug=final_slug, input_url=input_url.strip(), backup_inputs=backup_inputs.strip() or None, active_input_index=0, failback_enabled=as_bool(failback_enabled), failback_interval=max(10, min(3600, int(failback_interval or 30))), dead_input_recovery_interval=max(1, min(1440, int(dead_input_recovery_interval or 30))), logo_url=final_logo, program_id=normalized_program_ids[0] if normalized_program_ids else None, source_program_ids=json.dumps(normalized_program_ids), category=category, sort_order=next_channel_sort_order(db, category.id if category else None), node=assigned_nodes[0], nodes=assigned_nodes, enabled=as_bool(enabled),
         auto_restart=as_bool(auto_restart), remote_input_mode="source",
         video_codec=normalize_video_codec(video_codec), video_bitrate=video_bitrate.strip(), width=to_int(width),
         height=to_int(height), fps=to_int(fps), preset=preset, audio_codec=audio_codec,
@@ -10977,6 +10978,7 @@ def channel_update(
     source_program_ids: list[str] = Form(default=[]),
     failback_enabled: Optional[str] = Form(None),
     failback_interval: int = Form(30),
+    dead_input_recovery_interval: int = Form(30),
     program_id: str = Form(""),
     category_id: str = Form(""),
     category_ids: list[int] = Form(default=[]),
@@ -11110,6 +11112,7 @@ def channel_update(
         channel.active_input_index = 0
         channel.failback_enabled = as_bool(failback_enabled)
         channel.failback_interval = max(10, min(3600, int(failback_interval or 30)))
+        channel.dead_input_recovery_interval = max(1, min(1440, int(dead_input_recovery_interval or 30)))
         channel.logo_url = final_logo
         channel.source_program_ids = json.dumps(normalized_program_ids)
         channel.program_id = normalized_program_ids[0] if normalized_program_ids else None

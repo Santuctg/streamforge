@@ -265,6 +265,9 @@ def ensure_runtime_schema() -> None:
             )
         if "failback_interval" not in columns:
             statements.append("ALTER TABLE channels ADD COLUMN failback_interval INTEGER NOT NULL DEFAULT 30")
+        # STREAMFORGE_DEAD_INPUT_RECOVERY_INTERVAL_V1242: additive per-channel long recovery interval, stored in minutes.
+        if "dead_input_recovery_interval" not in columns:
+            statements.append("ALTER TABLE channels ADD COLUMN dead_input_recovery_interval INTEGER NOT NULL DEFAULT 30")
 
     if "nodes" in table_names:
         node_columns = {column["name"] for column in inspector.get_columns("nodes")}

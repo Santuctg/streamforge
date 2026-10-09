@@ -21,6 +21,7 @@ from .models import Channel
 from .stream_info import probe_stream
 from .source_resolver import is_youtube_url, resolve_stream_source
 from .audit_log import log_event
+from .recovery_policy import dead_input_cycle_exhausted, dead_input_recovery_seconds
 
 
 _BITRATE_RE = re.compile(r"([0-9.]+)kbits/s")
@@ -933,17 +934,33 @@ class StreamManager:
         index = min(max(1, attempt), len(_AUTO_RESTART_DELAYS)) - 1
         return _AUTO_RESTART_DELAYS[index]
 
+    # STREAMFORGE_DEAD_INPUT_RECOVERY_INTERVAL_V1242:
+    # Keep normal source-to-source failover fast. After every configured input
+    # has failed consecutively, reset to primary and wait the per-channel long
+    # recovery interval before beginning a fresh input cycle.
     def _schedule_auto_restart(self, channel_id: int, reason: str | None = None) -> None:
-        """Schedule one recovery attempt with bounded exponential backoff."""
+        with SessionLocal() as db:
+            channel = db.get(Channel, channel_id)
+            if not channel or not channel.enabled or not channel.auto_restart:
+                return
+            source_count = max(1, len(self.input_urls(channel)))
+            configured_recovery = getattr(channel, "dead_input_recovery_interval", 30)
+
         with self._lock:
             if channel_id in self._intentional_stops:
                 return
-            existing = self._restart_timers.get(channel_id)
-            if existing and existing.is_alive():
+            # Presence reserves the slot even before Timer.start(), preventing
+            # concurrent FFmpeg waiter/start-error threads from double-scheduling.
+            if self._restart_timers.get(channel_id) is not None:
                 return
             attempt = self._restart_attempts.get(channel_id, 0) + 1
-            self._restart_attempts[channel_id] = attempt
-            delay = self._restart_delay(attempt)
+            full_cycle_exhausted = dead_input_cycle_exhausted(attempt, source_count)
+            delay = (
+                dead_input_recovery_seconds(configured_recovery)
+                if full_cycle_exhausted
+                else self._restart_delay(attempt)
+            )
+            self._restart_attempts[channel_id] = 0 if full_cycle_exhausted else attempt
             timer = threading.Timer(delay, self._run_auto_restart, args=(channel_id,))
             timer.daemon = True
             self._restart_timers[channel_id] = timer
@@ -954,12 +971,25 @@ class StreamManager:
                 with self._lock:
                     self._cancel_restart_timer_locked(channel_id)
                 return
+            with self._lock:
+                if channel_id in self._intentional_stops:
+                    self._cancel_restart_timer_locked(channel_id)
+                    return
+            if full_cycle_exhausted:
+                channel.active_input_index = 0
             channel.status = "restarting"
             channel.pid = None
             channel.live_bitrate_kbps = 0
             if reason and not channel.last_error:
                 channel.last_error = reason[-4000:]
+            if full_cycle_exhausted:
+                detail = str(channel.last_error or reason or "All configured inputs are unavailable").strip()
+                channel.last_error = (
+                    f"{detail} | all {source_count} input(s) failed; "
+                    f"next full input recovery in {delay // 60} minute(s)"
+                )[-4000:]
             db.commit()
+
         timer.start()
 
     def _run_auto_restart(self, channel_id: int) -> None:
@@ -985,6 +1015,7 @@ class StreamManager:
                     channel.status = "restarting"
                     channel.last_error = str(exc)[-4000:]
                     db.commit()
+            self._advance_input(channel_id)
             self._schedule_auto_restart(channel_id, str(exc))
 
     def start(self, channel_id: int, *, recovery: bool = False) -> None:
@@ -1404,7 +1435,9 @@ class StreamManager:
         log_event(f"Local FFmpeg exited with code {return_code}", scope="channel", level="warning" if should_restart else "info", channel_id=channel_id)
         if should_restart:
             self._advance_input(channel_id)
-            self._schedule_auto_restart(channel_id, failure_reason or f"FFmpeg exited with code {return_code}")
+            self._schedule_auto_restart(
+                channel_id, failure_reason or f"FFmpeg exited with code {return_code}"
+            )
 
     def stop(self, channel_id: int) -> None:
         with self._lock:
