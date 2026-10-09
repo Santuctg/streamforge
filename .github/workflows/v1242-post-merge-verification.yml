@@ -14,8 +14,8 @@ jobs:
         with:
           ref: 8e4f87bd912ebfb9a44530efb8fc3502c32b2018
 
-      - name: Install migration dependency
-        run: python3 -m pip install --disable-pip-version-check 'SQLAlchemy>=2,<3'
+      - name: Install verification dependencies
+        run: python3 -m pip install --disable-pip-version-check -r requirements.txt
 
       - name: Verify source wiring
         run: python3 scripts/verify_dead_input_recovery_interval_v1242.py
@@ -68,7 +68,6 @@ jobs:
         run: |
           rm -f /tmp/streamforge-v1242-migration.db
           python3 - <<'PY'
-          import os
           import sqlite3
 
           path = '/tmp/streamforge-v1242-migration.db'
@@ -93,13 +92,13 @@ jobs:
           from app.db import ensure_runtime_schema
 
           ensure_runtime_schema()
-          ensure_runtime_schema()  # idempotency check
+          ensure_runtime_schema()
 
           conn = sqlite3.connect(path)
           info = {row[1]: row for row in conn.execute('PRAGMA table_info(channels)')}
           assert 'dead_input_recovery_interval' in info, info.keys()
           column = info['dead_input_recovery_interval']
-          assert column[3] == 1, column  # NOT NULL
+          assert column[3] == 1, column
           assert str(column[4]).strip("'") == '30', column
 
           existing = conn.execute(
@@ -116,6 +115,137 @@ jobs:
           conn.close()
 
           print('OK: additive migration is idempotent; existing/new rows default to 30 minutes')
+          PY
+
+      - name: Live-simulate all inputs failing and recovery to primary
+        env:
+          STREAMFORGE_DATABASE_URL: sqlite:////tmp/streamforge-v1242-live-sim.db
+          STREAMFORGE_REDIS_ENABLED: '0'
+          STREAMFORGE_HLS_ROOT: /tmp/streamforge-v1242-hls
+        run: |
+          rm -f /tmp/streamforge-v1242-live-sim.db
+          rm -rf /tmp/streamforge-v1242-hls
+          python3 - <<'PY'
+          import threading
+
+          from app.db import Base, SessionLocal, engine
+          from app.models import Channel
+          import app.ffmpeg as ffmpeg_mod
+          from app.ffmpeg import StreamManager
+
+          Base.metadata.create_all(engine)
+
+          with SessionLocal() as db:
+              channel = Channel(
+                  name='Recovery Simulation',
+                  slug='recovery-simulation',
+                  input_url='http://dead-primary.invalid/live.m3u8',
+                  backup_inputs='http://dead-backup-1.invalid/live.m3u8\nhttp://dead-backup-2.invalid/live.m3u8',
+                  active_input_index=0,
+                  dead_input_recovery_interval=10,
+                  enabled=True,
+                  auto_restart=True,
+                  desired_running=True,
+                  status='running',
+              )
+              db.add(channel)
+              db.commit()
+              channel_id = channel.id
+
+          captured = []
+
+          class CaptureTimer:
+              def __init__(self, delay, function, args=(), kwargs=None):
+                  self.delay = delay
+                  self.function = function
+                  self.args = args
+                  self.kwargs = kwargs or {}
+                  self.daemon = False
+                  self.started = False
+                  self.cancelled = False
+                  captured.append(self)
+
+              def start(self):
+                  self.started = True
+
+              def cancel(self):
+                  self.cancelled = True
+
+              def is_alive(self):
+                  return self.started and not self.cancelled
+
+          real_timer = ffmpeg_mod.threading.Timer
+          ffmpeg_mod.threading.Timer = CaptureTimer
+          try:
+              manager = StreamManager()
+
+              def set_index(value):
+                  with SessionLocal() as db:
+                      row = db.get(Channel, channel_id)
+                      row.active_input_index = value
+                      db.commit()
+
+              def clear_reserved_timer():
+                  with manager._lock:
+                      manager._restart_timers.pop(channel_id, None)
+
+              # Failure #1: primary failed. Normal short retry/failover remains fast.
+              set_index(1)
+              manager._schedule_auto_restart(channel_id, 'simulated primary failure')
+              assert captured[-1].delay == 3, captured[-1].delay
+              print(f'OK: failure 1/3 scheduled quick retry in {captured[-1].delay}s')
+              clear_reserved_timer()
+
+              # Failure #2: backup #1 failed. Still short backoff.
+              set_index(2)
+              manager._schedule_auto_restart(channel_id, 'simulated backup 1 failure')
+              assert captured[-1].delay == 5, captured[-1].delay
+              print(f'OK: failure 2/3 scheduled quick retry in {captured[-1].delay}s')
+              clear_reserved_timer()
+
+              # Failure #3: backup #2 failed. Full cycle is exhausted.
+              manager._schedule_auto_restart(channel_id, 'simulated backup 2 failure')
+              long_timer = captured[-1]
+              assert long_timer.delay == 600, long_timer.delay
+
+              with SessionLocal() as db:
+                  row = db.get(Channel, channel_id)
+                  assert row.active_input_index == 0, row.active_input_index
+                  assert 'all 3 input(s) failed' in (row.last_error or ''), row.last_error
+                  assert 'next full input recovery in 10 minute(s)' in (row.last_error or ''), row.last_error
+              print('OK: all 3 inputs failed; configured recovery delay captured as 600s (10 minutes)')
+              print('OK: full failed cycle reset active_input_index to primary (0) before recovery')
+
+              observed = {}
+
+              def simulated_successful_start(cid, *, recovery=False):
+                  assert cid == channel_id
+                  assert recovery is True
+                  with SessionLocal() as db:
+                      row = db.get(Channel, cid)
+                      observed['input_index_at_recovery'] = row.active_input_index
+                      row.status = 'running'
+                      row.pid = 424242
+                      row.last_error = None
+                      db.commit()
+
+              manager.start = simulated_successful_start
+
+              # Fire the captured long-delay callback immediately; no wall-clock wait.
+              long_timer.function(*long_timer.args, **long_timer.kwargs)
+
+              with SessionLocal() as db:
+                  row = db.get(Channel, channel_id)
+                  assert observed['input_index_at_recovery'] == 0, observed
+                  assert row.active_input_index == 0, row.active_input_index
+                  assert row.status == 'running', row.status
+                  assert row.pid == 424242, row.pid
+
+              assert manager._restart_attempts.get(channel_id, 0) == 0
+              print('OK: recovery callback restarted from primary input and reached running state')
+              print('OK: consecutive failure counter remained reset for the new recovery cycle')
+          finally:
+              ffmpeg_mod.threading.Timer = real_timer
           PY
 
       - name: Compile changed Python
