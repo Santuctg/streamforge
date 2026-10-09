@@ -10,6 +10,7 @@ on:
       - scripts/verify_release_updater_staging.py
       - scripts/verify_node_tls_reconcile_fix.py
       - scripts/verify_node_access_panel_cleanup.py
+      - scripts/verify_v1243_schema_order.py
       - release-notes/**
       - .github/workflows/publish-release.yml
       - .github/workflows/release-sanity.yml
@@ -24,15 +25,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Verify v12.42 versions and updater
+      - name: Verify v12.43 versions and updater
         shell: bash
         run: |
           set -euo pipefail
-          [[ "$(tr -d '[:space:]' < VERSION)" == "12.42" ]]
-          [[ "$(tr -d '[:space:]' < node_agent/VERSION)" == "12.42" ]]
-          grep -Fq 'force_update_v1242.sh' scripts/update.sh
-          test -f scripts/force_update_v1242.sh
-          bash -n scripts/force_update_v1242.sh
+          [[ "$(tr -d '[:space:]' < VERSION)" == "12.43" ]]
+          [[ "$(tr -d '[:space:]' < node_agent/VERSION)" == "12.43" ]]
+          grep -Fq 'force_update_v1243.sh' scripts/update.sh
+          test -f scripts/force_update_v1243.sh
+          bash -n scripts/force_update_v1243.sh
           bash -n scripts/update.sh
       - name: Verify updater staging cleanup regression
         run: python3 scripts/verify_release_updater_staging.py
@@ -44,13 +45,15 @@ jobs:
         run: |
           python3 scripts/verify_dead_input_recovery_interval_v1242.py
           python3 scripts/verify_dead_input_recovery_policy_v1242.py
-      - name: Verify v12.42 release notes
+      - name: Verify v12.43 schema migration ordering
+        run: python3 scripts/verify_v1243_schema_order.py
+      - name: Verify v12.43 release notes
         shell: bash
         run: |
           set -euo pipefail
-          test -s release-notes/v12.42.md
-          grep -Fq 'dead-input recovery interval' release-notes/v12.42.md
-          grep -Fq 'streamforge-update --force /root/streamforge-12.42.zip' release-notes/v12.42.md
+          test -s release-notes/v12.43.md
+          grep -Fq 'before Main install verification' release-notes/v12.43.md
+          grep -Fq 'streamforge-update --force /root/streamforge-12.43.zip' release-notes/v12.43.md
       - name: Verify Python syntax
         run: python3 -m compileall -q app node_agent scripts
       - name: Check diff whitespace
