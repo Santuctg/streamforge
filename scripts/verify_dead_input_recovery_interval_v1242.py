@@ -13,11 +13,16 @@ checks = {
     "model field": "dead_input_recovery_interval" in model,
     "30 minute default": bool(re.search(r"dead_input_recovery_interval[^\n]*default=30", model)),
     "runtime schema default": "dead_input_recovery_interval INTEGER NOT NULL DEFAULT 30" in db,
-    "recovery scheduler uses channel interval": "_dead_input_recovery_delay" in ffmpeg and "full_cycle_exhausted" in ffmpeg,
+    "recovery scheduler uses consecutive-cycle policy": (
+        "dead_input_cycle_exhausted" in ffmpeg
+        and "dead_input_recovery_seconds" in ffmpeg
+        and "source_count = max(1, len(self.input_urls(channel)))" in ffmpeg
+    ),
     "form parses recovery interval": main.count("dead_input_recovery_interval: int = Form(30)") == 2,
     "create/edit persist recovery interval": "dead_input_recovery_interval=max(1, min(1440" in main and "channel.dead_input_recovery_interval = max(1, min(1440" in main,
     "form exposes recovery interval": "name=\"dead_input_recovery_interval\"" in template,
     "form offers common minute values": all(f'value=\"{value}\"' in template for value in (5, 10, 15, 30, 60)),
+    "full failed cycle resets to primary": "channel.active_input_index = 0" in ffmpeg,
 }
 
 failed = [name for name, ok in checks.items() if not ok]
