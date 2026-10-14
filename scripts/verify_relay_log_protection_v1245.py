@@ -11,7 +11,10 @@ errors=[]
 for name,text in files.items():
     if name == 'updater':
         continue
-    if 'STREAMFORGE_RELAY_ACCESS_LOG_POLICY_V1247' in text:
+    if any(marker in text for marker in (
+        'STREAMFORGE_RELAY_ACCESS_LOG_POLICY_V1247',
+        'STREAMFORGE_RELAY_ACCESS_LOG_POLICY_V1248',
+    )):
         required = (
             '~^409:',
             '~^410:',
