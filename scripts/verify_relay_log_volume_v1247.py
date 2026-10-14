@@ -32,6 +32,10 @@ for name, text in (("fresh Nginx config", deploy), ("runtime renderer", renderer
     for token in required_policy:
         if token not in text:
             errors.append(f"{name}: missing relay log policy token {token!r}")
+if r'\\.ts$ 0;' not in deploy:
+    errors.append("fresh Nginx config: missing escaped .ts suffix matcher")
+if r'\\\\.ts$ 0;' not in renderer:
+    errors.append("runtime renderer: missing Python-escaped .ts suffix matcher")
 
 access = "access_log /var/log/nginx/access.log combined if=$streamforge_relay_access_loggable;"
 def fallback_bodies(text: str):
@@ -53,7 +57,7 @@ if not updater:
 else:
     for token in (
         "STREAMFORGE_V1247_RELAY_LOG_POLICY",
-        "STREAMFORGE_V1247_SCHEMA_BEFORE_VERIFY",
+        "STREAMFORGE_V1247_DEAD_INPUT_SCHEMA_BEFORE_VERIFY",
         "STREAMFORGE_NGINX_LOGROTATE_HOURLY_V1247",
         "cron.hourly/streamforge-logrotate",
         "STREAMFORGE_RELAY_ACCESS_LOG_POLICY_V1247",
