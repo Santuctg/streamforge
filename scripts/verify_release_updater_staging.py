@@ -35,7 +35,22 @@ else:
             f"{updater.name} runs py_compile in SOURCE_DIR before staging and can create __pycache__"
         )
 
-    if not has_full_cleanup(text):
+    # STREAMFORGE_RELEASE_BOUNDED_MAIN_HOTFIX_V1253:
+    # A deliberately Main-only hotfix does not stage the whole release tree, so
+    # stale force-updater cleanup is not applicable. It must explicitly declare
+    # that scope, avoid a full SOURCE_DIR staging copy, preserve the Node version,
+    # and use non-writing syntax validation.
+    bounded_main_hotfix = "STREAMFORGE_MAIN_ONLY_HOTFIX_V1253" in text
+    if bounded_main_hotfix:
+        if 'cp -a "$SOURCE_DIR/." "$STAGE/"' in text:
+            errors.append(f"{updater.name} declares Main-only scope but copies the full release tree")
+        if "STREAMFORGE_V1253_NO_SOURCE_BYTECODE" not in text:
+            errors.append(f"{updater.name} Main-only scope lacks no-bytecode verification marker")
+        if 'NODE_TARGET_VERSION="12.52"' not in text:
+            errors.append(f"{updater.name} Main-only scope does not pin the unchanged Node Agent version")
+        if "Remote Node Agent is unchanged" not in text:
+            errors.append(f"{updater.name} Main-only scope does not explicitly preserve Remote Node Agent")
+    elif not has_full_cleanup(text):
         # STREAMFORGE_RELEASE_STAGING_DELEGATED_CLEANUP_V1251:
         # A thin current-version updater may delegate the full deployment to a
         # proven force-update bridge. In that case the staged bridge itself must
