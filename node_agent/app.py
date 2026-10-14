@@ -852,6 +852,9 @@ class Runtime:
         self.restart_attempt = 0
         self.restart_timer: threading.Timer | None = None
         self.active_input_index = max(0, int(config.active_input_index or 0))
+        # STREAMFORGE_NODE_RELAY_HEALTH_PROBE_SINGLE_OWNER_V1251:
+        # A channel may have only one Main-relay health request in flight.
+        self.relay_health_probe_in_flight = False
         self.relay_health_checked_at = 0.0
         self.relay_health_ready = False
         self.relay_health_detail = ""
@@ -5026,6 +5029,7 @@ class AgentManager:
             rt.live_fps = 0.0
             rt.started_at = time.monotonic()
             rt.updated_at = rt.started_at
+            rt.relay_health_probe_in_flight = False
             rt.relay_health_checked_at = 0.0
             rt.relay_health_ready = False
             rt.relay_health_detail = ""
@@ -5112,6 +5116,12 @@ class AgentManager:
                         if not rt.relay_health_ready:
                             continue
                     else:
+                        # STREAMFORGE_NODE_RELAY_HEALTH_PROBE_SINGLE_OWNER_V1251:
+                        # The stall watchdog and recovery timer share one per-channel
+                        # probe reservation so they can never hammer Main in parallel.
+                        if rt.relay_health_probe_in_flight:
+                            continue
+                        rt.relay_health_probe_in_flight = True
                         relay_probe_url = inputs[active_index]
                 if not relay_mode:
                     rt.last_error = f"No FFmpeg progress for {stall_seconds} seconds"
@@ -5120,6 +5130,8 @@ class AgentManager:
                 relay_ready, relay_detail = self.relay_playlist_health(relay_probe_url)
                 with self.lock:
                     rt = self.channels.get(key)
+                    if rt:
+                        rt.relay_health_probe_in_flight = False
                     if not rt or rt.process is not process or process.poll() is not None or rt.intentional_stop:
                         return
                     now = time.monotonic()
@@ -5373,14 +5385,20 @@ class AgentManager:
     def _recover(self, key: str) -> None:
         relay_probe_url = ""
         relay_mode = False
+        timer_to_start: threading.Timer | None = None
+        current_timer = threading.current_thread()
+        config: ChannelConfig | None = None
+
         with self.lock:
             rt = self.channels.get(key)
             if not rt or rt.intentional_stop:
                 return
-            # STREAMFORGE_NODE_RELAY_RESPAWN_HEALTH_GATE_V1147:
-            # The Timer invoking this recovery has fired. Clear its handle so a
-            # successful start or a newly scheduled health wait owns the slot.
-            rt.restart_timer = None
+            # STREAMFORGE_NODE_RELAY_HEALTH_PROBE_SINGLE_OWNER_V1251:
+            # Every scheduled recovery owns the exact Timer object stored on the
+            # Runtime. A stale Timer must never clear or replace a newer owner's
+            # reservation; that race previously multiplied health probes.
+            if rt.restart_timer is not current_timer:
+                return
             config = rt.config
             relay_mode = str(config.input_mode or "").strip().lower() == "local_relay"
             if relay_mode:
@@ -5388,19 +5406,33 @@ class AgentManager:
                 if inputs:
                     active_index = max(0, min(int(rt.active_input_index or 0), len(inputs) - 1))
                     relay_probe_url = inputs[active_index]
+                if relay_probe_url:
+                    if rt.relay_health_probe_in_flight:
+                        timer_to_start = threading.Timer(
+                            RELAY_RECOVERY_PROBE_SECONDS, self._recover, args=(key,)
+                        )
+                        timer_to_start.daemon = True
+                        rt.restart_timer = timer_to_start
+                    else:
+                        rt.relay_health_probe_in_flight = True
 
-        # STREAMFORGE_NODE_RELAY_RESPAWN_HEALTH_GATE_V1147:
-        # After an actual Local-relay FFmpeg exit, keep the channel Waiting and
-        # probe only the small Main manifest. Do not respawn FFmpeg/ffprobe until
-        # the relay is really back. This collapses the old process-spawn storm
-        # into one lightweight request every ~15 seconds.
+        if timer_to_start is not None:
+            timer_to_start.start()
+            return
+
         if relay_mode and relay_probe_url:
             relay_ready, relay_detail = self.relay_playlist_health(relay_probe_url)
             now = time.monotonic()
             should_log = False
             with self.lock:
                 rt = self.channels.get(key)
+                if rt:
+                    rt.relay_health_probe_in_flight = False
                 if not rt or rt.intentional_stop or not rt.desired_running or not rt.config.enabled:
+                    return
+                # A manual action or newer recovery may have replaced this owner
+                # while the HTTP request was in flight. Ignore the stale result.
+                if rt.restart_timer is not current_timer:
                     return
                 rt.relay_health_checked_at = now
                 rt.relay_health_ready = relay_ready
@@ -5417,6 +5449,7 @@ class AgentManager:
                     rt.restart_timer = timer
                 else:
                     timer = None
+                    rt.restart_timer = None
             if not relay_ready:
                 if should_log:
                     self.log(
@@ -5426,7 +5459,16 @@ class AgentManager:
                 self.save()
                 timer.start()
                 return
+        else:
+            # Non-relay recovery, or a relay without a probe URL, can release the
+            # Timer reservation immediately before entering the normal start path.
+            with self.lock:
+                rt = self.channels.get(key)
+                if not rt or rt.intentional_stop or rt.restart_timer is not current_timer:
+                    return
+                rt.restart_timer = None
 
+        assert config is not None
         try:
             # STREAMFORGE_NODE_GLOBAL_AUTO_START_PACER_V1052:
             # Synchronized retry timers share the same automatic-start budget.
