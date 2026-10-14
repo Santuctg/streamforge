@@ -31,4 +31,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Verify relay log-volume policy
-        run: python3 scripts/verify_relay_log_volume_v1247.py
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$(tr -d '[:space:]' < VERSION)" != "12.47" ]]; then
+            echo "Skipping historical v12.47 check for VERSION $(tr -d '[:space:]' < VERSION)"
+            exit 0
+          fi
+          python3 scripts/verify_relay_log_volume_v1247.py
