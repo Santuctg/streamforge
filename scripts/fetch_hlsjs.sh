@@ -6,7 +6,6 @@ VERSION="${STREAMFORGE_HLSJS_VERSION:-1.7.1}"
 mkdir -p "$(dirname "$TARGET")"
 
 URLS=(
-  "https://github.com/video-dev/hls.js/releases/download/v${VERSION}/hls.min.js"
   "https://cdn.jsdelivr.net/npm/hls.js@${VERSION}/dist/hls.min.js"
   "https://unpkg.com/hls.js@${VERSION}/dist/hls.min.js"
 )

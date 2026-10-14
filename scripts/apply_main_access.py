@@ -430,6 +430,7 @@ def relay_static_location() -> str:
     # STREAMFORGE_RELAY_MISS_PUBLIC_FALLBACK_V111: named miss handler keeps the
     # original /relay URI and deliberately does not intercept FastAPI 503/403.
     location @streamforge_relay_fallback {{
+        access_log /var/log/nginx/access.log combined if=$streamforge_relay_access_loggable;
         proxy_pass http://streamforge_public_backend;
 {proxy_header_lines()}
         proxy_set_header X-StreamForge-Internal-Relay-Fallback 1;
@@ -908,11 +909,13 @@ def render_config(
         "map $http_x_forwarded_port $streamforge_forwarded_port {\n"
         "    default $http_x_forwarded_port;\n"
         "    \"\" $server_port;\n}\n\n"
-        "# STREAMFORGE_RELAY_STATE_LOG_SUPPRESSION_V1245: suppress expected 409/410 relay states; keep other 4xx/5xx.\n"
-        "map $status $streamforge_relay_access_loggable {\n"
-        "    ~^409$ 0;\n"
-        "    ~^410$ 0;\n"
-        "    ~^[45] 1;\n"
+        "# STREAMFORGE_RELAY_ACCESS_LOG_POLICY_V1247: suppress expected relay segment 404s and client disconnects.\n"
+        "map \"$status:$uri\" $streamforge_relay_access_loggable {\n"
+        "    ~^409: 0;\n"
+        "    ~^410: 0;\n"
+        "    ~^404:/relay/[0-9a-f]{32}/[A-Za-z0-9_-]+/segment_[A-Za-z0-9_.-]+\\.ts$ 0;\n"
+        "    ~^499:/relay/ 0;\n"
+        "    ~^[45][0-9][0-9]: 1;\n"
         "    default 0;\n}\n\n"
         "upstream streamforge_main_backend {\n    server 127.0.0.1:8800;\n    keepalive 512;\n}\n\n"
         "upstream streamforge_public_backend {\n    server 127.0.0.1:8811;\n    keepalive 1024;\n}\n\n"
