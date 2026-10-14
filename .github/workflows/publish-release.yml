@@ -104,6 +104,23 @@ jobs:
               compile(path.read_text(encoding="utf-8"), str(path), "exec")
           print("PASS: v12.53 release source syntax verified without bytecode output")
           PYV1253
+          elif [[ "$version" == "12.54" ]]; then
+            # STREAMFORGE_V1254_MAIN_STATIC_CACHE_RELEASE_GUARD:
+            test "$(tr -d '[:space:]' < node_agent/VERSION)" = "12.52"
+            python3 scripts/verify_main_waiting_retry_v1253.py .
+            python3 scripts/test_main_static_cache_sync_v1254.py
+            python3 scripts/test_v1254_updater_static_cache_integration.py
+            python3 scripts/verify_release_updater_staging.py
+            grep -Fq 'STREAMFORGE_LOCAL_RELAY_DB_CLOSE_V1250' app/main.py
+            grep -Fq 'STREAMFORGE_NODE_RELAY_HEALTH_PROBE_SINGLE_OWNER_V1251' node_agent/app.py
+            grep -Fq 'STREAMFORGE_MAIN_STATIC_CACHE_SYNC_V1254' scripts/force_update_v1254.sh
+            grep -Fq 'STREAMFORGE_V1254_NO_SOURCE_BYTECODE' scripts/force_update_v1254.sh
+            python3 - <<'PYV1254'
+          from pathlib import Path
+          path = Path("scripts/sync_main_static_cache.py")
+          compile(path.read_text(encoding="utf-8"), str(path), "exec")
+          print("PASS: v12.54 release source syntax verified without bytecode output")
+          PYV1254
           fi
           echo "release_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
@@ -178,6 +195,21 @@ jobs:
               | grep -Fq 'STREAMFORGE_NODE_RELAY_HEALTH_PROBE_SINGLE_OWNER_V1251'
             unzip -p "$package" "streamforge-$VERSION/scripts/force_update_v1253.sh" \
               | grep -Fq 'STREAMFORGE_V1253_NO_SOURCE_BYTECODE'
+          fi
+          if [[ "$VERSION" == "12.54" ]]; then
+            unzip -p "$package" "streamforge-$VERSION/node_agent/VERSION" | grep -Fx '12.52'
+            unzip -p "$package" "streamforge-$VERSION/app/static/app.js" \
+              | grep -Fq 'STREAMFORGE_MAIN_WAITING_RECOVERY_V1253'
+            unzip -p "$package" "streamforge-$VERSION/app/main.py" \
+              | grep -Fq 'STREAMFORGE_LOCAL_RELAY_DB_CLOSE_V1250'
+            unzip -p "$package" "streamforge-$VERSION/node_agent/app.py" \
+              | grep -Fq 'STREAMFORGE_NODE_RELAY_HEALTH_PROBE_SINGLE_OWNER_V1251'
+            unzip -p "$package" "streamforge-$VERSION/scripts/force_update_v1254.sh" \
+              | grep -Fq 'STREAMFORGE_MAIN_STATIC_CACHE_SYNC_V1254'
+            unzip -p "$package" "streamforge-$VERSION/scripts/force_update_v1254.sh" \
+              | grep -Fq 'STREAMFORGE_V1254_NO_SOURCE_BYTECODE'
+            unzip -p "$package" "streamforge-$VERSION/scripts/sync_main_static_cache.py" \
+              | grep -Fq 'STREAMFORGE_MAIN_STATIC_CACHE_SYNC_V1254'
           fi
 
           gh release upload "$TAG" "$package" \
