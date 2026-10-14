@@ -1,0 +1,77 @@
+name: V12.51 Node Relay Probe Dedupe
+
+on:
+  push:
+    branches:
+      - main
+      - fix/v12.51-node-relay-probe-dedupe
+    paths:
+      - VERSION
+      - node_agent/VERSION
+      - node_agent/app.py
+      - scripts/apply_v1251_node_recovery_probe_fix.py
+      - scripts/verify_node_relay_probe_dedupe_v1251.py
+      - scripts/force_update_v1251.sh
+      - .github/workflows/v1251-node-relay-probe-dedupe.yml
+  pull_request:
+    paths:
+      - VERSION
+      - node_agent/VERSION
+      - node_agent/app.py
+      - scripts/apply_v1251_node_recovery_probe_fix.py
+      - scripts/verify_node_relay_probe_dedupe_v1251.py
+      - scripts/force_update_v1251.sh
+      - .github/workflows/v1251-node-relay-probe-dedupe.yml
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply or verify V1251 source fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          marker='STREAMFORGE_NODE_RELAY_HEALTH_PROBE_SINGLE_OWNER_V1251'
+          if grep -Fq "$marker" node_agent/app.py; then
+            python3 scripts/verify_node_relay_probe_dedupe_v1251.py node_agent/app.py
+          else
+            # RED: the pre-fix source must fail the regression verifier.
+            if python3 scripts/verify_node_relay_probe_dedupe_v1251.py node_agent/app.py; then
+              echo "Expected unpatched Node source to fail V1251 verifier" >&2
+              exit 1
+            fi
+            python3 scripts/apply_v1251_node_recovery_probe_fix.py node_agent/app.py
+          fi
+          python3 -m py_compile node_agent/app.py
+          python3 scripts/verify_node_relay_probe_dedupe_v1251.py node_agent/app.py
+
+      - name: Verify patcher idempotence
+        shell: bash
+        run: |
+          set -euo pipefail
+          result="$(python3 scripts/apply_v1251_node_recovery_probe_fix.py node_agent/app.py)"
+          test "$result" = "ALREADY_FIXED"
+          python3 scripts/verify_node_relay_probe_dedupe_v1251.py node_agent/app.py
+
+      - name: Verify v12.51 full-updater bridge
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n scripts/force_update_v1251.sh
+          cp scripts/force_update_v1248.sh /tmp/force_update_v1248-v1251-test.sh
+          python3 - /tmp/force_update_v1248-v1251-test.sh <<'PY'
+          from pathlib import Path
+          import sys
+          path = Path(sys.argv[1])
+          text = path.read_text(encoding="utf-8")
+          if '"12.48"' not in text or '12.36", "12.48' not in text:
+              raise SystemExit("v12.51 bridge could not identify v12.48 guards")
+          text = text.replace("12.48", "12.51")
+          path.write_text(text, encoding="utf-8")
+          PY
+          bash -n /tmp/force_update_v1248-v1251-test.sh
+          grep -Fq '== "12.51"' /tmp/force_update_v1248-v1251-test.sh
+          grep -Fq '12.36", "12.51' /tmp/force_update_v1248-v1251-test.sh

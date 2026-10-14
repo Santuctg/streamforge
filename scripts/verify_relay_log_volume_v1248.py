@@ -15,8 +15,21 @@ updater = updater_path.read_text(encoding="utf-8") if updater_path.exists() else
 
 errors = []
 
-if version != "12.48" or node_version != "12.48":
-    errors.append(f"versions must both be 12.48 (Main={version}, Node={node_version})")
+
+def version_tuple(value: str) -> tuple[int, ...]:
+    try:
+        return tuple(int(part) for part in value.split("."))
+    except ValueError:
+        return ()
+
+
+# STREAMFORGE_V1248_REGRESSION_CARRY_FORWARD:
+# This verifier protects behavior introduced in v12.48, so later releases must
+# keep passing it instead of failing merely because VERSION advanced.
+if not version_tuple(version) or version_tuple(version) < (12, 48):
+    errors.append(f"Main version must be v12.48 or newer (Main={version})")
+if not version_tuple(node_version) or version_tuple(node_version) < (12, 48):
+    errors.append(f"Node version must be v12.48 or newer (Node={node_version})")
 
 required_policy = (
     '$status:$uri',
