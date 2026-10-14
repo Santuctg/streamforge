@@ -46,7 +46,7 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$(tr -d '[:space:]' < VERSION)" == "12.48" ]]
-          [[ "$(tr -d '[:space:]' < node_agent/VERSION)" == "12.47" ]]
+          [[ "$(tr -d '[:space:]' < node_agent/VERSION)" == "12.48" ]]
           grep -Fq 'force_update_v1248.sh' scripts/update.sh
           test -f scripts/force_update_v1248.sh
           bash -n scripts/force_update_v1248.sh
