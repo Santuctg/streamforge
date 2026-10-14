@@ -1,0 +1,23 @@
+name: v12.46 updater relay guard
+
+on:
+  push:
+    branches:
+      - hotfix/v12.46-updater-relay-guard
+  pull_request:
+    paths:
+      - scripts/force_update_v1246.sh
+      - scripts/verify_v1246_updater_relay_guard.py
+      - VERSION
+      - node_agent/VERSION
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify updater relay guard compatibility
+        run: python3 scripts/verify_v1246_updater_relay_guard.py
