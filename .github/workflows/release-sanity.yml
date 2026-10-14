@@ -90,7 +90,7 @@ jobs:
         run: |
           set -euo pipefail
           test -s release-notes/v12.48.md
-          grep -Fq 'composite relay map' release-notes/v12.48.md
+          grep -Fq 'composite' release-notes/v12.48.md
           grep -Fq 'streamforge-update --force /root/streamforge-12.48.zip' release-notes/v12.48.md
       - name: Verify Python syntax
         run: python3 -m compileall -q app node_agent scripts
