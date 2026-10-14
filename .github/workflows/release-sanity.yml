@@ -18,11 +18,13 @@ on:
       - scripts/verify_v1244_updater_carry.py
       - scripts/verify_dashboard_datetime_parity_v1244.py
       - scripts/verify_relay_log_protection_v1245.py
+      - scripts/verify_v1246_updater_relay_guard.py
       - release-notes/**
       - .github/workflows/publish-release.yml
       - .github/workflows/release-sanity.yml
       - .github/workflows/v1244-dashboard-datetime.yml
       - .github/workflows/v1245-relay-log-protection.yml
+      - .github/workflows/v1246-updater-relay-guard.yml
 
 permissions:
   contents: read
@@ -34,15 +36,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Verify v12.45 versions and updater
+      - name: Verify v12.46 versions and updater
         shell: bash
         run: |
           set -euo pipefail
-          [[ "$(tr -d '[:space:]' < VERSION)" == "12.45" ]]
-          [[ "$(tr -d '[:space:]' < node_agent/VERSION)" == "12.45" ]]
-          grep -Fq 'force_update_v1245.sh' scripts/update.sh
-          test -f scripts/force_update_v1245.sh
-          bash -n scripts/force_update_v1245.sh
+          [[ "$(tr -d '[:space:]' < VERSION)" == "12.46" ]]
+          [[ "$(tr -d '[:space:]' < node_agent/VERSION)" == "12.46" ]]
+          grep -Fq 'force_update_v1246.sh' scripts/update.sh
+          test -f scripts/force_update_v1246.sh
+          bash -n scripts/force_update_v1246.sh
           bash -n scripts/update.sh
       - name: Verify updater staging cleanup regression
         run: python3 scripts/verify_release_updater_staging.py
@@ -60,14 +62,15 @@ jobs:
         run: python3 scripts/verify_dashboard_datetime_parity_v1244.py
       - name: Verify v12.45 relay log protection
         run: python3 scripts/verify_relay_log_protection_v1245.py
-      - name: Verify v12.45 release notes
+      - name: Verify v12.46 updater relay guard compatibility
+        run: python3 scripts/verify_v1246_updater_relay_guard.py
+      - name: Verify v12.46 release notes
         shell: bash
         run: |
           set -euo pipefail
-          test -s release-notes/v12.45.md
-          grep -Fq '409' release-notes/v12.45.md
-          grep -Fq 'maxsize 100M' release-notes/v12.45.md
-          grep -Fq 'streamforge-update --force /root/streamforge-12.45.zip' release-notes/v12.45.md
+          test -s release-notes/v12.46.md
+          grep -Fq 'v10.68 fresh relay access-log filter missing' release-notes/v12.46.md
+          grep -Fq 'streamforge-update --force /root/streamforge-12.46.zip' release-notes/v12.46.md
       - name: Verify Python syntax
         run: python3 -m compileall -q app node_agent scripts
       - name: Check diff whitespace
