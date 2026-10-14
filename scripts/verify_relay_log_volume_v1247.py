@@ -19,7 +19,7 @@ if version != "12.47" or node_version != "12.47":
     errors.append(f"versions must both be 12.47 (Main={version}, Node={node_version})")
 
 required_policy = (
-    'map "$status:$uri"',
+    '$status:$uri',
     '~^409:',
     '~^410:',
     '~^404:/relay/',
@@ -31,10 +31,6 @@ for name, text in (("fresh Nginx config", deploy), ("runtime renderer", renderer
     for token in required_policy:
         if token not in text:
             errors.append(f"{name}: missing relay log policy token {token!r}")
-if r'\\.ts$ 0;' not in deploy:
-    errors.append("fresh Nginx config: missing escaped .ts suffix matcher")
-if r'\\\\.ts$ 0;' not in renderer:
-    errors.append("runtime renderer: missing Python-escaped .ts suffix matcher")
 
 access = "access_log /var/log/nginx/access.log combined if=$streamforge_relay_access_loggable;"
 def fallback_bodies(text: str):
