@@ -3,8 +3,6 @@ name: v12.48 relay log-volume and updater fix
 on:
   push:
     paths:
-      - VERSION
-      - node_agent/VERSION
       - deploy/nginx.conf
       - scripts/apply_main_access.py
       - scripts/fetch_hlsjs.sh
@@ -14,8 +12,6 @@ on:
       - .github/workflows/v1248-relay-log-volume.yml
   pull_request:
     paths:
-      - VERSION
-      - node_agent/VERSION
       - deploy/nginx.conf
       - scripts/apply_main_access.py
       - scripts/fetch_hlsjs.sh
