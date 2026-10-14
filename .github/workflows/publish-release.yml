@@ -59,7 +59,7 @@ jobs:
             printf 'StreamForge v%s\n' "$version" > release-notes.md
           fi
 
-      - name: Publish tag and GitHub Release
+      - name: Publish tag, GitHub Release, and update ZIP
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.version.outputs.tag }}
@@ -67,12 +67,26 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Release $TAG already exists."
-            exit 0
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "StreamForge v$VERSION" \
+              --notes-file release-notes.md
+          else
+            echo "Release $TAG already exists; ensuring its update ZIP is present."
           fi
-          gh release create "$TAG" \
-            --repo "$GITHUB_REPOSITORY" \
-            --target "$GITHUB_SHA" \
-            --title "StreamForge v$VERSION" \
-            --notes-file release-notes.md
+
+          # Package the exact release tag with one top-level directory so
+          # streamforge-update receives the expected source tree.
+          git fetch --tags --force
+          package="streamforge-$VERSION.zip"
+          git archive --format=zip --prefix="streamforge-$VERSION/" "$TAG" -o "$package"
+          test -s "$package"
+          unzip -l "$package" | grep -F "streamforge-$VERSION/VERSION"
+          unzip -p "$package" "streamforge-$VERSION/VERSION" | grep -Fx "$VERSION"
+
+          # Existing releases can be repaired safely; replace the same-named
+          # asset if a previous workflow attempt uploaded an incomplete package.
+          gh release upload "$TAG" "$package" \
+            --repo "$GITHUB_REPOSITORY" --clobber
