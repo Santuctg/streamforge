@@ -1,3 +1,11 @@
+## 12.47 - 2026-10-14
+
+- Fixed Nginx internal relay fallback logging so the status-aware access-log policy is applied after `try_files` redirects to `@streamforge_relay_fallback`.
+- Suppressed high-volume stale relay segment 404s and relay client-disconnect 499s while retaining playlist 503s and other diagnostic errors.
+- Added hourly logrotate execution so the 100 MB max-size rule is checked throughout the day; retained seven compressed rotations.
+- Removed the known-bad HLS.js GitHub release URL that caused a harmless 404 before CDN fallback.
+- Preserved rollback safety, additive schema ordering, and Main/Node dashboard date/time parity.
+
 ## 12.39 - 2026-10-09
 
 - Fixed the Remote Node TLS `PathChanged=` watcher causing PID 1/systemd to consume ~100% CPU after `tls-reconcile.request` was deleted by the reconciler.
