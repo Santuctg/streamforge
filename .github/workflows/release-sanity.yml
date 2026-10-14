@@ -17,11 +17,14 @@ on:
       - scripts/verify_v1243_schema_order.py
       - scripts/verify_v1244_updater_carry.py
       - scripts/verify_dashboard_datetime_parity_v1244.py
+      - scripts/verify_dead_input_recovery_interval_v1242.py
+      - scripts/verify_dead_input_recovery_policy_v1242.py
       - scripts/verify_relay_log_protection_v1245.py
       - scripts/verify_v1246_updater_relay_guard.py
       - scripts/verify_relay_log_volume_v1247.py
       - scripts/verify_relay_log_volume_v1248.py
       - scripts/verify_node_relay_probe_dedupe_v1251.py
+      - scripts/verify_main_waiting_retry_v1253.py
       - scripts/fetch_hlsjs.sh
       - release-notes/**
       - .github/workflows/publish-release.yml
@@ -32,6 +35,7 @@ on:
       - .github/workflows/v1247-relay-log-volume.yml
       - .github/workflows/v1248-relay-log-volume.yml
       - .github/workflows/v1251-node-relay-probe-dedupe.yml
+      - .github/workflows/v1253-main-waiting-retry.yml
 
 permissions:
   contents: read
@@ -51,7 +55,14 @@ jobs:
           node_version="$(tr -d '[:space:]' < node_agent/VERSION)"
           [[ "$version" =~ ^[0-9]+\.[0-9]+$ ]]
           [[ "$node_version" =~ ^[0-9]+\.[0-9]+$ ]]
-          [[ "$node_version" == "$version" ]]
+          # STREAMFORGE_V1253_MAIN_ONLY_RELEASE_SANITY:
+          # v12.53 changes Main recovery/UI only; the tested Node Agent remains
+          # v12.52 and must not be republished merely to match the Main number.
+          if [[ "$version" == "12.53" ]]; then
+            [[ "$node_version" == "12.52" ]]
+          else
+            [[ "$node_version" == "$version" ]]
+          fi
           compact="${version//./}"
           updater="scripts/force_update_v${compact}.sh"
           test -f "$updater"
@@ -86,6 +97,15 @@ jobs:
             python3 scripts/apply_v1251_node_recovery_probe_fix.py node_agent/app.py
             python3 scripts/verify_node_relay_probe_dedupe_v1251.py node_agent/app.py
             python3 -m py_compile node_agent/app.py
+          else
+            python3 scripts/verify_node_relay_probe_dedupe_v1251.py node_agent/app.py
+          fi
+      - name: Verify v12.53 Main waiting recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$(tr -d '[:space:]' < VERSION)" == "12.53" ]]; then
+            python3 scripts/verify_main_waiting_retry_v1253.py .
           fi
       - name: Verify v12.46 release notes
         shell: bash

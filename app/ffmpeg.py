@@ -10,6 +10,7 @@ import subprocess
 import threading
 import time
 from collections import deque
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from sqlalchemy import select, text, update
@@ -21,7 +22,7 @@ from .models import Channel
 from .stream_info import probe_stream
 from .source_resolver import is_youtube_url, resolve_stream_source
 from .audit_log import log_event
-from .recovery_policy import dead_input_cycle_exhausted, dead_input_recovery_seconds
+from .recovery_policy import MAIN_WAITING_RETRY_SECONDS, dead_input_cycle_exhausted
 
 
 _BITRATE_RE = re.compile(r"([0-9.]+)kbits/s")
@@ -79,6 +80,8 @@ class StreamManager:
         self._intentional_stops: set[int] = set()
         self._restart_timers: dict[int, threading.Timer] = {}
         self._restart_attempts: dict[int, int] = {}
+        # STREAMFORGE_MAIN_WAITING_RECOVERY_V1253: in-memory hint; DB timestamps remain authoritative.
+        self._waiting_channels: set[int] = set()
         self._last_auto_restart_monotonic: dict[int, float] = {}
         self._auto_restart_counts: dict[int, int] = {}
         self._failback_watchers: set[int] = set()
@@ -103,6 +106,7 @@ class StreamManager:
                 timer.cancel()
             self._restart_timers.clear()
             self._restart_attempts.clear()
+            self._waiting_channels.clear()
             self._last_auto_restart_monotonic.clear()
             self._auto_restart_counts.clear()
             self._intentional_stops.clear()
@@ -934,37 +938,31 @@ class StreamManager:
         index = min(max(1, attempt), len(_AUTO_RESTART_DELAYS)) - 1
         return _AUTO_RESTART_DELAYS[index]
 
-    # STREAMFORGE_DEAD_INPUT_RECOVERY_INTERVAL_V1242:
-    # Keep normal source-to-source failover fast. After every configured input
-    # has failed consecutively, reset to primary and wait the per-channel long
-    # recovery interval before beginning a fresh input cycle.
+    # STREAMFORGE_MAIN_WAITING_RECOVERY_V1253:
+    # Keep source-to-source failover fast. After all inputs fail, start a new
+    # full cycle every 60 seconds. waiting_since is write-once per outage.
     def _schedule_auto_restart(self, channel_id: int, reason: str | None = None) -> None:
         with SessionLocal() as db:
             channel = db.get(Channel, channel_id)
             if not channel or not channel.enabled or not channel.auto_restart:
                 return
             source_count = max(1, len(self.input_urls(channel)))
-            configured_recovery = getattr(channel, "dead_input_recovery_interval", 30)
 
         with self._lock:
             if channel_id in self._intentional_stops:
                 return
-            # Presence reserves the slot even before Timer.start(), preventing
-            # concurrent FFmpeg waiter/start-error threads from double-scheduling.
             if self._restart_timers.get(channel_id) is not None:
                 return
             attempt = self._restart_attempts.get(channel_id, 0) + 1
             full_cycle_exhausted = dead_input_cycle_exhausted(attempt, source_count)
-            delay = (
-                dead_input_recovery_seconds(configured_recovery)
-                if full_cycle_exhausted
-                else self._restart_delay(attempt)
-            )
+            delay = MAIN_WAITING_RETRY_SECONDS if full_cycle_exhausted else self._restart_delay(attempt)
             self._restart_attempts[channel_id] = 0 if full_cycle_exhausted else attempt
             timer = threading.Timer(delay, self._run_auto_restart, args=(channel_id,))
             timer.daemon = True
             self._restart_timers[channel_id] = timer
 
+        now_utc = datetime.now(timezone.utc)
+        retry_at = now_utc + timedelta(seconds=int(delay))
         with SessionLocal() as db:
             channel = db.get(Channel, channel_id)
             if not channel or not channel.enabled or not channel.auto_restart:
@@ -975,18 +973,22 @@ class StreamManager:
                 if channel_id in self._intentional_stops:
                     self._cancel_restart_timer_locked(channel_id)
                     return
+                self._waiting_channels.add(channel_id)
             if full_cycle_exhausted:
                 channel.active_input_index = 0
             channel.status = "restarting"
             channel.pid = None
             channel.live_bitrate_kbps = 0
+            if channel.waiting_since is None:
+                channel.waiting_since = now_utc
+            channel.next_retry_at = retry_at
             if reason and not channel.last_error:
                 channel.last_error = reason[-4000:]
             if full_cycle_exhausted:
                 detail = str(channel.last_error or reason or "All configured inputs are unavailable").strip()
                 channel.last_error = (
                     f"{detail} | all {source_count} input(s) failed; "
-                    f"next full input recovery in {delay // 60} minute(s)"
+                    f"next full input recovery in {MAIN_WAITING_RETRY_SECONDS} second(s)"
                 )[-4000:]
             db.commit()
 
@@ -1085,6 +1087,11 @@ class StreamManager:
                     self._auto_restart_counts[channel_id] = self._auto_restart_counts.get(channel_id, 0) + 1
                 else:
                     self._last_auto_restart_monotonic.pop(channel_id, None)
+                # STREAMFORGE_MAIN_WAITING_RECOVERY_V1253: retries stay in one Waiting episode.
+                if channel.waiting_since is None:
+                    channel.waiting_since = datetime.now(timezone.utc)
+                channel.next_retry_at = None
+                self._waiting_channels.add(channel_id)
                 channel.status = "starting"
                 channel.pid = process.pid
                 channel.live_bitrate_kbps = 0
@@ -1308,6 +1315,21 @@ class StreamManager:
                 metrics["updated_monotonic"] = now
                 display_bitrate = int(round(metrics.get("bitrate_kbps", 0.0)))
 
+            # STREAMFORGE_MAIN_WAITING_RECOVERY_V1253:
+            with self._lock:
+                waiting_tracked = channel_id in self._waiting_channels
+            if waiting_tracked and value == "continue":
+                with SessionLocal() as waiting_db:
+                    waiting_channel = waiting_db.get(Channel, channel_id)
+                    if waiting_channel:
+                        delivery_ready = (str(waiting_channel.output_type or "").strip().lower() != "hls" or self._local_hls_output_fresh(waiting_channel))
+                        if delivery_ready:
+                            waiting_channel.waiting_since = None
+                            waiting_channel.next_retry_at = None
+                            waiting_db.commit()
+                            with self._lock:
+                                self._waiting_channels.discard(channel_id)
+
             # STREAMFORGE_MAIN_RUNTIME_DB_WRITE_THROTTLE_V34:
             # The panel reads bitrate/speed/fps from memory. Persist bitrate at
             # most once every 15s (or immediately for starting->running) so
@@ -1439,12 +1461,14 @@ class StreamManager:
                 channel_id, failure_reason or f"FFmpeg exited with code {return_code}"
             )
 
-    def stop(self, channel_id: int) -> None:
+    def stop(self, channel_id: int, *, clear_waiting: bool = True) -> None:
         with self._lock:
             self._intentional_stops.add(channel_id)
             self._cancel_restart_timer_locked(channel_id)
             self._restart_attempts.pop(channel_id, None)
             self._last_auto_restart_monotonic.pop(channel_id, None)
+            if clear_waiting:
+                self._waiting_channels.discard(channel_id)
             process = self._processes.get(channel_id)
             if process and process.poll() is None:
                 try:
@@ -1465,13 +1489,19 @@ class StreamManager:
                 channel.status = "stopped"
                 channel.pid = None
                 channel.live_bitrate_kbps = 0
+                if clear_waiting:
+                    channel.waiting_since = None
+                    channel.next_retry_at = None
+                else:
+                    channel.next_retry_at = None
                 db.commit()
                 self._clear_local_hls_output(channel)
 
 
     def restart(self, channel_id: int) -> None:
         """Stop and immediately start an enabled channel with fresh FFmpeg state."""
-        self.stop(channel_id)
+        # STREAMFORGE_MAIN_WAITING_RECOVERY_V1253: Restart preserves the outage clock.
+        self.stop(channel_id, clear_waiting=False)
         with SessionLocal() as db:
             channel = db.get(Channel, channel_id)
             if not channel:
@@ -1500,6 +1530,7 @@ class StreamManager:
         # the process lock.
         with self._lock:
             process = self._processes.get(channel_id)
+            restart_pending = self._restart_timers.get(channel_id) is not None
             started = self._started_monotonic.get(channel_id)
             alive = bool(process and process.poll() is None)
             return_code = process.poll() if process else None
@@ -1515,7 +1546,8 @@ class StreamManager:
             restart_mark = self._last_auto_restart_monotonic.get(channel_id)
             restart_age = int(max(0.0, time.monotonic() - restart_mark)) if restart_mark else 0
             return {
-                "managed": process is not None,
+                "managed": process is not None or restart_pending,
+                "restart_pending": restart_pending,
                 "alive": alive,
                 "pid": process.pid if process else None,
                 "uptime_seconds": int(time.monotonic() - started) if alive and started else 0,
@@ -1583,6 +1615,7 @@ _MAIN_SUPERVISOR_SOCKET = Path(os.getenv(
 def _empty_runtime_snapshot() -> dict[str, object]:
     return {
         "managed": False,
+        "restart_pending": False,
         "alive": False,
         "pid": None,
         "uptime_seconds": 0,

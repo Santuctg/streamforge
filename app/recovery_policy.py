@@ -5,6 +5,10 @@ DEFAULT_DEAD_INPUT_RECOVERY_MINUTES = 30
 MIN_DEAD_INPUT_RECOVERY_MINUTES = 1
 MAX_DEAD_INPUT_RECOVERY_MINUTES = 1440
 
+# STREAMFORGE_MAIN_WAITING_RECOVERY_V1253:
+# Main full-input recovery retries once per minute until delivery is Up.
+MAIN_WAITING_RETRY_SECONDS = 60
+
 
 def dead_input_recovery_minutes(value: object) -> int:
     try:

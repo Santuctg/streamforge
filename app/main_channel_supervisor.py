@@ -37,7 +37,8 @@ def _manager() -> StreamManager:
 def _all_runtime_snapshots() -> dict[str, dict[str, object]]:
     manager = _manager()
     with manager._lock:  # one bounded lock acquisition for the complete UI poll
-        channel_ids = list(manager._processes)
+        # STREAMFORGE_MAIN_WAITING_RECOVERY_V1253: include PID-less scheduled recovery.
+        channel_ids = sorted(set(manager._processes) | set(manager._restart_timers))
     return {str(channel_id): dict(manager.runtime_snapshot(channel_id)) for channel_id in channel_ids}
 
 

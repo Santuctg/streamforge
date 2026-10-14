@@ -86,6 +86,24 @@ jobs:
           path = Path(sys.argv[1])
           compile(path.read_text(encoding="utf-8"), str(path), "exec")
           PYV1252
+          elif [[ "$version" == "12.53" ]]; then
+            # STREAMFORGE_V1253_MAIN_WAITING_RELEASE_GUARD:
+            test "$(tr -d '[:space:]' < node_agent/VERSION)" = "12.52"
+            test "$(python3 scripts/apply_v1253_main_waiting_retry_fix.py .)" = "ALREADY_FIXED"
+            python3 scripts/verify_main_waiting_retry_v1253.py .
+            grep -Fq 'STREAMFORGE_LOCAL_RELAY_DB_CLOSE_V1250' app/main.py
+            grep -Fq 'STREAMFORGE_NODE_RELAY_HEALTH_PROBE_SINGLE_OWNER_V1251' node_agent/app.py
+            grep -Fq 'STREAMFORGE_V1253_NO_SOURCE_BYTECODE' scripts/force_update_v1253.sh
+            python3 - <<'PYV1253'
+          from pathlib import Path
+          for name in (
+              "app/models.py", "app/db.py", "app/recovery_policy.py", "app/ffmpeg.py",
+              "app/main_channel_supervisor.py", "app/main.py",
+          ):
+              path = Path(name)
+              compile(path.read_text(encoding="utf-8"), str(path), "exec")
+          print("PASS: v12.53 release source syntax verified without bytecode output")
+          PYV1253
           fi
           echo "release_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
@@ -149,6 +167,17 @@ jobs:
               echo "v12.52 updater still contains source-tree py_compile regression" >&2
               exit 1
             fi
+          fi
+          if [[ "$VERSION" == "12.53" ]]; then
+            unzip -p "$package" "streamforge-$VERSION/node_agent/VERSION" | grep -Fx '12.52'
+            unzip -p "$package" "streamforge-$VERSION/app/ffmpeg.py" \
+              | grep -Fq 'STREAMFORGE_MAIN_WAITING_RECOVERY_V1253'
+            unzip -p "$package" "streamforge-$VERSION/app/main.py" \
+              | grep -Fq 'STREAMFORGE_LOCAL_RELAY_DB_CLOSE_V1250'
+            unzip -p "$package" "streamforge-$VERSION/node_agent/app.py" \
+              | grep -Fq 'STREAMFORGE_NODE_RELAY_HEALTH_PROBE_SINGLE_OWNER_V1251'
+            unzip -p "$package" "streamforge-$VERSION/scripts/force_update_v1253.sh" \
+              | grep -Fq 'STREAMFORGE_V1253_NO_SOURCE_BYTECODE'
           fi
 
           gh release upload "$TAG" "$package" \

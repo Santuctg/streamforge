@@ -4542,6 +4542,20 @@ MAX_WEBPLAYER_DOWNLOAD_BYTES = 100 * 1024 * 1024
 LOCAL_LOGO_PREFIX = "/channel-logos/"
 
 
+# STREAMFORGE_MAIN_WAITING_RECOVERY_V1253:
+def main_channel_waiting_timing(channel: Channel) -> tuple[int, int]:
+    now = datetime.now(timezone.utc)
+    waiting_since = getattr(channel, "waiting_since", None)
+    next_retry_at = getattr(channel, "next_retry_at", None)
+    if waiting_since is not None and waiting_since.tzinfo is None:
+        waiting_since = waiting_since.replace(tzinfo=timezone.utc)
+    if next_retry_at is not None and next_retry_at.tzinfo is None:
+        next_retry_at = next_retry_at.replace(tzinfo=timezone.utc)
+    waiting_seconds = max(0, int((now - waiting_since).total_seconds())) if waiting_since else 0
+    restart_in_seconds = max(0, int(math.ceil((next_retry_at - now).total_seconds()))) if next_retry_at else 0
+    return waiting_seconds, restart_in_seconds
+
+
 # STREAMFORGE_MAIN_LOCAL_RUNTIME_ONLY_V33:
 def main_channel_runtime(channel: Channel) -> dict[str, object]:
     """Return only the Main Server Local Node runtime for Main Panel controls.
@@ -4574,11 +4588,14 @@ def main_channel_runtime(channel: Channel) -> dict[str, object]:
         hls_ready = bool(node_controller.cached_local_hls_ready(channel, local, alive=alive))
     except (OSError, RuntimeError):
         hls_ready = False
+    waiting_seconds, restart_in_seconds = main_channel_waiting_timing(channel)
     last_error = str(channel.last_error or "").strip() if status in {"error", "starting", "restarting"} else ""
     item.update({
         "status": status,
         "last_error": last_error or None,
         "hls_ready": hls_ready,
+        "waiting_seconds": waiting_seconds,
+        "restart_in_seconds": restart_in_seconds,
         "node_id": int(local.id),
         "node_name": local.name or "Main Server",
     })
@@ -10606,10 +10623,13 @@ def channels_page(
             initial_status = "waiting"
         else:
             initial_status = "down"
+        waiting_seconds, restart_in_seconds = main_channel_waiting_timing(channel)
         initial_channel_runtime[int(channel.id)] = {
             "status": initial_status,
             "process_status": "running" if alive else process_status,
             "uptime_seconds": int(snapshot.get("uptime_seconds") or 0),
+            "waiting_seconds": waiting_seconds,
+            "restart_in_seconds": restart_in_seconds,
         }
 
     return render(
@@ -15899,6 +15919,9 @@ def status_json(request: Request, channel_ids: str = "", db: Session = Depends(g
                 "id": channel.id,
                 "status": delivery_status,
                 "runtime_status": effective_status,
+                # STREAMFORGE_MAIN_WAITING_RECOVERY_V1253
+                "waiting_seconds": int(runtime.get("waiting_seconds") or 0),
+                "restart_in_seconds": int(runtime.get("restart_in_seconds") or 0),
                 "desired_running": bool(channel.desired_running),
                 "output_type": channel.output_type,
                 "bitrate": runtime_bitrate,

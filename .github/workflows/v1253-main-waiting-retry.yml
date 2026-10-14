@@ -1,0 +1,91 @@
+name: V12.53 Main Waiting Recovery
+
+on:
+  push:
+    branches:
+      - main
+      - fix/v12.53-main-waiting-retry
+    paths:
+      - VERSION
+      - app/models.py
+      - app/db.py
+      - app/recovery_policy.py
+      - app/ffmpeg.py
+      - app/main_channel_supervisor.py
+      - app/main.py
+      - app/static/app.js
+      - app/templates/channels.html
+      - scripts/apply_v1253_main_waiting_retry_fix.py
+      - scripts/verify_main_waiting_retry_v1253.py
+      - scripts/force_update_v1253.sh
+      - .github/workflows/v1253-main-waiting-retry.yml
+  pull_request:
+    paths:
+      - VERSION
+      - app/models.py
+      - app/db.py
+      - app/recovery_policy.py
+      - app/ffmpeg.py
+      - app/main_channel_supervisor.py
+      - app/main.py
+      - app/static/app.js
+      - app/templates/channels.html
+      - scripts/apply_v1253_main_waiting_retry_fix.py
+      - scripts/verify_main_waiting_retry_v1253.py
+      - scripts/force_update_v1253.sh
+      - .github/workflows/v1253-main-waiting-retry.yml
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply V1253 waiting recovery fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/apply_v1253_main_waiting_retry_fix.py .
+
+      - name: Verify V1253 waiting recovery contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/verify_main_waiting_retry_v1253.py .
+          python3 - <<'PY'
+          from pathlib import Path
+          for name in (
+              'app/models.py', 'app/db.py', 'app/recovery_policy.py',
+              'app/ffmpeg.py', 'app/main_channel_supervisor.py', 'app/main.py',
+          ):
+              path = Path(name)
+              compile(path.read_text(encoding='utf-8'), str(path), 'exec')
+          print('PASS: V1253 Python syntax verified without bytecode output')
+          PY
+
+      - name: Verify V1253 patcher idempotence
+        shell: bash
+        run: |
+          set -euo pipefail
+          result="$(python3 scripts/apply_v1253_main_waiting_retry_fix.py .)"
+          test "$result" = "ALREADY_FIXED"
+          python3 scripts/verify_main_waiting_retry_v1253.py .
+
+      - name: Carry V1253 source into review branch
+        if: github.event_name == 'push' && github.ref == 'refs/heads/fix/v12.53-main-waiting-retry'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add \
+            app/models.py app/db.py app/recovery_policy.py app/ffmpeg.py \
+            app/main_channel_supervisor.py app/main.py app/static/app.js \
+            app/templates/channels.html
+          if git diff --cached --quiet; then
+            echo 'V1253 source already integrated'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Integrate v12.53 Main waiting recovery fix'
+          git push origin HEAD:fix/v12.53-main-waiting-retry
