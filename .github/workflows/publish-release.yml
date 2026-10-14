@@ -40,7 +40,7 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "tag=v$version" >> "$GITHUB_OUTPUT"
 
-      - name: Carry v12.50 relay DB-close fix into release source
+      - name: Carry release source fixes into release source
         id: source
         shell: bash
         run: |
@@ -59,6 +59,23 @@ jobs:
               git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
               git add app/main.py
               git commit -m "Integrate v12.50 local relay DB-close fix"
+              git push origin HEAD:main
+            fi
+          elif [[ "$version" == "12.51" ]]; then
+            # STREAMFORGE_V1251_NODE_RELAY_PROBE_RELEASE_SOURCE_CARRY:
+            # Production diagnostics proved that stale recovery Timers could
+            # multiply lightweight Main-relay health probes. Carry the tested
+            # single-owner/in-flight guard into the exact tagged Node source.
+            test "$(tr -d '[:space:]' < node_agent/VERSION)" = "12.51"
+            grep -Fq 'STREAMFORGE_LOCAL_RELAY_DB_CLOSE_V1250' app/main.py
+            python3 scripts/apply_v1251_node_recovery_probe_fix.py node_agent/app.py
+            python3 scripts/verify_node_relay_probe_dedupe_v1251.py node_agent/app.py
+            python3 -m py_compile node_agent/app.py
+            if ! git diff --quiet -- node_agent/app.py; then
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              git add node_agent/app.py
+              git commit -m "Integrate v12.51 Node relay health-probe dedupe fix"
               git push origin HEAD:main
             fi
           fi
@@ -110,6 +127,13 @@ jobs:
           test -s "$package"
           unzip -l "$package" | grep -F "streamforge-$VERSION/VERSION"
           unzip -p "$package" "streamforge-$VERSION/VERSION" | grep -Fx "$VERSION"
+          if [[ "$VERSION" == "12.51" ]]; then
+            unzip -p "$package" "streamforge-$VERSION/node_agent/VERSION" | grep -Fx "$VERSION"
+            unzip -p "$package" "streamforge-$VERSION/node_agent/app.py" \
+              | grep -Fq 'STREAMFORGE_NODE_RELAY_HEALTH_PROBE_SINGLE_OWNER_V1251'
+            unzip -p "$package" "streamforge-$VERSION/app/main.py" \
+              | grep -Fq 'STREAMFORGE_LOCAL_RELAY_DB_CLOSE_V1250'
+          fi
 
           # Existing releases can be repaired safely; replace the same-named
           # asset if a previous workflow attempt uploaded an incomplete package.
