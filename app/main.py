@@ -14925,6 +14925,11 @@ def _local_relay_missing_exception(channel: Channel, detail: str) -> HTTPExcepti
 @app.get("/relay/{relay_key}/{slug}/index.m3u8", response_class=PlainTextResponse)
 def local_relay_playlist(relay_key: str, slug: str, request: Request, db: Session = Depends(get_db)):
     channel, local = get_local_relay_access(relay_key, slug, db)
+    # STREAMFORGE_LOCAL_RELAY_DB_CLOSE_V1250:
+    # Relay authorization is complete. The remaining local relay path uses only
+    # already-loaded scalar/relationship state plus filesystem/proc access, so
+    # close the request DB session immediately and guarantee pool checkout release.
+    db.close()
     try:
         raw, _media_type = node_controller.hls_file(channel, "index.m3u8", node=local)
     except (NodeError, FileNotFoundError) as exc:
@@ -14948,6 +14953,9 @@ def local_relay_playlist(relay_key: str, slug: str, request: Request, db: Sessio
 @app.get("/relay/{relay_key}/{slug}/{filename}")
 def local_relay_segment(relay_key: str, slug: str, filename: str, db: Session = Depends(get_db)):
     channel, local = get_local_relay_access(relay_key, slug, db)
+    # STREAMFORGE_LOCAL_RELAY_DB_CLOSE_V1250:
+    # Do not keep or reacquire a SQLite connection while serving HLS media.
+    db.close()
     safe_name = Path(filename).name
     if safe_name != filename or not safe_name.endswith((".ts", ".m4s", ".aac", ".mp3", ".key")):
         raise HTTPException(404)
