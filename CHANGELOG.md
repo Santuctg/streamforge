@@ -1,3 +1,11 @@
+## 12.48 - 2026-10-14
+
+- Fixed the inherited updater's relay-map preflight to accept the composite `$status:$uri` map introduced for path-aware log filtering.
+- Quoted the relay-segment regex map key containing `{32}`, preventing Nginx from failing with `unexpected "{"` during update.
+- Applied the same quoted regex to the fresh Nginx template and Main runtime access-policy generator so future config regeneration retains the fix.
+- Added v12.48 regression checks for updater guard compatibility, regex quoting, fallback conditional logging, and bounded hourly log rotation.
+- Replaces the failed v12.47 deployment attempt; the v12.47 ZIP should not be retried.
+
 ## 12.47 - 2026-10-14
 
 - Fixed Nginx internal relay fallback logging so the status-aware access-log policy is applied after `try_files` redirects to `@streamforge_relay_fallback`.

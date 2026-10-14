@@ -1,0 +1,36 @@
+name: v12.48 relay log-volume and updater fix
+
+on:
+  push:
+    paths:
+      - VERSION
+      - node_agent/VERSION
+      - deploy/nginx.conf
+      - scripts/apply_main_access.py
+      - scripts/fetch_hlsjs.sh
+      - scripts/force_update_v1248.sh
+      - scripts/verify_relay_log_volume_v1248.py
+      - release-notes/v12.48.md
+      - .github/workflows/v1248-relay-log-volume.yml
+  pull_request:
+    paths:
+      - VERSION
+      - node_agent/VERSION
+      - deploy/nginx.conf
+      - scripts/apply_main_access.py
+      - scripts/fetch_hlsjs.sh
+      - scripts/force_update_v1248.sh
+      - scripts/verify_relay_log_volume_v1248.py
+      - release-notes/v12.48.md
+      - .github/workflows/v1248-relay-log-volume.yml
+
+permissions:
+  contents: read
+
+jobs:
+  relay-log-volume:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify v12.48 relay log-volume and updater fixes
+        run: python3 scripts/verify_relay_log_volume_v1248.py

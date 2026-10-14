@@ -3,22 +3,22 @@ set -Eeuo pipefail
 
 SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LEGACY_UPDATER="$SOURCE_DIR/scripts/force_update_v1236.sh"
-log(){ echo "[StreamForge v12.47] $*"; }
-die(){ echo "[StreamForge v12.47] ERROR: $*" >&2; exit 1; }
+log(){ echo "[StreamForge v12.48] $*"; }
+die(){ echo "[StreamForge v12.48] ERROR: $*" >&2; exit 1; }
 
 [[ ${EUID} -eq 0 ]] || die "run with sudo/root"
 [[ -f "$LEGACY_UPDATER" ]] || die "base updater force_update_v1236.sh missing"
-[[ "$(tr -d '[:space:]' < "$SOURCE_DIR/VERSION")" == "12.47" ]] || die "wrong package version"
-[[ "$(tr -d '[:space:]' < "$SOURCE_DIR/node_agent/VERSION")" == "12.47" ]] || die "wrong Node Agent version"
+[[ "$(tr -d '[:space:]' < "$SOURCE_DIR/VERSION")" == "12.48" ]] || die "wrong package version"
+[[ "$(tr -d '[:space:]' < "$SOURCE_DIR/node_agent/VERSION")" == "12.48" ]] || die "wrong Node Agent version"
 
-log "Preparing update-safe v12.47 staging runtime..."
-STAGE="$(mktemp -d /tmp/streamforge-v1247-XXXXXXXX)"
+log "Preparing update-safe v12.48 staging runtime..."
+STAGE="$(mktemp -d /tmp/streamforge-v1248-XXXXXXXX)"
 cleanup(){ rm -rf -- "$STAGE"; }
 trap cleanup EXIT
 
 cp -a "$SOURCE_DIR/." "$STAGE/"
 
-# STREAMFORGE_RELEASE_STAGING_SINGLE_FORCE_UPDATER_V1247:
+# STREAMFORGE_RELEASE_STAGING_SINGLE_FORCE_UPDATER_V1248:
 find "$STAGE/scripts" -maxdepth 1 -type f -name 'force_update_v*.sh' \
   ! -name 'force_update_v1236.sh' -delete
 
@@ -27,33 +27,40 @@ from pathlib import Path
 import sys
 
 path = Path(sys.argv[1])
-text = path.read_text(encoding="utf-8").replace("12.36", "12.47")
+text = path.read_text(encoding="utf-8").replace("12.36", "12.48")
 
-# STREAMFORGE_V1247_RELAY_GUARD_COMPAT:
+# STREAMFORGE_V1248_RELAY_GUARD_COMPAT:
 # v12.45 intentionally replaced the v10.68 relay logging marker with the
 # state-aware v12.45 marker. Rewrite the inherited preflight marker checks in
 # the staged updater so it validates the new policy instead of rejecting it.
 stale = "STREAMFORGE_RELAY_" + "ERROR_ONLY_ACCESS_LOG_V1036"
-modern = "STREAMFORGE_RELAY_ACCESS_LOG_POLICY_V1247"
+modern = "STREAMFORGE_RELAY_ACCESS_LOG_POLICY_V1248"
 if text.count(stale) < 2:
-    raise SystemExit("v12.47 relay-guard patch expected inherited v10.68 marker guards")
+    raise SystemExit("v12.48 relay-guard patch expected inherited v10.68 marker guards")
 text = text.replace(stale, modern)
+
+# STREAMFORGE_V1248_COMPOSITE_RELAY_MAP_GUARD:
+old_guard = '''grep -Fq 'map $status $streamforge_relay_access_loggable' "$SOURCE_DIR/deploy/nginx.conf" || die "v10.68 fresh relay status map missing"'''
+new_guard = '''grep -Fq 'map "$status:$uri" $streamforge_relay_access_loggable' "$SOURCE_DIR/deploy/nginx.conf" || die "v12.48 fresh relay status map missing"'''
+if text.count(old_guard) != 1:
+    raise SystemExit("v12.48 expected exactly one inherited relay map validation guard")
+text = text.replace(old_guard, new_guard, 1)
 
 lines = text.splitlines(keepends=True)
 
-# STREAMFORGE_V1247_DEAD_INPUT_SCHEMA_BEFORE_VERIFY:
+# STREAMFORGE_V1248_DEAD_INPUT_SCHEMA_BEFORE_VERIFY:
 indices = [
     i for i, line in enumerate(lines)
     if "verify_main_install.py" in line and "python3" in line
 ]
 if len(indices) != 1:
     raise SystemExit(
-        f"v12.47 schema-order patch expected one Main verifier invocation, found {len(indices)}"
+        f"v12.48 schema-order patch expected one Main verifier invocation, found {len(indices)}"
     )
 
-schema_block = r'''# STREAMFORGE_V1247_DEAD_INPUT_SCHEMA_BEFORE_VERIFY:
+schema_block = r'''# STREAMFORGE_V1248_DEAD_INPUT_SCHEMA_BEFORE_VERIFY:
 log "Applying dead-input recovery schema before Main install verification."
-python3 - "$DATA_DIR/streamforge.db" <<'PYV1247'
+python3 - "$DATA_DIR/streamforge.db" <<'PYV1248'
 import sqlite3
 import sys
 
@@ -66,12 +73,12 @@ try:
             "ALTER TABLE channels ADD COLUMN dead_input_recovery_interval INTEGER NOT NULL DEFAULT 30"
         )
         conn.commit()
-        print("v12.47 schema migration: added channels.dead_input_recovery_interval default 30")
+        print("v12.48 schema migration: added channels.dead_input_recovery_interval default 30")
     else:
-        print("v12.47 schema migration: channels.dead_input_recovery_interval already present")
+        print("v12.48 schema migration: channels.dead_input_recovery_interval already present")
 finally:
     conn.close()
-PYV1247
+PYV1248
 '''
 
 lines.insert(indices[0], schema_block)
@@ -88,24 +95,24 @@ chmod 0755 "$STAGE/scripts/update.sh"
 
 bash "$STAGE/scripts/force_update_v1236.sh" "$@"
 
-# STREAMFORGE_V1247_RELAY_LOG_POLICY: enforce the policy in the active Nginx file after the inherited deploy.
+# STREAMFORGE_V1248_RELAY_LOG_POLICY: enforce the policy in the active Nginx file after the inherited deploy.
 SITE=/etc/nginx/sites-available/streamforge
 [[ -f "$SITE" ]] || die "active StreamForge Nginx site is missing"
-SITE_BACKUP="$(mktemp /tmp/streamforge-nginx-site-v1247.XXXXXX)"
+SITE_BACKUP="$(mktemp /tmp/streamforge-nginx-site-v1248.XXXXXX)"
 cp -a "$SITE" "$SITE_BACKUP"
-if ! python3 - "$SITE" <<'PYV1247'
+if ! python3 - "$SITE" <<'PYV1248'
 from pathlib import Path
 import sys
 
 path = Path(sys.argv[1])
 text = path.read_text(encoding="utf-8")
-policy = """# STREAMFORGE_RELAY_ACCESS_LOG_POLICY_V1247: suppress high-volume expected relay states.
+policy = """# STREAMFORGE_RELAY_ACCESS_LOG_POLICY_V1248: suppress high-volume expected relay states.
 # Keep playlist 503s and non-segment 404s visible for diagnostics; stale segment 404s
 # and client disconnect 499s are normal during live-edge movement/channel switching.
 map "$status:$uri" $streamforge_relay_access_loggable {
     ~^409: 0;
     ~^410: 0;
-    ~^404:/relay/[0-9a-f]{32}/[A-Za-z0-9_-]+/segment_[A-Za-z0-9_.-]+\\.ts$ 0;
+    "~^404:/relay/[0-9a-f]{32}/[A-Za-z0-9_-]+/segment_[A-Za-z0-9_.-]+\\.ts$" 0;
     ~^499:/relay/ 0;
     ~^[45][0-9][0-9]: 1;
     default 0;
@@ -161,35 +168,35 @@ updated = "\n".join(out) + "\n"
 if updated != text:
     path.write_text(updated, encoding="utf-8")
 print(f"relay policy applied; fallback blocks verified: {fallback_count}")
-PYV1247
+PYV1248
 then
     cp -a "$SITE_BACKUP" "$SITE"
     rm -f "$SITE_BACKUP"
-    die "could not apply v12.47 relay logging policy"
+    die "could not apply v12.48 relay logging policy"
 fi
 if ! nginx -t; then
     cp -a "$SITE_BACKUP" "$SITE"
     nginx -t || true
     rm -f "$SITE_BACKUP"
-    die "Nginx validation failed after v12.47 relay policy"
+    die "Nginx validation failed after v12.48 relay policy"
 fi
 systemctl reload nginx || {
     cp -a "$SITE_BACKUP" "$SITE"
     nginx -t && systemctl reload nginx || true
     rm -f "$SITE_BACKUP"
-    die "Nginx reload failed after v12.47 relay policy"
+    die "Nginx reload failed after v12.48 relay policy"
 }
 rm -f "$SITE_BACKUP"
 log "Relay log policy applied: suppress 409/410, stale segment 404 and relay 499; retain playlist 503 diagnostics."
 
-# STREAMFORGE_NGINX_LOGROTATE_HOURLY_V1247: maxsize is checked hourly, not only daily.
+# STREAMFORGE_NGINX_LOGROTATE_HOURLY_V1248: maxsize is checked hourly, not only daily.
 if ! command -v logrotate >/dev/null 2>&1; then
     log "Installing missing logrotate package."
     export DEBIAN_FRONTEND=noninteractive
     apt-get update -y
     apt-get install -y logrotate
 fi
-cat >/etc/logrotate.d/nginx <<'EOFV1247'
+cat >/etc/logrotate.d/nginx <<'EOFV1248'
 /var/log/nginx/*.log {
         daily
         maxsize 100M
@@ -206,14 +213,14 @@ cat >/etc/logrotate.d/nginx <<'EOFV1247'
                 fi
         endscript
 }
-EOFV1247
-cat >/etc/cron.hourly/streamforge-logrotate <<'EOFHOURV1247'
+EOFV1248
+cat >/etc/cron.hourly/streamforge-logrotate <<'EOFHOURV1248'
 #!/bin/sh
-# STREAMFORGE_NGINX_LOGROTATE_HOURLY_V1247
+# STREAMFORGE_NGINX_LOGROTATE_HOURLY_V1248
 [ -x /usr/sbin/logrotate ] || exit 0
 exec /usr/sbin/logrotate /etc/logrotate.d/nginx
-EOFHOURV1247
+EOFHOURV1248
 chmod 0755 /etc/cron.hourly/streamforge-logrotate
 logrotate -d /etc/logrotate.d/nginx >/dev/null 2>&1 || die "Nginx logrotate configuration validation failed"
 log "Nginx log rotation protection ready (hourly size check, 100M maxsize, 7 rotations)."
-log "SUCCESS — StreamForge v12.47 is live."
+log "SUCCESS — StreamForge v12.48 is live."
