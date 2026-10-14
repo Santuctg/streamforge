@@ -1,0 +1,44 @@
+name: V12.53 Main Waiting Recovery
+
+on:
+  push:
+    branches:
+      - main
+      - fix/v12.53-main-waiting-retry
+    paths:
+      - VERSION
+      - app/models.py
+      - app/db.py
+      - app/recovery_policy.py
+      - app/ffmpeg.py
+      - app/main.py
+      - app/static/app.js
+      - app/templates/channels.html
+      - scripts/apply_v1253_main_waiting_retry_fix.py
+      - scripts/verify_main_waiting_retry_v1253.py
+      - scripts/force_update_v1253.sh
+      - .github/workflows/v1253-main-waiting-retry.yml
+  pull_request:
+    paths:
+      - VERSION
+      - app/models.py
+      - app/db.py
+      - app/recovery_policy.py
+      - app/ffmpeg.py
+      - app/main.py
+      - app/static/app.js
+      - app/templates/channels.html
+      - scripts/apply_v1253_main_waiting_retry_fix.py
+      - scripts/verify_main_waiting_retry_v1253.py
+      - scripts/force_update_v1253.sh
+      - .github/workflows/v1253-main-waiting-retry.yml
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify V1253 waiting recovery contract
+        run: python3 scripts/verify_main_waiting_retry_v1253.py .
