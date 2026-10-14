@@ -1,0 +1,26 @@
+name: V12.54 Main Static Cache Sync
+
+on:
+  pull_request:
+    paths:
+      - VERSION
+      - node_agent/VERSION
+      - scripts/sync_main_static_cache.py
+      - scripts/test_main_static_cache_sync_v1254.py
+      - scripts/test_v1254_updater_static_cache_integration.py
+      - scripts/force_update_v1254.sh
+      - .github/workflows/v1254-main-static-cache.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify v12.54 Main static cache sync helper
+        run: python3 scripts/test_main_static_cache_sync_v1254.py
+      - name: Verify v12.54 updater static cache integration
+        run: python3 scripts/test_v1254_updater_static_cache_integration.py
