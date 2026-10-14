@@ -11,6 +11,7 @@ on:
       - app/db.py
       - app/recovery_policy.py
       - app/ffmpeg.py
+      - app/main_channel_supervisor.py
       - app/main.py
       - app/static/app.js
       - app/templates/channels.html
@@ -25,6 +26,7 @@ on:
       - app/db.py
       - app/recovery_policy.py
       - app/ffmpeg.py
+      - app/main_channel_supervisor.py
       - app/main.py
       - app/static/app.js
       - app/templates/channels.html
@@ -40,5 +42,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Apply V1253 waiting recovery fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/apply_v1253_main_waiting_retry_fix.py .
+
       - name: Verify V1253 waiting recovery contract
-        run: python3 scripts/verify_main_waiting_retry_v1253.py .
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/verify_main_waiting_retry_v1253.py .
+          python3 - <<'PY'
+          from pathlib import Path
+          for name in (
+              'app/models.py', 'app/db.py', 'app/recovery_policy.py',
+              'app/ffmpeg.py', 'app/main_channel_supervisor.py', 'app/main.py',
+          ):
+              path = Path(name)
+              compile(path.read_text(encoding='utf-8'), str(path), 'exec')
+          print('PASS: V1253 Python syntax verified without bytecode output')
+          PY
+
+      - name: Verify V1253 patcher idempotence
+        shell: bash
+        run: |
+          set -euo pipefail
+          result="$(python3 scripts/apply_v1253_main_waiting_retry_fix.py .)"
+          test "$result" = "ALREADY_FIXED"
+          python3 scripts/verify_main_waiting_retry_v1253.py .
