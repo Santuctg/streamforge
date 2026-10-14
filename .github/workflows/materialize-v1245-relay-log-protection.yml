@@ -28,9 +28,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          git checkout -- .github/workflows/release-sanity.yml
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add deploy/nginx.conf scripts/apply_main_access.py VERSION node_agent/VERSION scripts/force_update_v1245.sh scripts/update.sh release-notes/v12.45.md .github/workflows/release-sanity.yml
+          git add deploy/nginx.conf scripts/apply_main_access.py VERSION node_agent/VERSION scripts/force_update_v1245.sh scripts/update.sh release-notes/v12.45.md
           if git diff --cached --quiet; then exit 0; fi
           git commit -m 'hotfix: bound relay logging and nginx log rotation'
           git push origin HEAD:hotfix/v12.45-relay-log-protection
