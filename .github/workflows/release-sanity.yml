@@ -7,6 +7,8 @@ on:
       - node_agent/VERSION
       - app/static/dashboard.js
       - node_agent/app.py
+      - deploy/nginx.conf
+      - scripts/apply_main_access.py
       - scripts/update.sh
       - scripts/force_update_v*.sh
       - scripts/verify_release_updater_staging.py
@@ -15,10 +17,12 @@ on:
       - scripts/verify_v1243_schema_order.py
       - scripts/verify_v1244_updater_carry.py
       - scripts/verify_dashboard_datetime_parity_v1244.py
+      - scripts/verify_relay_log_protection_v1245.py
       - release-notes/**
       - .github/workflows/publish-release.yml
       - .github/workflows/release-sanity.yml
       - .github/workflows/v1244-dashboard-datetime.yml
+      - .github/workflows/v1245-relay-log-protection.yml
 
 permissions:
   contents: read
@@ -30,15 +34,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Verify v12.44 versions and updater
+      - name: Verify v12.45 versions and updater
         shell: bash
         run: |
           set -euo pipefail
-          [[ "$(tr -d '[:space:]' < VERSION)" == "12.44" ]]
-          [[ "$(tr -d '[:space:]' < node_agent/VERSION)" == "12.44" ]]
-          grep -Fq 'force_update_v1244.sh' scripts/update.sh
-          test -f scripts/force_update_v1244.sh
-          bash -n scripts/force_update_v1244.sh
+          [[ "$(tr -d '[:space:]' < VERSION)" == "12.45" ]]
+          [[ "$(tr -d '[:space:]' < node_agent/VERSION)" == "12.45" ]]
+          grep -Fq 'force_update_v1245.sh' scripts/update.sh
+          test -f scripts/force_update_v1245.sh
+          bash -n scripts/force_update_v1245.sh
           bash -n scripts/update.sh
       - name: Verify updater staging cleanup regression
         run: python3 scripts/verify_release_updater_staging.py
@@ -54,13 +58,16 @@ jobs:
         run: python3 scripts/verify_v1244_updater_carry.py
       - name: Verify Main/Node dashboard date-time parity
         run: python3 scripts/verify_dashboard_datetime_parity_v1244.py
-      - name: Verify v12.44 release notes
+      - name: Verify v12.45 relay log protection
+        run: python3 scripts/verify_relay_log_protection_v1245.py
+      - name: Verify v12.45 release notes
         shell: bash
         run: |
           set -euo pipefail
-          test -s release-notes/v12.44.md
-          grep -Fq 'Main and Node dashboards' release-notes/v12.44.md
-          grep -Fq 'streamforge-update --force /root/streamforge-12.44.zip' release-notes/v12.44.md
+          test -s release-notes/v12.45.md
+          grep -Fq '409' release-notes/v12.45.md
+          grep -Fq 'maxsize 100M' release-notes/v12.45.md
+          grep -Fq 'streamforge-update --force /root/streamforge-12.45.zip' release-notes/v12.45.md
       - name: Verify Python syntax
         run: python3 -m compileall -q app node_agent scripts
       - name: Check diff whitespace
