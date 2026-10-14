@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+# STREAMFORGE_MAIN_ONLY_HOTFIX_V1253:
+# This updater intentionally replaces only the bounded Main recovery/UI files
+# listed below. It does not stage/deploy the complete release tree and it never
+# modifies or pushes the Remote Node Agent.
 SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TARGET_VERSION="12.53"
 NODE_TARGET_VERSION="12.52"
