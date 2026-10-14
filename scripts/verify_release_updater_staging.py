@@ -35,21 +35,43 @@ else:
             f"{updater.name} runs py_compile in SOURCE_DIR before staging and can create __pycache__"
         )
 
-    # STREAMFORGE_RELEASE_BOUNDED_MAIN_HOTFIX_V1253:
-    # A deliberately Main-only hotfix does not stage the whole release tree, so
-    # stale force-updater cleanup is not applicable. It must explicitly declare
-    # that scope, avoid a full SOURCE_DIR staging copy, preserve the Node version,
-    # and use non-writing syntax validation.
-    bounded_main_hotfix = "STREAMFORGE_MAIN_ONLY_HOTFIX_V1253" in text
-    if bounded_main_hotfix:
+    # STREAMFORGE_RELEASE_BOUNDED_MAIN_HOTFIX_V1254:
+    # Main-only hotfixes do not stage the whole release tree, so stale updater
+    # cleanup is not applicable. They must explicitly declare scope, preserve the
+    # Node version, and use non-writing source validation.
+    bounded_marker = next(
+        (
+            marker
+            for marker in (
+                "STREAMFORGE_MAIN_ONLY_HOTFIX_V1253",
+                "STREAMFORGE_MAIN_ONLY_HOTFIX_V1254",
+            )
+            if marker in text
+        ),
+        None,
+    )
+    if bounded_marker:
         if 'cp -a "$SOURCE_DIR/." "$STAGE/"' in text:
             errors.append(f"{updater.name} declares Main-only scope but copies the full release tree")
-        if "STREAMFORGE_V1253_NO_SOURCE_BYTECODE" not in text:
+        expected_no_bytecode = (
+            "STREAMFORGE_V1254_NO_SOURCE_BYTECODE"
+            if bounded_marker.endswith("V1254")
+            else "STREAMFORGE_V1253_NO_SOURCE_BYTECODE"
+        )
+        if expected_no_bytecode not in text:
             errors.append(f"{updater.name} Main-only scope lacks no-bytecode verification marker")
         if 'NODE_TARGET_VERSION="12.52"' not in text:
             errors.append(f"{updater.name} Main-only scope does not pin the unchanged Node Agent version")
         if "Remote Node Agent is unchanged" not in text:
             errors.append(f"{updater.name} Main-only scope does not explicitly preserve Remote Node Agent")
+        if bounded_marker.endswith("V1254"):
+            for marker in (
+                "STREAMFORGE_MAIN_STATIC_CACHE_SYNC_V1254",
+                "sync_main_static_cache.py",
+                "STREAMFORGE_MAIN_STATIC_CACHE_ROOT",
+            ):
+                if marker not in text:
+                    errors.append(f"{updater.name} v12.54 static-cache contract missing {marker}")
     elif not has_full_cleanup(text):
         # STREAMFORGE_RELEASE_STAGING_DELEGATED_CLEANUP_V1251:
         # A thin current-version updater may delegate the full deployment to a
