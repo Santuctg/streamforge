@@ -2201,7 +2201,14 @@
             fps.title = fpsValue > 0 ? 'Live output frame rate' : 'FPS not detected yet';
           }
           if (pid) pid.textContent = channel.pid || '—';
-          if (uptime) uptime.textContent = formatUptime(channel.uptime_seconds);
+          // STREAMFORGE_MAIN_WAITING_RECOVERY_V1253: Waiting uses the continuous outage clock.
+          if (uptime) {
+            const waitingSeconds = Number(channel.waiting_seconds || 0);
+            const restartInSeconds = Number(channel.restart_in_seconds || 0);
+            const isWaiting = String(channel.status || '').toLowerCase() === 'waiting';
+            uptime.textContent = isWaiting ? formatUptime(waitingSeconds) : formatUptime(channel.uptime_seconds);
+            uptime.title = isWaiting && restartInSeconds > 0 ? `Retry in ${formatUptime(restartInSeconds)}` : '';
+          }
           // STREAMFORGE_MAIN_AUTO_RESTART_VISIBLE_V54: keep fast automatic
           // recoveries visible even when the polling interval misses restarting.
           let restartFlash = state.restartFlash;

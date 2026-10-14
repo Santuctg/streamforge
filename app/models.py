@@ -233,8 +233,11 @@ class Channel(Base):
     active_input_index: Mapped[int] = mapped_column(Integer, default=0)
     failback_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     failback_interval: Mapped[int] = mapped_column(Integer, default=30)
-    # STREAMFORGE_DEAD_INPUT_RECOVERY_INTERVAL_V1242: minutes to wait after every configured input has failed once.
+    # STREAMFORGE_DEAD_INPUT_RECOVERY_INTERVAL_V1242: retained for configuration/backward compatibility.
     dead_input_recovery_interval: Mapped[int] = mapped_column(Integer, default=30)
+    # STREAMFORGE_MAIN_WAITING_RECOVERY_V1253:
+    waiting_since: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    next_retry_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     logo_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     program_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     # JSON list aligned with input_url + backup_inputs. Each item is an MPTS program ID or null.
