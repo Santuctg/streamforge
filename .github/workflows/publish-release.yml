@@ -40,6 +40,30 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "tag=v$version" >> "$GITHUB_OUTPUT"
 
+      - name: Carry v12.50 relay DB-close fix into release source
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ steps.version.outputs.version }}"
+          if [[ "$version" == "12.50" ]]; then
+            # STREAMFORGE_V1250_RELEASE_SOURCE_CARRY:
+            # The production hotfix was first validated in-place. Ensure the
+            # release tag contains the same source-level guard so a later full
+            # update cannot regress the early DB checkout release.
+            python3 scripts/apply_v1250_main_fix.py app/main.py
+            python3 scripts/verify_local_relay_db_close_v1250.py app/main.py
+            python3 -m py_compile app/main.py
+            if ! git diff --quiet -- app/main.py; then
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              git add app/main.py
+              git commit -m "Integrate v12.50 local relay DB-close fix"
+              git push origin HEAD:main
+            fi
+          fi
+          echo "release_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
       - name: Build release notes
         shell: bash
         run: |
@@ -64,13 +88,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.version.outputs.tag }}
           VERSION: ${{ steps.version.outputs.version }}
+          RELEASE_SHA: ${{ steps.source.outputs.release_sha }}
         shell: bash
         run: |
           set -euo pipefail
           if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release create "$TAG" \
               --repo "$GITHUB_REPOSITORY" \
-              --target "$GITHUB_SHA" \
+              --target "$RELEASE_SHA" \
               --title "StreamForge v$VERSION" \
               --notes-file release-notes.md
           else
