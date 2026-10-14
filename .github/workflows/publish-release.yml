@@ -48,9 +48,6 @@ jobs:
           version="${{ steps.version.outputs.version }}"
           if [[ "$version" == "12.50" ]]; then
             # STREAMFORGE_V1250_RELEASE_SOURCE_CARRY:
-            # The production hotfix was first validated in-place. Ensure the
-            # release tag contains the same source-level guard so a later full
-            # update cannot regress the early DB checkout release.
             python3 scripts/apply_v1250_main_fix.py app/main.py
             python3 scripts/verify_local_relay_db_close_v1250.py app/main.py
             python3 -m py_compile app/main.py
@@ -63,9 +60,6 @@ jobs:
             fi
           elif [[ "$version" == "12.51" ]]; then
             # STREAMFORGE_V1251_NODE_RELAY_PROBE_RELEASE_SOURCE_CARRY:
-            # Production diagnostics proved that stale recovery Timers could
-            # multiply lightweight Main-relay health probes. Carry the tested
-            # single-owner/in-flight guard into the exact tagged Node source.
             test "$(tr -d '[:space:]' < node_agent/VERSION)" = "12.51"
             grep -Fq 'STREAMFORGE_LOCAL_RELAY_DB_CLOSE_V1250' app/main.py
             python3 scripts/apply_v1251_node_recovery_probe_fix.py node_agent/app.py
@@ -78,6 +72,20 @@ jobs:
               git commit -m "Integrate v12.51 Node relay health-probe dedupe fix"
               git push origin HEAD:main
             fi
+          elif [[ "$version" == "12.52" ]]; then
+            # STREAMFORGE_V1252_UPDATER_CACHE_HYGIENE_RELEASE_GUARD:
+            test "$(tr -d '[:space:]' < node_agent/VERSION)" = "12.52"
+            grep -Fq 'STREAMFORGE_LOCAL_RELAY_DB_CLOSE_V1250' app/main.py
+            grep -Fq 'STREAMFORGE_NODE_RELAY_HEALTH_PROBE_SINGLE_OWNER_V1251' node_agent/app.py
+            grep -Fq 'STREAMFORGE_V1252_NO_SOURCE_BYTECODE' scripts/force_update_v1252.sh
+            python3 scripts/verify_node_relay_probe_dedupe_v1251.py node_agent/app.py
+            python3 scripts/verify_release_updater_staging.py
+            python3 - node_agent/app.py <<'PYV1252'
+          from pathlib import Path
+          import sys
+          path = Path(sys.argv[1])
+          compile(path.read_text(encoding="utf-8"), str(path), "exec")
+          PYV1252
           fi
           echo "release_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
@@ -119,23 +127,29 @@ jobs:
             echo "Release $TAG already exists; ensuring its update ZIP is present."
           fi
 
-          # Package the exact release tag with one top-level directory so
-          # streamforge-update receives the expected source tree.
           git fetch --tags --force
           package="streamforge-$VERSION.zip"
           git archive --format=zip --prefix="streamforge-$VERSION/" "$TAG" -o "$package"
           test -s "$package"
           unzip -l "$package" | grep -F "streamforge-$VERSION/VERSION"
           unzip -p "$package" "streamforge-$VERSION/VERSION" | grep -Fx "$VERSION"
-          if [[ "$VERSION" == "12.51" ]]; then
+
+          if [[ "$VERSION" == "12.51" || "$VERSION" == "12.52" ]]; then
             unzip -p "$package" "streamforge-$VERSION/node_agent/VERSION" | grep -Fx "$VERSION"
             unzip -p "$package" "streamforge-$VERSION/node_agent/app.py" \
               | grep -Fq 'STREAMFORGE_NODE_RELAY_HEALTH_PROBE_SINGLE_OWNER_V1251'
             unzip -p "$package" "streamforge-$VERSION/app/main.py" \
               | grep -Fq 'STREAMFORGE_LOCAL_RELAY_DB_CLOSE_V1250'
           fi
+          if [[ "$VERSION" == "12.52" ]]; then
+            unzip -p "$package" "streamforge-$VERSION/scripts/force_update_v1252.sh" \
+              | grep -Fq 'STREAMFORGE_V1252_NO_SOURCE_BYTECODE'
+            if unzip -p "$package" "streamforge-$VERSION/scripts/force_update_v1252.sh" \
+              | grep -Fq 'python3 -m py_compile "$SOURCE_DIR/node_agent/app.py"'; then
+              echo "v12.52 updater still contains source-tree py_compile regression" >&2
+              exit 1
+            fi
+          fi
 
-          # Existing releases can be repaired safely; replace the same-named
-          # asset if a previous workflow attempt uploaded an incomplete package.
           gh release upload "$TAG" "$package" \
             --repo "$GITHUB_REPOSITORY" --clobber

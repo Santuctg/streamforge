@@ -22,6 +22,19 @@ if not updater.is_file():
     errors.append(f"missing current updater: {updater.name}")
 else:
     text = updater.read_text(encoding="utf-8")
+
+    # STREAMFORGE_RELEASE_SOURCE_NO_PRESTAGE_BYTECODE_V1252:
+    # The release source is copied into one or more nested staging trees before
+    # the inherited package-hygiene guard runs. Running py_compile against the
+    # source tree before that copy creates __pycache__ and makes a clean GitHub
+    # ZIP fail its own cache/metadata validation.
+    stage_copy_pos = text.find('cp -a "$SOURCE_DIR/." "$STAGE/"')
+    source_pycompile = re.search(r'python3\s+-m\s+py_compile\s+"?\$SOURCE_DIR/', text)
+    if source_pycompile and (stage_copy_pos < 0 or source_pycompile.start() < stage_copy_pos):
+        errors.append(
+            f"{updater.name} runs py_compile in SOURCE_DIR before staging and can create __pycache__"
+        )
+
     if not has_full_cleanup(text):
         # STREAMFORGE_RELEASE_STAGING_DELEGATED_CLEANUP_V1251:
         # A thin current-version updater may delegate the full deployment to a
