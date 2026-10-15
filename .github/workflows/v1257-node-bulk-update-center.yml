@@ -11,6 +11,7 @@ on:
       - 'app/templates/base.html'
       - 'app/templates/nodes.html'
       - 'app/templates/node_updates.html'
+      - 'scripts/apply_v1257_node_bulk_update_center.py'
       - 'scripts/verify_node_bulk_update_center_v1257.py'
       - '.github/workflows/v1257-node-bulk-update-center.yml'
 
@@ -19,5 +20,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Apply v12.57 source integration
+        run: python3 scripts/apply_v1257_node_bulk_update_center.py
       - name: Verify v12.57 Node Bulk Update Center
         run: python3 scripts/verify_node_bulk_update_center_v1257.py
+      - name: Verify Python syntax
+        run: python3 -c "from pathlib import Path; compile(Path('app/main.py').read_text(), 'app/main.py', 'exec')"
