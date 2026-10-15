@@ -537,13 +537,17 @@ html{background:#000!important}
   // installed by StreamForge, then fail over across two public CDNs. If all are
   // temporarily unreachable, keep retrying instead of leaving Firefox/Chrome
   // permanently in an unsupported state.
+  // STREAMFORGE_WEBPLAYER_HLSJS_FIRST_V1256:
+  // Chromium may report native HLS as "maybe" even when its native path is
+  // less compatible than MSE/HLS.js. Load/use HLS.js first; use native HLS only
+  // after HLS.js is known unavailable or unsupported.
   function ensureHlsLibrary() {
-    if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      startNativePlayback();
-      return;
-    }
     if (window.Hls && Hls.isSupported()) {
       startPlayback(fallbackMode);
+      return;
+    }
+    if (window.Hls && video.canPlayType('application/vnd.apple.mpegurl')) {
+      startNativePlayback();
       return;
     }
     if (hlsLibraryLoading) return;
@@ -565,6 +569,10 @@ html{background:#000!important}
       }
       if (index >= sources.length) {
         hlsLibraryLoading = false;
+        if (video.canPlayType('application/vnd.apple.mpegurl')) {
+          startNativePlayback();
+          return;
+        }
         setState('reconnecting', 'starting');
         setMessage('Player engine is temporarily unavailable. Retrying automatically…');
         hlsLibraryRetryTimer = setTimeout(() => {
@@ -580,6 +588,9 @@ html{background:#000!important}
         if (window.Hls && Hls.isSupported()) {
           hlsLibraryLoading = false;
           startPlayback(fallbackMode);
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+          hlsLibraryLoading = false;
+          startNativePlayback();
         } else {
           script.remove();
           attempt(index + 1);
@@ -595,12 +606,12 @@ html{background:#000!important}
   }
 
   function startPlayback(stable = false) {
-    if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      startNativePlayback();
-      return;
-    }
     if (window.Hls && Hls.isSupported()) {
       loadHls(stable);
+      return;
+    }
+    if (window.Hls && video.canPlayType('application/vnd.apple.mpegurl')) {
+      startNativePlayback();
       return;
     }
     ensureHlsLibrary();
