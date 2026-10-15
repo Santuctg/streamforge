@@ -20,46 +20,55 @@ def digest(path: Path) -> str:
     return h.hexdigest()
 
 
+def prepare_install(base: Path) -> tuple[Path, Path, Path, Path]:
+    app_root = base / "opt/streamforge"
+    cache_root = base / "var/cache/streamforge/main-static"
+    backup_root = base / "var/backups/streamforge"
+
+    (app_root / "app").mkdir(parents=True)
+    shutil.copytree(ROOT / "app/static", app_root / "app/static")
+    shutil.copytree(ROOT / "node_agent", app_root / "node_agent")
+    (app_root / "VERSION").write_text("12.54\n", encoding="utf-8")
+    (app_root / "node_agent/VERSION").write_text("12.52\n", encoding="utf-8")
+
+    shutil.copytree(ROOT / "app/static", cache_root)
+    sentinel = cache_root / "cache-only.keep"
+    sentinel.write_text("preserve me\n", encoding="utf-8")
+    return app_root, cache_root, backup_root, sentinel
+
+
+def run_updater(app_root: Path, cache_root: Path, backup_root: Path, *, fail_after_write: bool = False) -> subprocess.CompletedProcess[str]:
+    env = os.environ.copy()
+    env.update(
+        {
+            "STREAMFORGE_ROOT": str(app_root),
+            "STREAMFORGE_BACKUP_ROOT": str(backup_root),
+            "STREAMFORGE_MAIN_STATIC_CACHE_ROOT": str(cache_root),
+            "STREAMFORGE_HOTFIX_TEST_MODE": "1",
+        }
+    )
+    if fail_after_write:
+        env["STREAMFORGE_V1255_TEST_FAIL_AFTER_WRITE"] = "1"
+    return subprocess.run(
+        ["bash", str(UPDATER)],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        check=False,
+    )
+
+
 def main() -> None:
     if not UPDATER.is_file():
         raise SystemExit("scripts/force_update_v1255.sh is missing")
 
     source_node_hash = digest(ROOT / "node_agent/app.py")
 
-    with tempfile.TemporaryDirectory(prefix="streamforge-v1255-test-") as tmp:
-        base = Path(tmp)
-        app_root = base / "opt/streamforge"
-        cache_root = base / "var/cache/streamforge/main-static"
-        backup_root = base / "var/backups/streamforge"
-
-        (app_root / "app").mkdir(parents=True)
-        shutil.copytree(ROOT / "app/static", app_root / "app/static")
-        shutil.copytree(ROOT / "node_agent", app_root / "node_agent")
-        (app_root / "VERSION").write_text("12.54\n", encoding="utf-8")
-        (app_root / "node_agent/VERSION").write_text("12.52\n", encoding="utf-8")
-
-        shutil.copytree(ROOT / "app/static", cache_root)
-        sentinel = cache_root / "cache-only.keep"
-        sentinel.write_text("preserve me\n", encoding="utf-8")
-
-        env = os.environ.copy()
-        env.update(
-            {
-                "STREAMFORGE_ROOT": str(app_root),
-                "STREAMFORGE_BACKUP_ROOT": str(backup_root),
-                "STREAMFORGE_MAIN_STATIC_CACHE_ROOT": str(cache_root),
-                "STREAMFORGE_HOTFIX_TEST_MODE": "1",
-            }
-        )
-        proc = subprocess.run(
-            ["bash", str(UPDATER)],
-            cwd=ROOT,
-            env=env,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            check=False,
-        )
+    with tempfile.TemporaryDirectory(prefix="streamforge-v1255-success-") as tmp:
+        app_root, cache_root, backup_root, sentinel = prepare_install(Path(tmp))
+        proc = run_updater(app_root, cache_root, backup_root)
         if proc.returncode != 0:
             raise SystemExit(f"v12.55 updater integration failed:\n{proc.stdout}")
 
@@ -70,7 +79,22 @@ def main() -> None:
         assert digest(cache_root / "app.js") == digest(ROOT / "app/static/app.js")
         assert sentinel.read_text(encoding="utf-8") == "preserve me\n"
 
-    print("PASS: v12.55 updater aligns versions without changing Node behavior")
+    # RED first: a controlled post-write failure must roll both VERSION files
+    # and static trees back to their pre-update state.
+    with tempfile.TemporaryDirectory(prefix="streamforge-v1255-rollback-") as tmp:
+        app_root, cache_root, backup_root, sentinel = prepare_install(Path(tmp))
+        before_app_js = digest(app_root / "app/static/app.js")
+        before_cache_js = digest(cache_root / "app.js")
+        proc = run_updater(app_root, cache_root, backup_root, fail_after_write=True)
+        if proc.returncode == 0:
+            raise SystemExit("v12.55 rollback test expected controlled post-write failure")
+        assert (app_root / "VERSION").read_text(encoding="utf-8").strip() == "12.54"
+        assert (app_root / "node_agent/VERSION").read_text(encoding="utf-8").strip() == "12.52"
+        assert digest(app_root / "app/static/app.js") == before_app_js
+        assert digest(cache_root / "app.js") == before_cache_js
+        assert sentinel.read_text(encoding="utf-8") == "preserve me\n"
+
+    print("PASS: v12.55 updater aligns versions and restores state on post-write failure")
 
 
 if __name__ == "__main__":
