@@ -14,8 +14,20 @@ def require(condition: bool, message: str) -> None:
     if not condition:
         errors.append(message)
 
-require(version == "12.58", "Main VERSION must be 12.58")
-require(node_version == "12.58", "bundled Node VERSION must be 12.58")
+
+def version_at_least_1258(value: str) -> bool:
+    try:
+        major, minor = (int(part) for part in value.split(".", 1))
+    except (TypeError, ValueError):
+        return False
+    return (major, minor) >= (12, 58)
+
+
+# STREAMFORGE_V1258_HISTORICAL_CARRY_FORWARD:
+# v12.58's unified Node Update Center is a permanent compatibility contract.
+# Later releases retain it while advancing Main/Node metadata.
+require(version_at_least_1258(version), "Main VERSION must be v12.58 or newer")
+require(version_at_least_1258(node_version), "bundled Node VERSION must be v12.58 or newer")
 require("STREAMFORGE_NODE_UPDATE_CENTER_CLEANUP_V1258" in main, "v12.58 cleanup marker missing")
 
 # Advanced controls must stay inside Node Updates instead of navigating to the legacy page.
@@ -73,4 +85,4 @@ require("data.current_version" in bulk, "bulk polling must refresh current versi
 
 if errors:
     raise SystemExit("FAIL: " + "; ".join(errors))
-print("PASS: v12.58 Node Update Center cleanup contract verified")
+print("PASS: v12.58 Node Update Center cleanup carry-forward contract verified")
