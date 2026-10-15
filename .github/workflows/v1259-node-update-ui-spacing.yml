@@ -22,17 +22,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Verify v12.59 Node Update Center UI spacing
+      - name: Verify v12.59 Node Update Center UI spacing carry-forward
         run: python3 scripts/verify_node_update_ui_spacing_v1259.py
-      - name: Verify v12.59 updater integration
-        run: python3 scripts/test_v1259_updater_integration.py
-      - name: Verify current updater staging contract
-        run: python3 scripts/verify_release_updater_staging.py
-      - name: Verify updater selection and service boundaries
+      - name: Verify v12.59 updater integration only on v12.59
         shell: bash
         run: |
           set -euo pipefail
-          grep -Fq 'force_update_v1259.sh' scripts/update.sh
+          if [[ "$(tr -d '[:space:]' < VERSION)" == "12.59" ]]; then
+            python3 scripts/test_v1259_updater_integration.py
+          else
+            echo 'Historical v12.59 updater integration skipped for later release.'
+          fi
+      - name: Verify current updater staging contract
+        run: python3 scripts/verify_release_updater_staging.py
+      - name: Verify updater selection and historical service boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$(tr -d '[:space:]' < VERSION)" == "12.59" ]]; then
+            grep -Fq 'force_update_v1259.sh' scripts/update.sh
+          else
+            echo 'Historical v12.59 updater selection skipped for later release.'
+          fi
           if grep -Eq 'systemctl[[:space:]]+(restart|reload)[[:space:]]+streamforge-channel-supervisor' scripts/force_update_v1259.sh; then
             echo 'v12.59 updater must not restart the Main channel supervisor' >&2
             exit 1
@@ -63,7 +74,7 @@ jobs:
           from pathlib import Path
           for rel in ('scripts/verify_node_update_ui_spacing_v1259.py','scripts/test_v1259_updater_integration.py','scripts/verify_release_updater_staging.py'):
               compile(Path(rel).read_text(encoding='utf-8'), rel, 'exec')
-          print('PASS: v12.59 Python syntax verified without bytecode output')
+          print('PASS: v12.59 carry-forward Python syntax verified without bytecode output')
           PY
       - name: Verify updater shell syntax
         run: |
