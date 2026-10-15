@@ -9,6 +9,8 @@ on:
       - node_agent/app.py
       - scripts/apply_v1256_webplayer_hlsjs_first.py
       - scripts/verify_webplayer_hlsjs_first_v1256.py
+      - scripts/test_v1256_updater_integration.py
+      - scripts/force_update_v1256.sh
       - .github/workflows/v1256-webplayer-hlsjs-first.yml
   pull_request:
     paths:
@@ -16,6 +18,8 @@ on:
       - node_agent/app.py
       - scripts/apply_v1256_webplayer_hlsjs_first.py
       - scripts/verify_webplayer_hlsjs_first_v1256.py
+      - scripts/test_v1256_updater_integration.py
+      - scripts/force_update_v1256.sh
       - .github/workflows/v1256-webplayer-hlsjs-first.yml
   workflow_dispatch:
 
@@ -30,6 +34,8 @@ jobs:
           test "$(python3 scripts/apply_v1256_webplayer_hlsjs_first.py .)" = "ALREADY_FIXED"
       - name: Verify HLS.js-first browser engine selection
         run: python3 scripts/verify_webplayer_hlsjs_first_v1256.py .
+      - name: Verify v12.56 updater integration
+        run: python3 scripts/test_v1256_updater_integration.py
       - name: Verify carry-forward playback/recovery guards
         run: |
           grep -Fq 'STREAMFORGE_WEBPLAYER_PERSISTENT_AUTO_RECONNECT_V3055' app/templates/player.html
@@ -41,5 +47,6 @@ jobs:
           compile(Path('node_agent/app.py').read_text(encoding='utf-8'), 'node_agent/app.py', 'exec')
           compile(Path('scripts/apply_v1256_webplayer_hlsjs_first.py').read_text(encoding='utf-8'), 'apply_v1256', 'exec')
           compile(Path('scripts/verify_webplayer_hlsjs_first_v1256.py').read_text(encoding='utf-8'), 'verify_v1256', 'exec')
+          compile(Path('scripts/test_v1256_updater_integration.py').read_text(encoding='utf-8'), 'test_v1256_updater', 'exec')
           print('PASS: v12.56 Python syntax verified without bytecode output')
           PY
