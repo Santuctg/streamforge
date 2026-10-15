@@ -35,6 +35,14 @@ else:
             f"{updater.name} runs py_compile in SOURCE_DIR before staging and can create __pycache__"
         )
 
+    # STREAMFORGE_RELEASE_BOUNDED_VERSION_ALIGNMENT_V1255:
+    # v12.55 is intentionally not a full-tree deploy: production already runs
+    # the v12.54 Main payload and proven v12.52 Node payload. The updater may
+    # align VERSION files only after proving Node payload byte parity, while
+    # carrying the v12.54 atomic static-cache contract. Staging cleanup is not
+    # applicable because no full release tree is staged.
+    alignment_v1255 = "STREAMFORGE_VERSION_ALIGNMENT_V1255" in text
+
     # STREAMFORGE_RELEASE_BOUNDED_MAIN_HOTFIX_V1254:
     # Main-only hotfixes do not stage the whole release tree, so stale updater
     # cleanup is not applicable. They must explicitly declare scope, preserve the
@@ -50,7 +58,24 @@ else:
         ),
         None,
     )
-    if bounded_marker:
+
+    if alignment_v1255:
+        if 'cp -a "$SOURCE_DIR/." "$STAGE/"' in text:
+            errors.append(f"{updater.name} v12.55 alignment unexpectedly copies the full release tree")
+        for marker in (
+            'TARGET_VERSION="12.55"',
+            'NODE_TARGET_VERSION="12.55"',
+            "STREAMFORGE_MAIN_STATIC_CACHE_SYNC_V1254",
+            "STREAMFORGE_MAIN_WAITING_RECOVERY_V1253",
+            "STREAMFORGE_NODE_RELAY_HEALTH_PROBE_SINGLE_OWNER_V1251",
+            "installed Node payload differs from alignment package",
+            "sync_main_static_cache.py",
+            "STREAMFORGE_MAIN_STATIC_CACHE_ROOT",
+            "compile(path.read_text(encoding=\"utf-8\"), str(path), \"exec\")",
+        ):
+            if marker not in text:
+                errors.append(f"{updater.name} v12.55 bounded alignment contract missing {marker}")
+    elif bounded_marker:
         if 'cp -a "$SOURCE_DIR/." "$STAGE/"' in text:
             errors.append(f"{updater.name} declares Main-only scope but copies the full release tree")
         expected_no_bytecode = (

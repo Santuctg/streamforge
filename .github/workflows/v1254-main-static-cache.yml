@@ -23,4 +23,11 @@ jobs:
       - name: Verify v12.54 Main static cache sync helper
         run: python3 scripts/test_main_static_cache_sync_v1254.py
       - name: Verify v12.54 updater static cache integration
-        run: python3 scripts/test_v1254_updater_static_cache_integration.py
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$(tr -d '[:space:]' < VERSION)" == "12.54" ]]; then
+            python3 scripts/test_v1254_updater_static_cache_integration.py
+          else
+            echo "v12.54 updater integration is version-scoped; current VERSION is $(tr -d '[:space:]' < VERSION)."
+          fi

@@ -1,0 +1,56 @@
+name: V12.55 Version Alignment
+
+on:
+  pull_request:
+    paths:
+      - VERSION
+      - node_agent/VERSION
+      - scripts/force_update_v1255.sh
+      - scripts/update.sh
+      - scripts/test_v1255_version_alignment.py
+      - scripts/test_v1255_updater_integration.py
+      - .github/workflows/v1255-version-alignment.yml
+      - release-notes/v12.55.md
+  push:
+    branches:
+      - release/v12.55-version-alignment
+    paths:
+      - VERSION
+      - node_agent/VERSION
+      - scripts/force_update_v1255.sh
+      - scripts/update.sh
+      - scripts/test_v1255_version_alignment.py
+      - scripts/test_v1255_updater_integration.py
+      - .github/workflows/v1255-version-alignment.yml
+      - release-notes/v12.55.md
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify Node payload is unchanged from v12.52
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed="$(git diff --name-only v12.52 -- node_agent | grep -v '^node_agent/VERSION$' || true)"
+          if [[ -n "$changed" ]]; then
+            echo "v12.55 must not change Node runtime files from v12.52:" >&2
+            echo "$changed" >&2
+            exit 1
+          fi
+      - name: Verify v12.55 Main/Node version alignment
+        run: python3 scripts/test_v1255_version_alignment.py
+      - name: Verify v12.55 updater integration
+        run: python3 scripts/test_v1255_updater_integration.py
+      - name: Verify updater shell syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n scripts/force_update_v1255.sh
+          bash -n scripts/update.sh

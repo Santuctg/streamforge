@@ -121,6 +121,33 @@ jobs:
           compile(path.read_text(encoding="utf-8"), str(path), "exec")
           print("PASS: v12.54 release source syntax verified without bytecode output")
           PYV1254
+          elif [[ "$version" == "12.55" ]]; then
+            # STREAMFORGE_V1255_VERSION_ALIGNMENT_RELEASE_GUARD:
+            test "$(tr -d '[:space:]' < node_agent/VERSION)" = "12.55"
+            changed="$(git diff --name-only v12.52 -- node_agent | grep -v '^node_agent/VERSION$' || true)"
+            if [[ -n "$changed" ]]; then
+              echo "v12.55 unexpectedly changes Node runtime files from v12.52:" >&2
+              echo "$changed" >&2
+              exit 1
+            fi
+            python3 scripts/verify_main_waiting_retry_v1253.py .
+            python3 scripts/test_main_static_cache_sync_v1254.py
+            python3 scripts/test_v1255_version_alignment.py
+            python3 scripts/test_v1255_updater_integration.py
+            python3 scripts/verify_release_updater_staging.py
+            grep -Fq 'STREAMFORGE_LOCAL_RELAY_DB_CLOSE_V1250' app/main.py
+            grep -Fq 'STREAMFORGE_NODE_RELAY_HEALTH_PROBE_SINGLE_OWNER_V1251' node_agent/app.py
+            grep -Fq 'STREAMFORGE_MAIN_STATIC_CACHE_SYNC_V1254' scripts/force_update_v1255.sh
+            grep -Fq 'STREAMFORGE_VERSION_ALIGNMENT_V1255' scripts/force_update_v1255.sh
+            bash -n scripts/force_update_v1255.sh
+            python3 - node_agent/app.py scripts/sync_main_static_cache.py <<'PYV1255'
+          from pathlib import Path
+          import sys
+          for raw in sys.argv[1:]:
+              path = Path(raw)
+              compile(path.read_text(encoding="utf-8"), str(path), "exec")
+          print("PASS: v12.55 release source syntax verified without bytecode output")
+          PYV1255
           fi
           echo "release_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
@@ -210,6 +237,23 @@ jobs:
               | grep -Fq 'STREAMFORGE_V1254_NO_SOURCE_BYTECODE'
             unzip -p "$package" "streamforge-$VERSION/scripts/sync_main_static_cache.py" \
               | grep -Fq 'STREAMFORGE_MAIN_STATIC_CACHE_SYNC_V1254'
+          fi
+          if [[ "$VERSION" == "12.55" ]]; then
+            unzip -p "$package" "streamforge-$VERSION/node_agent/VERSION" | grep -Fx '12.55'
+            unzip -p "$package" "streamforge-$VERSION/app/static/app.js" \
+              | grep -Fq 'STREAMFORGE_MAIN_WAITING_RECOVERY_V1253'
+            unzip -p "$package" "streamforge-$VERSION/app/main.py" \
+              | grep -Fq 'STREAMFORGE_LOCAL_RELAY_DB_CLOSE_V1250'
+            unzip -p "$package" "streamforge-$VERSION/node_agent/app.py" \
+              | grep -Fq 'STREAMFORGE_NODE_RELAY_HEALTH_PROBE_SINGLE_OWNER_V1251'
+            unzip -p "$package" "streamforge-$VERSION/scripts/force_update_v1255.sh" \
+              | grep -Fq 'STREAMFORGE_VERSION_ALIGNMENT_V1255'
+            unzip -p "$package" "streamforge-$VERSION/scripts/force_update_v1255.sh" \
+              | grep -Fq 'STREAMFORGE_MAIN_STATIC_CACHE_SYNC_V1254'
+            unzip -p "$package" "streamforge-$VERSION/scripts/sync_main_static_cache.py" \
+              | grep -Fq 'STREAMFORGE_MAIN_STATIC_CACHE_SYNC_V1254'
+            unzip -p "$package" "streamforge-$VERSION/scripts/update.sh" \
+              | grep -Fq 'force_update_v1255.sh'
           fi
 
           gh release upload "$TAG" "$package" \
