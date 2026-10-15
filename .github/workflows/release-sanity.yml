@@ -5,6 +5,7 @@ on:
     paths:
       - VERSION
       - node_agent/VERSION
+      - app/templates/player.html
       - app/static/dashboard.js
       - node_agent/app.py
       - deploy/nginx.conf
@@ -30,6 +31,9 @@ on:
       - scripts/test_v1254_updater_static_cache_integration.py
       - scripts/test_v1255_version_alignment.py
       - scripts/test_v1255_updater_integration.py
+      - scripts/apply_v1256_webplayer_hlsjs_first.py
+      - scripts/verify_webplayer_hlsjs_first_v1256.py
+      - scripts/test_v1256_updater_integration.py
       - scripts/fetch_hlsjs.sh
       - release-notes/**
       - .github/workflows/publish-release.yml
@@ -43,6 +47,7 @@ on:
       - .github/workflows/v1253-main-waiting-retry.yml
       - .github/workflows/v1254-main-static-cache.yml
       - .github/workflows/v1255-version-alignment.yml
+      - .github/workflows/v1256-webplayer-hlsjs-first.yml
 
 permissions:
   contents: read
@@ -112,7 +117,7 @@ jobs:
         run: |
           set -euo pipefail
           version="$(tr -d '[:space:]' < VERSION)"
-          if [[ "$version" == "12.53" || "$version" == "12.54" || "$version" == "12.55" ]]; then
+          if [[ "$version" == "12.53" || "$version" == "12.54" || "$version" == "12.55" || "$version" == "12.56" ]]; then
             python3 scripts/verify_main_waiting_retry_v1253.py .
           fi
       - name: Verify v12.54 Main static cache sync
@@ -137,6 +142,28 @@ jobs:
             grep -Fq 'STREAMFORGE_MAIN_STATIC_CACHE_SYNC_V1254' scripts/force_update_v1255.sh
             grep -Fq 'STREAMFORGE_MAIN_WAITING_RECOVERY_V1253' scripts/force_update_v1255.sh
             grep -Fq 'STREAMFORGE_NODE_RELAY_HEALTH_PROBE_SINGLE_OWNER_V1251' scripts/force_update_v1255.sh
+          fi
+      - name: Verify v12.56 Web Player HLS.js-first release
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$(tr -d '[:space:]' < VERSION)" == "12.56" ]]; then
+            result="$(python3 scripts/apply_v1256_webplayer_hlsjs_first.py .)"
+            [[ "$result" == "FIXED" || "$result" == "ALREADY_FIXED" ]]
+            python3 scripts/verify_webplayer_hlsjs_first_v1256.py .
+            python3 scripts/test_v1256_updater_integration.py
+            grep -Fq 'STREAMFORGE_WEBPLAYER_HLSJS_FIRST_V1256' scripts/force_update_v1256.sh
+            grep -Fq 'STREAMFORGE_V1256_BOUNDED_PLAYER_UPDATE' scripts/force_update_v1256.sh
+            grep -Fq 'STREAMFORGE_MAIN_WAITING_RECOVERY_V1253' scripts/force_update_v1256.sh
+            grep -Fq 'STREAMFORGE_NODE_RELAY_HEALTH_PROBE_SINGLE_OWNER_V1251' scripts/force_update_v1256.sh
+            if grep -Eq 'systemctl[[:space:]]+(restart|reload)[[:space:]]+streamforge-channel-supervisor' scripts/force_update_v1256.sh; then
+              echo 'v12.56 updater must not restart the Main channel supervisor' >&2
+              exit 1
+            fi
+            if grep -Eq 'systemctl[[:space:]]+(restart|reload)[[:space:]]+nginx' scripts/force_update_v1256.sh; then
+              echo 'v12.56 updater must not restart/reload Nginx' >&2
+              exit 1
+            fi
           fi
       - name: Verify v12.46 release notes
         shell: bash
