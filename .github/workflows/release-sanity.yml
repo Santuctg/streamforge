@@ -28,6 +28,8 @@ on:
       - scripts/sync_main_static_cache.py
       - scripts/test_main_static_cache_sync_v1254.py
       - scripts/test_v1254_updater_static_cache_integration.py
+      - scripts/test_v1255_version_alignment.py
+      - scripts/test_v1255_updater_integration.py
       - scripts/fetch_hlsjs.sh
       - release-notes/**
       - .github/workflows/publish-release.yml
@@ -40,6 +42,7 @@ on:
       - .github/workflows/v1251-node-relay-probe-dedupe.yml
       - .github/workflows/v1253-main-waiting-retry.yml
       - .github/workflows/v1254-main-static-cache.yml
+      - .github/workflows/v1255-version-alignment.yml
 
 permissions:
   contents: read
@@ -60,8 +63,8 @@ jobs:
           [[ "$version" =~ ^[0-9]+\.[0-9]+$ ]]
           [[ "$node_version" =~ ^[0-9]+\.[0-9]+$ ]]
           # STREAMFORGE_V1254_MAIN_ONLY_RELEASE_SANITY:
-          # v12.53/v12.54 are Main-only releases; the tested Node Agent remains
-          # v12.52 and must not be republished merely to match the Main number.
+          # v12.53/v12.54 are historical Main-only releases. From v12.55
+          # onward Main and bundled Node Agent are aligned again.
           if [[ "$version" == "12.53" || "$version" == "12.54" ]]; then
             [[ "$node_version" == "12.52" ]]
           else
@@ -108,7 +111,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "$(tr -d '[:space:]' < VERSION)" == "12.53" || "$(tr -d '[:space:]' < VERSION)" == "12.54" ]]; then
+          version="$(tr -d '[:space:]' < VERSION)"
+          if [[ "$version" == "12.53" || "$version" == "12.54" || "$version" == "12.55" ]]; then
             python3 scripts/verify_main_waiting_retry_v1253.py .
           fi
       - name: Verify v12.54 Main static cache sync
@@ -120,6 +124,19 @@ jobs:
             python3 scripts/test_v1254_updater_static_cache_integration.py
             grep -Fq 'STREAMFORGE_MAIN_STATIC_CACHE_SYNC_V1254' scripts/force_update_v1254.sh
             grep -Fq 'STREAMFORGE_V1254_NO_SOURCE_BYTECODE' scripts/force_update_v1254.sh
+          fi
+      - name: Verify v12.55 Main/Node alignment
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$(tr -d '[:space:]' < VERSION)" == "12.55" ]]; then
+            python3 scripts/test_main_static_cache_sync_v1254.py
+            python3 scripts/test_v1255_version_alignment.py
+            python3 scripts/test_v1255_updater_integration.py
+            grep -Fq 'STREAMFORGE_VERSION_ALIGNMENT_V1255' scripts/force_update_v1255.sh
+            grep -Fq 'STREAMFORGE_MAIN_STATIC_CACHE_SYNC_V1254' scripts/force_update_v1255.sh
+            grep -Fq 'STREAMFORGE_MAIN_WAITING_RECOVERY_V1253' scripts/force_update_v1255.sh
+            grep -Fq 'STREAMFORGE_NODE_RELAY_HEALTH_PROBE_SINGLE_OWNER_V1251' scripts/force_update_v1255.sh
           fi
       - name: Verify v12.46 release notes
         shell: bash
