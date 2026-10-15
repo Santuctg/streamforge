@@ -13,8 +13,17 @@ def require(condition: bool, message: str) -> None:
     if not condition:
         errors.append(message)
 
-require(version == "12.59", "Main VERSION must be 12.59")
-require(node_version == "12.59", "bundled Node VERSION must be 12.59")
+
+def version_key(value: str) -> tuple[int, ...]:
+    try:
+        return tuple(int(part) for part in value.split("."))
+    except ValueError:
+        return (0,)
+
+# Historical v12.59 UI behavior must remain valid on later releases. Exact
+# updater/package tests are gated in the v12.59 workflow itself.
+require(version_key(version) >= (12, 59), "Main VERSION must be v12.59 or later")
+require(node_version == version, "bundled Node VERSION must stay aligned with Main")
 require("STREAMFORGE_NODE_UPDATE_UI_SPACING_V1259" in template, "v12.59 UI spacing marker missing")
 
 # Toolbar controls should read as one intentional control bar, not loose text and
