@@ -30,6 +30,11 @@ require('/nodes/{{ node.id }}/update/ssh' in bulk, "inline SSH recovery action m
 require('form="node-bulk-update-form"' in bulk, "bulk checkboxes/button must target the standalone bulk form")
 require("bulkForm.addEventListener('submit'" not in bulk, "cancelled bulk confirmation must not disable Update Selected")
 
+# Node names are admin data, not JavaScript literals. Keep inline confirmation
+# strings static so quotes in a Node name cannot break an event-handler string.
+require("confirm('Update {{ node.name" not in bulk, "API confirmation must not interpolate Node name into inline JavaScript")
+require("confirm('Reinstall and restart {{ node.name" not in bulk, "SSH confirmation must not interpolate Node name into inline JavaScript")
+
 # Legacy GET stays compatible but redirects into the unified Update Center.
 legacy_get = re.search(
     r'@app\.get\("/nodes/\{node_id\}/update".*?\ndef node_update_page\(.*?\n(?P<body>.*?)(?=\n\ndef |\n@app\.)',
