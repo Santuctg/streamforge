@@ -10,8 +10,10 @@ on:
       - node_agent/VERSION
       - app/templates/node_updates.html
       - scripts/verify_node_update_ui_spacing_v1259.py
+      - scripts/test_v1259_updater_integration.py
       - scripts/force_update_v1259.sh
       - scripts/update.sh
+      - scripts/verify_release_updater_staging.py
       - release-notes/v12.59.md
       - .github/workflows/v1259-node-update-ui-spacing.yml
 
@@ -22,3 +24,5 @@ jobs:
       - uses: actions/checkout@v4
       - name: Verify v12.59 Node Update Center UI spacing
         run: python3 scripts/verify_node_update_ui_spacing_v1259.py
+      - name: Verify v12.59 updater integration
+        run: python3 scripts/test_v1259_updater_integration.py
