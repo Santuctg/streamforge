@@ -32,6 +32,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify Node payload is unchanged from v12.52
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed="$(git diff --name-only v12.52 -- node_agent | grep -v '^node_agent/VERSION$' || true)"
+          if [[ -n "$changed" ]]; then
+            echo "v12.55 must not change Node runtime files from v12.52:" >&2
+            echo "$changed" >&2
+            exit 1
+          fi
       - name: Verify v12.55 Main/Node version alignment
         run: python3 scripts/test_v1255_version_alignment.py
       - name: Verify v12.55 updater integration
@@ -40,7 +52,5 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ -f scripts/force_update_v1255.sh ]]; then
-            bash -n scripts/force_update_v1255.sh
-          fi
+          bash -n scripts/force_update_v1255.sh
           bash -n scripts/update.sh
