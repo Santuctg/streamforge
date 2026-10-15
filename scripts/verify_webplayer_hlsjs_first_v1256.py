@@ -12,8 +12,8 @@ def fail(message: str) -> None:
     raise SystemExit(f"FAIL: {message}")
 
 
-def function_slice(text: str, start_token: str, end_token: str, label: str) -> str:
-    start = text.find(start_token)
+def function_slice(text: str, start_token: str, end_token: str, label: str, start_at: int = 0) -> str:
+    start = text.find(start_token, start_at)
     if start < 0:
         fail(f"{label}: missing {start_token}")
     end = text.find(end_token, start + len(start_token))
@@ -35,10 +35,11 @@ def assert_hls_first(block: str, label: str) -> None:
 
 def verify_main(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
-    if MARKER not in text:
+    marker = text.find(MARKER)
+    if marker < 0:
         fail("Main player marker missing")
-    ensure = function_slice(text, "function ensureHlsLibrary()", "function startPlayback", "Main ensureHlsLibrary")
-    start = function_slice(text, "function startPlayback", "video.addEventListener('playing'", "Main startPlayback")
+    ensure = function_slice(text, "function ensureHlsLibrary()", "function startPlayback", "Main ensureHlsLibrary", marker)
+    start = function_slice(text, "function startPlayback", "video.addEventListener('playing'", "Main startPlayback", marker)
     assert_hls_first(ensure, "Main ensureHlsLibrary")
     assert_hls_first(start, "Main startPlayback")
     if "sources = [" not in ensure or "static/vendor/hls.min.js" not in ensure:
@@ -49,10 +50,17 @@ def verify_main(path: Path) -> None:
 
 def verify_node(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
-    if MARKER not in text:
+    marker = text.find(MARKER)
+    if marker < 0:
         fail("Node player marker missing")
-    ensure = function_slice(text, "function ensureEngine()", "function start()", "Node ensureEngine")
-    start = function_slice(text, "function start()", "/* STREAMFORGE_WEBPLAYER_PERSISTENT_AUTO_RECONNECT_V3055 */", "Node start")
+    ensure = function_slice(text, "function ensureEngine()", "function start()", "Node ensureEngine", marker)
+    start = function_slice(
+        text,
+        "function start()",
+        "/* STREAMFORGE_WEBPLAYER_PERSISTENT_AUTO_RECONNECT_V3055 */",
+        "Node start",
+        marker,
+    )
     assert_hls_first(ensure, "Node ensureEngine")
     assert_hls_first(start, "Node start")
     if "hls.min.js" not in ensure or "cdn.jsdelivr.net/npm/hls.js@1.7.1" not in ensure:
