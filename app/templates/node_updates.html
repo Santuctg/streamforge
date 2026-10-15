@@ -77,7 +77,6 @@
 (() => {
   const root = document.querySelector('[data-node-bulk-update-center]');
   if (!root) return;
-  const bulkForm = document.querySelector('[data-bulk-update-form]');
   const selectAll = root.querySelector('[data-select-all]');
   const checks = Array.from(root.querySelectorAll('[data-node-select]'));
   const selectedCount = root.querySelector('[data-selected-count]');
@@ -151,8 +150,6 @@
   };
   const pollAll = async () => { await Promise.all(rows.map(pollRow)); setTimeout(pollAll, 1000); };
   pollAll();
-
-  if (bulkForm) bulkForm.addEventListener('submit', () => { updateButton.disabled = true; });
 })();
 function confirmBulkNodeUpdate(form){
   const count = document.querySelectorAll('[data-node-select]:checked').length;
