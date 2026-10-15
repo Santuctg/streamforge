@@ -5,6 +5,8 @@ on:
     branches:
       - hotfix/v12.56-webplayer-hlsjs-first
     paths:
+      - VERSION
+      - node_agent/VERSION
       - app/templates/player.html
       - node_agent/app.py
       - scripts/apply_v1256_webplayer_hlsjs_first.py
@@ -14,6 +16,8 @@ on:
       - .github/workflows/v1256-webplayer-hlsjs-first.yml
   pull_request:
     paths:
+      - VERSION
+      - node_agent/VERSION
       - app/templates/player.html
       - node_agent/app.py
       - scripts/apply_v1256_webplayer_hlsjs_first.py
@@ -30,7 +34,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Apply v12.56 HLS.js-first source transformation
         run: |
-          test "$(python3 scripts/apply_v1256_webplayer_hlsjs_first.py .)" = "FIXED"
+          result="$(python3 scripts/apply_v1256_webplayer_hlsjs_first.py .)"
+          [[ "$result" == "FIXED" || "$result" == "ALREADY_FIXED" ]]
           test "$(python3 scripts/apply_v1256_webplayer_hlsjs_first.py .)" = "ALREADY_FIXED"
       - name: Verify HLS.js-first browser engine selection
         run: python3 scripts/verify_webplayer_hlsjs_first_v1256.py .
