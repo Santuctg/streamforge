@@ -35,6 +35,12 @@ else:
             f"{updater.name} runs py_compile in SOURCE_DIR before staging and can create __pycache__"
         )
 
+    # STREAMFORGE_RELEASE_BOUNDED_NODE_BULK_UPDATE_V1257:
+    # v12.57 changes Main control-plane routes/templates and aligns the bundled
+    # Node VERSION only. The Node runtime payload must remain byte-identical to
+    # the installed v12.56 payload, so full-tree staging cleanup is not relevant.
+    bounded_bulk_v1257 = "STREAMFORGE_V1257_MAIN_UI_ONLY_NODE_VERSION_ALIGNMENT" in text
+
     # STREAMFORGE_RELEASE_BOUNDED_PLAYER_UPDATE_V1256:
     # v12.56 intentionally deploys only the Main Web Player template, bundled
     # Node Web Player runtime, version metadata, and its helper scripts. It does
@@ -67,7 +73,25 @@ else:
         None,
     )
 
-    if bounded_player_v1256:
+    if bounded_bulk_v1257:
+        if 'cp -a "$SOURCE_DIR/." "$STAGE/"' in text:
+            errors.append(f"{updater.name} v12.57 bounded bulk-update release unexpectedly copies the full release tree")
+        for marker in (
+            'TARGET_VERSION="12.57"',
+            'NODE_TARGET_VERSION="12.57"',
+            "STREAMFORGE_NODE_BULK_UPDATE_CENTER_V1257",
+            "STREAMFORGE_V1257_MAIN_UI_ONLY_NODE_VERSION_ALIGNMENT",
+            "STREAMFORGE_V1257_ROLLBACK_GUARD",
+            "STREAMFORGE_WEBPLAYER_HLSJS_FIRST_V1256",
+            "STREAMFORGE_NODE_RELAY_HEALTH_PROBE_SINGLE_OWNER_V1251",
+            "verify_node_bulk_update_center_v1257.py",
+            "Node runtime payload differs for:",
+            "atomic_copy",
+            "compile(path.read_text(encoding=\"utf-8\"), str(path), \"exec\")",
+        ):
+            if marker not in text:
+                errors.append(f"{updater.name} v12.57 bounded bulk-update contract missing {marker}")
+    elif bounded_player_v1256:
         if 'cp -a "$SOURCE_DIR/." "$STAGE/"' in text:
             errors.append(f"{updater.name} v12.56 bounded player update unexpectedly copies the full release tree")
         for marker in (

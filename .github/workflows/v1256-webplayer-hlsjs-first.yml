@@ -40,7 +40,14 @@ jobs:
       - name: Verify HLS.js-first browser engine selection
         run: python3 scripts/verify_webplayer_hlsjs_first_v1256.py .
       - name: Verify v12.56 updater integration
-        run: python3 scripts/test_v1256_updater_integration.py
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$(tr -d '[:space:]' < VERSION)" == "12.56" ]]; then
+            python3 scripts/test_v1256_updater_integration.py
+          else
+            echo "Historical v12.56 updater integration skipped for current release $(cat VERSION)."
+          fi
       - name: Verify carry-forward playback/recovery guards
         run: |
           grep -Fq 'STREAMFORGE_WEBPLAYER_PERSISTENT_AUTO_RECONNECT_V3055' app/templates/player.html

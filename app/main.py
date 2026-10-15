@@ -9828,6 +9828,83 @@ def node_status_json(node_id: int, request: Request, db: Session = Depends(get_d
     return result
 
 
+# STREAMFORGE_NODE_BULK_UPDATE_CENTER_V1257:
+# Node updates are managed from one dedicated page. A bulk submission starts
+# every selected Node immediately by reusing the established isolated per-Node
+# update worker; there is deliberately no global concurrency cap or batch queue.
+@app.get("/nodes/updates", response_class=HTMLResponse, dependencies=[Depends(permission_required("nodes.update"))])
+def node_updates_page(request: Request, message: str = "", error: str = "", db: Session = Depends(get_db)):
+    if not current_admin(request, db):
+        return redirect_login()
+    remote_nodes = list(db.scalars(
+        select(Node).where(Node.node_type == "remote").order_by(Node.name, Node.id)
+    ).all())
+    with _NODE_UPDATE_LOCK:
+        update_jobs = {int(node.id): dict(_NODE_UPDATE_JOBS.get(int(node.id)) or {}) for node in remote_nodes}
+    return render(
+        request,
+        "node_updates.html",
+        db,
+        nodes=remote_nodes,
+        update_jobs=update_jobs,
+        target_version=APP_VERSION,
+        message=message,
+        error=error,
+    )
+
+
+@app.post("/nodes/updates/bulk", dependencies=[Depends(permission_required("nodes.update"))])
+def node_updates_bulk(
+    request: Request,
+    node_ids: list[int] = Form(default=[]),
+    db: Session = Depends(get_db),
+):
+    if not current_admin(request, db):
+        return redirect_login()
+    selected: list[int] = []
+    seen: set[int] = set()
+    for node_id in node_ids:
+        value = int(node_id)
+        if value > 0 and value not in seen:
+            seen.add(value)
+            selected.append(value)
+    if not selected:
+        return RedirectResponse("/nodes/updates?error=" + quote_plus("Select at least one remote Node."), status_code=303)
+
+    rows = list(db.scalars(
+        select(Node).where(Node.node_type == "remote", Node.id.in_(selected))
+    ).all())
+    by_id = {int(node.id): node for node in rows}
+    panel_url = main_panel_public_base(db, request)
+    actor = current_admin(request, db)
+    started = 0
+    already_running = 0
+    missing = 0
+    for node_id in selected:
+        node = by_id.get(int(node_id))
+        if node is None:
+            missing += 1
+            continue
+        if _start_node_update_job(node.id, method="api", panel_url=panel_url):
+            started += 1
+            log_event(
+                "Node bulk API update queued",
+                scope="node",
+                node_id=node.id,
+                actor=actor.username if actor else None,
+                details={"target_version": APP_VERSION, "bulk": True},
+            )
+        else:
+            already_running += 1
+
+    parts = [f"Started {started} Node update(s) in parallel"]
+    if already_running:
+        parts.append(f"{already_running} already running")
+    if missing:
+        parts.append(f"{missing} unavailable")
+    return RedirectResponse("/nodes/updates?message=" + quote_plus(" · ".join(parts)), status_code=303)
+
+
 @app.get("/nodes/{node_id}/update", response_class=HTMLResponse, dependencies=[Depends(permission_required("nodes.update"))])
 def node_update_page(node_id: int, request: Request, error: str = "", message: str = "", db: Session = Depends(get_db)):
     node = db.get(Node, node_id)

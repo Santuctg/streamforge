@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Node Updates · {{ branding.name }}{% endblock %}
+{% block heading %}<h1>Node Updates</h1><p>Select one or more remote Nodes and update them in parallel</p>{% endblock %}
+{% block content %}
+{% if error %}<div class="alert danger">{{ error }}</div>{% endif %}
+{% if message %}<div class="alert success">{{ message }}</div>{% endif %}
+<section class="panel form-section node-bulk-update-center" data-node-bulk-update-center>
+  <div class="panel-head">
+    <div><h2>Remote Node updates</h2><p>Target version: <b>v{{ target_version }}</b>. Every selected Node starts immediately; failures do not stop other Nodes.</p></div>
+    <div class="head-actions"><a class="button" href="/nodes">Back to Nodes</a></div>
+  </div>
+  <form method="post" action="/nodes/updates/bulk" data-bulk-update-form onsubmit="return confirmBulkNodeUpdate(this)">
+    <div class="node-update-bulk-toolbar">
+      <label class="check"><input type="checkbox" data-select-all><span>Select All</span></label>
+      <span><b data-selected-count>0</b> selected</span>
+      <button class="button primary" type="submit" data-update-selected disabled>Update Selected</button>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table node-update-table">
+        <thead><tr><th></th><th>Node</th><th>Status</th><th>Current Version</th><th>Target</th><th>Update</th><th>Progress</th><th></th></tr></thead>
+        <tbody>
+        {% for node in nodes %}
+          {% set job = update_jobs.get(node.id, {}) %}
+          <tr data-update-row data-node-id="{{ node.id }}" data-status-url="{{ request.scope.get('root_path','') }}/nodes/{{ node.id }}/update/status">
+            <td><input type="checkbox" name="node_ids" value="{{ node.id }}" data-node-select aria-label="Select {{ node.name }}"></td>
+            <td><b>{{ node.name }}</b><br><small class="mono">{{ node.api_url }}</small></td>
+            <td><span class="status {{ 'running' if node.status == 'online' else ('error' if node.status in ['offline','error'] else 'stopped') }}">{{ node.status }}</span></td>
+            <td><b data-current-version>{{ node.agent_version or 'unknown' }}</b></td>
+            <td><b>v{{ target_version }}</b></td>
+            <td><span class="node-update-state {{ job.state or 'idle' }}" data-update-state>{{ job.state or 'idle' }}</span><br><small data-update-message>{{ job.message or 'Ready' }}</small></td>
+            <td style="min-width:170px"><div class="node-update-progress"><span data-update-progress style="width:{{ job.progress or 0 }}%"></span></div><small><span data-update-percent>{{ job.progress or 0 }}</span>%</small><div class="node-update-error" data-update-error{% if not job.error %} hidden{% endif %}>{{ job.error or '' }}</div></td>
+            <td><a class="button small" href="/nodes/{{ node.id }}/update">Advanced</a></td>
+          </tr>
+        {% else %}
+          <tr><td colspan="8">No remote Nodes are configured.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </form>
+</section>
+<style>
+.node-update-bulk-toolbar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:0 0 14px}.node-update-bulk-toolbar .button{margin-left:auto}.node-update-table small{display:inline-block;margin-top:4px}.node-update-table .node-update-progress{height:8px;margin:2px 0 4px}.node-update-table .node-update-error{margin-top:5px;font-size:12px}.node-update-table td{vertical-align:middle}@media(max-width:760px){.node-update-bulk-toolbar .button{margin-left:0;width:100%}.node-update-table{min-width:980px}}
+</style>
+{% endblock %}
+{% block scripts %}<script>
+(() => {
+  const root = document.querySelector('[data-node-bulk-update-center]');
+  if (!root) return;
+  const selectAll = root.querySelector('[data-select-all]');
+  const checks = Array.from(root.querySelectorAll('[data-node-select]'));
+  const selectedCount = root.querySelector('[data-selected-count]');
+  const updateButton = root.querySelector('[data-update-selected]');
+  const syncSelection = () => {
+    const count = checks.filter(box => box.checked).length;
+    selectedCount.textContent = String(count);
+    updateButton.disabled = count === 0;
+    if (selectAll) {
+      selectAll.checked = checks.length > 0 && count === checks.length;
+      selectAll.indeterminate = count > 0 && count < checks.length;
+    }
+  };
+  selectAll?.addEventListener('change', () => { checks.forEach(box => { box.checked = selectAll.checked; }); syncSelection(); });
+  checks.forEach(box => box.addEventListener('change', syncSelection));
+  syncSelection();
+
+  const renderRow = (row, data) => {
+    const state = String(data.state || 'idle');
+    const progress = Math.max(0, Math.min(100, Number(data.progress) || 0));
+    const stateNode = row.querySelector('[data-update-state]');
+    const messageNode = row.querySelector('[data-update-message]');
+    const bar = row.querySelector('[data-update-progress]');
+    const percent = row.querySelector('[data-update-percent]');
+    const error = row.querySelector('[data-update-error]');
+    stateNode.textContent = state;
+    stateNode.className = `node-update-state ${state}`;
+    messageNode.textContent = data.message || (state === 'idle' ? 'Ready' : '');
+    bar.style.width = `${progress}%`;
+    percent.textContent = String(Math.round(progress));
+    error.textContent = data.error || '';
+    error.hidden = !data.error;
+  };
+  const pollRow = async (row) => {
+    const url = row.dataset.statusUrl;
+    try {
+      const sep = url.includes('?') ? '&' : '?';
+      const response = await fetch(`${url}${sep}_=${Date.now()}`, {cache:'no-store', credentials:'same-origin', headers:{'Accept':'application/json'}});
+      if (response.ok) renderRow(row, await response.json());
+    } catch (_) {}
+  };
+  const rows = Array.from(root.querySelectorAll('[data-update-row]'));
+  const pollAll = async () => { await Promise.all(rows.map(pollRow)); setTimeout(pollAll, 1000); };
+  pollAll();
+})();
+function confirmBulkNodeUpdate(form){
+  const count = form.querySelectorAll('[data-node-select]:checked').length;
+  return count > 0 && confirm(`Update ${count} selected Node${count === 1 ? '' : 's'} now? All selected updates will start at the same time.`);
+}
+</script>{% endblock %}
