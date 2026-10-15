@@ -1,0 +1,71 @@
+name: v12.60 Inline Node Update Log
+
+on:
+  push:
+    branches:
+      - hotfix/v12.60-inline-node-update-log
+  pull_request:
+    paths:
+      - VERSION
+      - node_agent/VERSION
+      - app/templates/node_updates.html
+      - scripts/verify_node_inline_update_log_v1260.py
+      - scripts/test_v1260_updater_integration.py
+      - scripts/force_update_v1260.sh
+      - scripts/update.sh
+      - scripts/verify_release_updater_staging.py
+      - release-notes/v12.60.md
+      - .github/workflows/v1260-inline-node-update-log.yml
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify v12.60 inline Node update log
+        run: python3 scripts/verify_node_inline_update_log_v1260.py
+      - name: Verify v12.60 updater integration
+        run: python3 scripts/test_v1260_updater_integration.py
+      - name: Verify current updater staging contract
+        run: python3 scripts/verify_release_updater_staging.py
+      - name: Verify updater selection and service boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'force_update_v1260.sh' scripts/update.sh
+          if grep -Eq 'systemctl[[:space:]]+(restart|reload)[[:space:]]+streamforge-channel-supervisor' scripts/force_update_v1260.sh; then
+            echo 'v12.60 updater must not restart the Main channel supervisor' >&2
+            exit 1
+          fi
+          if grep -Eq 'systemctl[[:space:]]+(restart|reload)[[:space:]]+nginx' scripts/force_update_v1260.sh; then
+            echo 'v12.60 updater must not restart/reload Nginx' >&2
+            exit 1
+          fi
+      - name: Verify release notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s release-notes/v12.60.md
+          grep -Fq 'Live update log' release-notes/v12.60.md
+          grep -Fq 'streamforge-update --force /root/streamforge-12.60.zip' release-notes/v12.60.md
+      - name: Verify carry-forward guards
+        run: |
+          python3 scripts/verify_node_bulk_update_center_v1257.py
+          python3 scripts/verify_webplayer_hlsjs_first_v1256.py .
+          python3 scripts/verify_main_waiting_retry_v1253.py .
+          python3 scripts/verify_node_relay_probe_dedupe_v1251.py node_agent/app.py
+          grep -Fq 'STREAMFORGE_NODE_UPDATE_UI_SPACING_V1259' app/templates/node_updates.html
+          grep -Fq 'STREAMFORGE_NODE_UPDATE_CENTER_CLEANUP_V1258' app/main.py
+          grep -Fq 'STREAMFORGE_LOCAL_RELAY_DB_CLOSE_V1250' app/main.py
+      - name: Verify Python syntax
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          for rel in ('scripts/verify_node_inline_update_log_v1260.py','scripts/test_v1260_updater_integration.py','scripts/verify_release_updater_staging.py'):
+              compile(Path(rel).read_text(encoding='utf-8'), rel, 'exec')
+          print('PASS: v12.60 Python syntax verified without bytecode output')
+          PY
+      - name: Verify updater shell syntax
+        run: |
+          bash -n scripts/force_update_v1260.sh
+          bash -n scripts/update.sh
