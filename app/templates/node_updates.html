@@ -4,49 +4,80 @@
 {% block content %}
 {% if error %}<div class="alert danger">{{ error }}</div>{% endif %}
 {% if message %}<div class="alert success">{{ message }}</div>{% endif %}
-<section class="panel form-section node-bulk-update-center" data-node-bulk-update-center>
+<section class="panel form-section node-bulk-update-center" data-node-bulk-update-center data-open-node="{{ open_node_id or '' }}">
   <div class="panel-head">
     <div><h2>Remote Node updates</h2><p>Target version: <b>v{{ target_version }}</b>. Every selected Node starts immediately; failures do not stop other Nodes.</p></div>
     <div class="head-actions"><a class="button" href="/nodes">Back to Nodes</a></div>
   </div>
-  <form method="post" action="/nodes/updates/bulk" data-bulk-update-form onsubmit="return confirmBulkNodeUpdate(this)">
-    <div class="node-update-bulk-toolbar">
-      <label class="check"><input type="checkbox" data-select-all><span>Select All</span></label>
-      <span><b data-selected-count>0</b> selected</span>
-      <button class="button primary" type="submit" data-update-selected disabled>Update Selected</button>
-    </div>
-    <div class="table-wrap">
-      <table class="data-table node-update-table">
-        <thead><tr><th></th><th>Node</th><th>Status</th><th>Current Version</th><th>Target</th><th>Update</th><th>Progress</th><th></th></tr></thead>
-        <tbody>
-        {% for node in nodes %}
-          {% set job = update_jobs.get(node.id, {}) %}
-          <tr data-update-row data-node-id="{{ node.id }}" data-status-url="{{ request.scope.get('root_path','') }}/nodes/{{ node.id }}/update/status">
-            <td><input type="checkbox" name="node_ids" value="{{ node.id }}" data-node-select aria-label="Select {{ node.name }}"></td>
-            <td><b>{{ node.name }}</b><br><small class="mono">{{ node.api_url }}</small></td>
-            <td><span class="status {{ 'running' if node.status == 'online' else ('error' if node.status in ['offline','error'] else 'stopped') }}">{{ node.status }}</span></td>
-            <td><b data-current-version>{{ node.agent_version or 'unknown' }}</b></td>
-            <td><b>v{{ target_version }}</b></td>
-            <td><span class="node-update-state {{ job.state or 'idle' }}" data-update-state>{{ job.state or 'idle' }}</span><br><small data-update-message>{{ job.message or 'Ready' }}</small></td>
-            <td style="min-width:170px"><div class="node-update-progress"><span data-update-progress style="width:{{ job.progress or 0 }}%"></span></div><small><span data-update-percent>{{ job.progress or 0 }}</span>%</small><div class="node-update-error" data-update-error{% if not job.error %} hidden{% endif %}>{{ job.error or '' }}</div></td>
-            <td><a class="button small" href="/nodes/{{ node.id }}/update">Advanced</a></td>
-          </tr>
-        {% else %}
-          <tr><td colspan="8">No remote Nodes are configured.</td></tr>
-        {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </form>
+
+  {# STREAMFORGE_NODE_UPDATE_CENTER_CLEANUP_V1258:
+     Keep the bulk form separate from per-Node Advanced API/SSH forms. This
+     avoids invalid nested forms while every update control stays on this page. #}
+  <form id="node-bulk-update-form" method="post" action="/nodes/updates/bulk" data-bulk-update-form onsubmit="return confirmBulkNodeUpdate(this)"></form>
+  <div class="node-update-bulk-toolbar">
+    <label class="check"><input type="checkbox" data-select-all><span>Select All</span></label>
+    <span><b data-selected-count>0</b> selected</span>
+    <button class="button primary" type="submit" form="node-bulk-update-form" data-update-selected disabled>Update Selected</button>
+  </div>
+
+  <div class="table-wrap">
+    <table class="data-table node-update-table">
+      <thead><tr><th></th><th>Node</th><th>Status</th><th>Current Version</th><th>Target</th><th>Update</th><th>Progress</th><th></th></tr></thead>
+      <tbody>
+      {% for node in nodes %}
+        {% set job = update_jobs.get(node.id, {}) %}
+        <tr id="node-update-{{ node.id }}" data-update-row data-node-id="{{ node.id }}" data-api-url="{{ node.api_url or '' }}" data-status-url="{{ request.scope.get('root_path','') }}/nodes/{{ node.id }}/update/status">
+          <td><input type="checkbox" form="node-bulk-update-form" name="node_ids" value="{{ node.id }}" data-node-select aria-label="Select {{ node.name }}"></td>
+          <td><b>{{ node.name }}</b><br><small class="mono">{{ node.api_url }}</small></td>
+          <td><span class="status {{ 'running' if node.status == 'online' else ('error' if node.status in ['offline','error'] else 'stopped') }}">{{ node.status }}</span></td>
+          <td><b data-current-version>{{ node.agent_version or 'unknown' }}</b></td>
+          <td><b>v{{ target_version }}</b></td>
+          <td><span class="node-update-state {{ job.state or 'idle' }}" data-update-state>{{ job.state or 'idle' }}</span><br><small data-update-message>{{ job.message or 'Ready' }}</small></td>
+          <td style="min-width:170px"><div class="node-update-progress"><span data-update-progress style="width:{{ job.progress or 0 }}%"></span></div><small><span data-update-percent>{{ job.progress or 0 }}</span>%</small><div class="node-update-error" data-update-error{% if not job.error %} hidden{% endif %}>{{ job.error or '' }}</div></td>
+          <td><button class="button small" type="button" data-advanced-toggle aria-expanded="false">Advanced</button></td>
+        </tr>
+        <tr class="node-update-advanced-row" data-advanced-panel data-node-id="{{ node.id }}" hidden>
+          <td colspan="8">
+            <div class="node-update-advanced-grid">
+              <section class="node-update-advanced-card">
+                <div><h3>Automatic update</h3><p>Update only this Node using the normal API updater. Saved SSH fallback remains available automatically when required.</p></div>
+                <form method="post" action="/nodes/{{ node.id }}/update/api" data-node-inline-update-trigger onsubmit="return confirm('Update {{ node.name }} now?')">
+                  <button class="button primary" type="submit">Update this Node</button>
+                </form>
+              </section>
+              <section class="node-update-advanced-card">
+                <div><h3>SSH recovery / port migration</h3><p>Use this for an older listener, port migration, or when the normal API update cannot complete.</p></div>
+                <form class="form-grid node-update-inline-ssh" method="post" action="/nodes/{{ node.id }}/update/ssh" data-node-inline-update-trigger>
+                  <label>SSH host<input name="ssh_host" value="{{ node.ssh_host or '' }}" data-ssh-host required></label>
+                  <label>SSH port<input type="number" name="ssh_port" min="1" max="65535" value="{{ node.ssh_port or 22 }}" required></label>
+                  <label>SSH user<input name="ssh_user" value="{{ node.ssh_user or 'root' }}" required></label>
+                  <label>SSH password<input type="password" name="ssh_password" autocomplete="new-password" placeholder="Enter a new password"></label>
+                  {% if node.ssh_password_enc %}<label class="check"><input type="checkbox" name="use_saved_password" checked><span>Use saved encrypted SSH password</span></label>{% endif %}
+                  <label class="check"><input type="checkbox" name="save_ssh_password"><span>Save the entered password encrypted</span></label>
+                  <label>Node Agent port<input type="number" name="agent_port" min="1" max="65535" value="{{ node.agent_port or 80 }}" required></label>
+                  <div class="wide field-help">The existing API token, DNS-only setting, panel URL and Node slug are preserved.</div>
+                  <div class="wide form-actions"><button class="button restart-button" type="submit" onclick="return confirm('Reinstall and restart {{ node.name }} over SSH?')">Update over SSH</button></div>
+                </form>
+              </section>
+            </div>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="8">No remote Nodes are configured.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </section>
 <style>
-.node-update-bulk-toolbar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:0 0 14px}.node-update-bulk-toolbar .button{margin-left:auto}.node-update-table small{display:inline-block;margin-top:4px}.node-update-table .node-update-progress{height:8px;margin:2px 0 4px}.node-update-table .node-update-error{margin-top:5px;font-size:12px}.node-update-table td{vertical-align:middle}@media(max-width:760px){.node-update-bulk-toolbar .button{margin-left:0;width:100%}.node-update-table{min-width:980px}}
+.node-update-bulk-toolbar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:0 0 14px}.node-update-bulk-toolbar .button{margin-left:auto}.node-update-table small{display:inline-block;margin-top:4px}.node-update-table .node-update-progress{height:8px;margin:2px 0 4px}.node-update-table .node-update-error{margin-top:5px;font-size:12px}.node-update-table td{vertical-align:middle}.node-update-advanced-row>td{padding:0 16px 16px}.node-update-advanced-grid{display:grid;grid-template-columns:minmax(260px,.8fr) minmax(520px,1.4fr);gap:14px;padding:14px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,.018)}.node-update-advanced-card{display:flex;flex-direction:column;gap:12px;padding:14px;border:1px solid var(--border);border-radius:9px;background:var(--panel-soft,rgba(255,255,255,.02))}.node-update-advanced-card h3{margin:0 0 5px}.node-update-advanced-card p{margin:0;color:var(--muted);font-size:13px}.node-update-inline-ssh{margin:0}@media(max-width:1100px){.node-update-advanced-grid{grid-template-columns:1fr}}@media(max-width:760px){.node-update-bulk-toolbar .button{margin-left:0;width:100%}.node-update-table{min-width:980px}.node-update-advanced-grid{min-width:940px}}
 </style>
 {% endblock %}
 {% block scripts %}<script>
 (() => {
   const root = document.querySelector('[data-node-bulk-update-center]');
   if (!root) return;
+  const bulkForm = document.querySelector('[data-bulk-update-form]');
   const selectAll = root.querySelector('[data-select-all]');
   const checks = Array.from(root.querySelectorAll('[data-node-select]'));
   const selectedCount = root.querySelector('[data-selected-count]');
@@ -64,6 +95,31 @@
   checks.forEach(box => box.addEventListener('change', syncSelection));
   syncSelection();
 
+  const rows = Array.from(root.querySelectorAll('[data-update-row]'));
+  const advancedPanels = new Map(Array.from(root.querySelectorAll('[data-advanced-panel]')).map(panel => [panel.dataset.nodeId, panel]));
+  const setAdvanced = (row, open) => {
+    const panel = advancedPanels.get(row.dataset.nodeId);
+    const toggle = row.querySelector('[data-advanced-toggle]');
+    if (!panel || !toggle) return;
+    panel.hidden = !open;
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) {
+      const hostInput = panel.querySelector('[data-ssh-host]');
+      if (hostInput && !hostInput.value.trim()) {
+        try { hostInput.value = new URL(row.dataset.apiUrl || '').hostname || ''; } catch (_) {}
+      }
+    }
+  };
+  rows.forEach(row => row.querySelector('[data-advanced-toggle]')?.addEventListener('click', () => {
+    const panel = advancedPanels.get(row.dataset.nodeId);
+    setAdvanced(row, !!panel?.hidden);
+  }));
+  const requestedNode = String(root.dataset.openNode || '');
+  if (requestedNode) {
+    const row = rows.find(item => item.dataset.nodeId === requestedNode);
+    if (row) { setAdvanced(row, true); row.scrollIntoView({block:'center'}); }
+  }
+
   const renderRow = (row, data) => {
     const state = String(data.state || 'idle');
     const progress = Math.max(0, Math.min(100, Number(data.progress) || 0));
@@ -72,6 +128,7 @@
     const bar = row.querySelector('[data-update-progress]');
     const percent = row.querySelector('[data-update-percent]');
     const error = row.querySelector('[data-update-error]');
+    const currentVersion = row.querySelector('[data-current-version]');
     stateNode.textContent = state;
     stateNode.className = `node-update-state ${state}`;
     messageNode.textContent = data.message || (state === 'idle' ? 'Ready' : '');
@@ -79,6 +136,10 @@
     percent.textContent = String(Math.round(progress));
     error.textContent = data.error || '';
     error.hidden = !data.error;
+    if (currentVersion && data.current_version) currentVersion.textContent = String(data.current_version);
+    const busy = ['queued','running'].includes(state);
+    const panel = advancedPanels.get(row.dataset.nodeId);
+    panel?.querySelectorAll('[data-node-inline-update-trigger] button').forEach(button => { button.disabled = busy; });
   };
   const pollRow = async (row) => {
     const url = row.dataset.statusUrl;
@@ -88,12 +149,13 @@
       if (response.ok) renderRow(row, await response.json());
     } catch (_) {}
   };
-  const rows = Array.from(root.querySelectorAll('[data-update-row]'));
   const pollAll = async () => { await Promise.all(rows.map(pollRow)); setTimeout(pollAll, 1000); };
   pollAll();
+
+  if (bulkForm) bulkForm.addEventListener('submit', () => { updateButton.disabled = true; });
 })();
 function confirmBulkNodeUpdate(form){
-  const count = form.querySelectorAll('[data-node-select]:checked').length;
+  const count = document.querySelectorAll('[data-node-select]:checked').length;
   return count > 0 && confirm(`Update ${count} selected Node${count === 1 ? '' : 's'} now? All selected updates will start at the same time.`);
 }
 </script>{% endblock %}
