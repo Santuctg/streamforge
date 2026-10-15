@@ -41,7 +41,7 @@
             <div class="node-update-advanced-grid">
               <section class="node-update-advanced-card">
                 <div><h3>Automatic update</h3><p>Update only this Node using the normal API updater. Saved SSH fallback remains available automatically when required.</p></div>
-                <form method="post" action="/nodes/{{ node.id }}/update/api" data-node-inline-update-trigger onsubmit="return confirm('Update {{ node.name }} now?')">
+                <form method="post" action="/nodes/{{ node.id }}/update/api" data-node-inline-update-trigger onsubmit="return confirm('Update this Node now?')">
                   <button class="button primary" type="submit">Update this Node</button>
                 </form>
               </section>
@@ -56,7 +56,7 @@
                   <label class="check"><input type="checkbox" name="save_ssh_password"><span>Save the entered password encrypted</span></label>
                   <label>Node Agent port<input type="number" name="agent_port" min="1" max="65535" value="{{ node.agent_port or 80 }}" required></label>
                   <div class="wide field-help">The existing API token, DNS-only setting, panel URL and Node slug are preserved.</div>
-                  <div class="wide form-actions"><button class="button restart-button" type="submit" onclick="return confirm('Reinstall and restart {{ node.name }} over SSH?')">Update over SSH</button></div>
+                  <div class="wide form-actions"><button class="button restart-button" type="submit" onclick="return confirm('Reinstall and restart this Node over SSH?')">Update over SSH</button></div>
                 </form>
               </section>
             </div>
