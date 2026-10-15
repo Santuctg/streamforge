@@ -115,14 +115,25 @@ main, count = redirect_pattern.subn(redirect_replacement, main, count=1)
 if count != 1:
     raise SystemExit(f"could not replace node_update_redirect: {count}")
 
+# Scope current-version enrichment strictly to the update-status route. Other
+# JSON endpoints intentionally use the same no-store return shape.
+status_pattern = re.compile(
+    r'(@app\.get\("/nodes/\{node_id\}/update/status".*?\ndef node_update_status\(.*?\n)(?=@app\.post\("/nodes/\{node_id\}/update/api")',
+    re.S,
+)
+match = status_pattern.search(main)
+if not match:
+    raise SystemExit("could not find node_update_status route")
+status_block = match.group(1)
 status_return = '    return JSONResponse(job, headers={"Cache-Control": "no-store"})'
-if main.count(status_return) != 1:
-    raise SystemExit(f"unexpected Node update status return count: {main.count(status_return)}")
-main = main.replace(
+if status_block.count(status_return) != 1:
+    raise SystemExit(f"unexpected Node update status return count inside route: {status_block.count(status_return)}")
+status_block = status_block.replace(
     status_return,
     '    job["current_version"] = str(node.agent_version or "unknown")\n' + status_return,
     1,
 )
+main = main[:match.start(1)] + status_block + main[match.end(1):]
 
 main_path.write_text(main, encoding="utf-8")
 version_path.write_text("12.58\n", encoding="utf-8")
