@@ -14,6 +14,9 @@ on:
       - scripts/verify_node_update_center_cleanup_v1258.py
       - scripts/test_v1258_updater_integration.py
       - scripts/force_update_v1258.sh
+      - scripts/update.sh
+      - scripts/verify_release_updater_staging.py
+      - release-notes/v12.58.md
       - .github/workflows/v1258-node-update-center-cleanup.yml
 
 jobs:
@@ -25,20 +28,44 @@ jobs:
         run: python3 scripts/verify_node_update_center_cleanup_v1258.py
       - name: Verify v12.58 updater integration
         run: python3 scripts/test_v1258_updater_integration.py
+      - name: Verify current updater staging contract
+        run: python3 scripts/verify_release_updater_staging.py
+      - name: Verify updater selection and service boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'force_update_v1258.sh' scripts/update.sh
+          if grep -Eq 'systemctl[[:space:]]+(restart|reload)[[:space:]]+streamforge-channel-supervisor' scripts/force_update_v1258.sh; then
+            echo 'v12.58 updater must not restart the Main channel supervisor' >&2
+            exit 1
+          fi
+          if grep -Eq 'systemctl[[:space:]]+(restart|reload)[[:space:]]+nginx' scripts/force_update_v1258.sh; then
+            echo 'v12.58 updater must not restart/reload Nginx' >&2
+            exit 1
+          fi
+      - name: Verify release notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s release-notes/v12.58.md
+          grep -Fq 'Advanced' release-notes/v12.58.md
+          grep -Fq 'streamforge-update --force /root/streamforge-12.58.zip' release-notes/v12.58.md
       - name: Verify carry-forward guards
         run: |
+          python3 scripts/verify_node_bulk_update_center_v1257.py
           python3 scripts/verify_webplayer_hlsjs_first_v1256.py .
           python3 scripts/verify_main_waiting_retry_v1253.py .
           python3 scripts/verify_node_relay_probe_dedupe_v1251.py node_agent/app.py
-          grep -Fq 'STREAMFORGE_NODE_BULK_UPDATE_CENTER_V1257' app/main.py
           grep -Fq 'STREAMFORGE_LOCAL_RELAY_DB_CLOSE_V1250' app/main.py
       - name: Verify Python syntax
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          for rel in ('app/main.py','scripts/apply_v1258_node_update_center_cleanup.py','scripts/verify_node_update_center_cleanup_v1258.py','scripts/test_v1258_updater_integration.py'):
+          for rel in ('app/main.py','scripts/apply_v1258_node_update_center_cleanup.py','scripts/verify_node_update_center_cleanup_v1258.py','scripts/test_v1258_updater_integration.py','scripts/verify_release_updater_staging.py'):
               compile(Path(rel).read_text(encoding='utf-8'), rel, 'exec')
           print('PASS: v12.58 Python syntax verified without bytecode output')
           PY
       - name: Verify updater shell syntax
-        run: bash -n scripts/force_update_v1258.sh
+        run: |
+          bash -n scripts/force_update_v1258.sh
+          bash -n scripts/update.sh
