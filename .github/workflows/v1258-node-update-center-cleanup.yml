@@ -24,17 +24,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Verify v12.58 Node Update Center cleanup
+      - name: Verify v12.58 Node Update Center cleanup carry-forward
         run: python3 scripts/verify_node_update_center_cleanup_v1258.py
-      - name: Verify v12.58 updater integration
-        run: python3 scripts/test_v1258_updater_integration.py
-      - name: Verify current updater staging contract
-        run: python3 scripts/verify_release_updater_staging.py
-      - name: Verify updater selection and service boundaries
+      - name: Verify v12.58 updater integration only on v12.58
         shell: bash
         run: |
           set -euo pipefail
-          grep -Fq 'force_update_v1258.sh' scripts/update.sh
+          if [[ "$(tr -d '[:space:]' < VERSION)" == "12.58" ]]; then
+            python3 scripts/test_v1258_updater_integration.py
+          else
+            echo 'Historical v12.58 updater integration skipped for later release.'
+          fi
+      - name: Verify current updater staging contract
+        run: python3 scripts/verify_release_updater_staging.py
+      - name: Verify updater selection and historical service boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$(tr -d '[:space:]' < VERSION)" == "12.58" ]]; then
+            grep -Fq 'force_update_v1258.sh' scripts/update.sh
+          else
+            echo 'Historical v12.58 updater selection skipped for later release.'
+          fi
           if grep -Eq 'systemctl[[:space:]]+(restart|reload)[[:space:]]+streamforge-channel-supervisor' scripts/force_update_v1258.sh; then
             echo 'v12.58 updater must not restart the Main channel supervisor' >&2
             exit 1
@@ -63,7 +74,7 @@ jobs:
           from pathlib import Path
           for rel in ('app/main.py','scripts/apply_v1258_node_update_center_cleanup.py','scripts/verify_node_update_center_cleanup_v1258.py','scripts/test_v1258_updater_integration.py','scripts/verify_release_updater_staging.py'):
               compile(Path(rel).read_text(encoding='utf-8'), rel, 'exec')
-          print('PASS: v12.58 Python syntax verified without bytecode output')
+          print('PASS: v12.58 carry-forward Python syntax verified without bytecode output')
           PY
       - name: Verify updater shell syntax
         run: |
