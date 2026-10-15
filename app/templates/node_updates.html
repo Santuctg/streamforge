@@ -16,6 +16,9 @@
   {# STREAMFORGE_NODE_UPDATE_UI_SPACING_V1259:
      Keep bulk selection/actions inside one intentional toolbar and preserve a
      visible gap between a Node row and its expanded Advanced panel. #}
+  {# STREAMFORGE_NODE_INLINE_UPDATE_LOG_V1260:
+     Reuse the established per-Node update-job logs from the live status JSON
+     and show each Node's own running log inside its Advanced panel. #}
   <form id="node-bulk-update-form" method="post" action="/nodes/updates/bulk" data-bulk-update-form onsubmit="return confirmBulkNodeUpdate(this)"></form>
   <div class="node-update-bulk-toolbar">
     <div class="node-update-bulk-selection">
@@ -66,6 +69,11 @@
                   <div class="wide form-actions"><button class="button restart-button" type="submit" onclick="return confirm('Reinstall and restart this Node over SSH?')">Update over SSH</button></div>
                 </form>
               </section>
+              <section class="node-update-advanced-card node-update-live-log-card">
+                <div><h3>Live update log</h3><p>This log belongs only to this Node and follows the current update job in real time.</p></div>
+                <pre class="node-update-inline-log" data-update-log>{% for line in job.logs or [] %}{{ line }}{% if not loop.last %}
+{% endif %}{% else %}Waiting for an update job…{% endfor %}</pre>
+              </section>
             </div>
           </td>
         </tr>
@@ -77,7 +85,7 @@
   </div>
 </section>
 <style>
-.node-update-bulk-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:14px 14px 16px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,.018)}.node-update-bulk-selection{display:flex;align-items:center;gap:14px;flex-wrap:wrap}.node-update-bulk-actions{display:flex;align-items:center;gap:10px;margin-left:auto}.node-update-bulk-toolbar .check{margin:0}.node-update-bulk-toolbar .button{margin:0}.node-update-selected-count{color:var(--muted)}.node-update-selected-count b{color:var(--text)}.node-update-table small{display:inline-block;margin-top:4px}.node-update-table .node-update-progress{height:8px;margin:2px 0 4px}.node-update-table .node-update-error{margin-top:5px;font-size:12px}.node-update-table td{vertical-align:middle}.node-update-advanced-row>td{padding:12px 16px 16px;border-top:0}.node-update-advanced-grid{display:grid;grid-template-columns:minmax(260px,.8fr) minmax(520px,1.4fr);gap:14px;padding:14px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,.018)}.node-update-advanced-card{display:flex;flex-direction:column;gap:12px;padding:14px;border:1px solid var(--border);border-radius:9px;background:var(--panel-soft,rgba(255,255,255,.02))}.node-update-advanced-card h3{margin:0 0 5px}.node-update-advanced-card p{margin:0;color:var(--muted);font-size:13px}.node-update-inline-ssh{margin:0}@media(max-width:1100px){.node-update-advanced-grid{grid-template-columns:1fr}}@media(max-width:760px){.node-update-bulk-toolbar{margin:12px 10px 14px;padding:12px}.node-update-bulk-selection{width:100%;justify-content:space-between}.node-update-bulk-actions{width:100%;margin-left:0}.node-update-bulk-actions .button{width:100%}.node-update-table{min-width:980px}.node-update-advanced-grid{min-width:940px}}
+.node-update-bulk-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:14px 14px 16px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,.018)}.node-update-bulk-selection{display:flex;align-items:center;gap:14px;flex-wrap:wrap}.node-update-bulk-actions{display:flex;align-items:center;gap:10px;margin-left:auto}.node-update-bulk-toolbar .check{margin:0}.node-update-bulk-toolbar .button{margin:0}.node-update-selected-count{color:var(--muted)}.node-update-selected-count b{color:var(--text)}.node-update-table small{display:inline-block;margin-top:4px}.node-update-table .node-update-progress{height:8px;margin:2px 0 4px}.node-update-table .node-update-error{margin-top:5px;font-size:12px}.node-update-table td{vertical-align:middle}.node-update-advanced-row>td{padding:12px 16px 16px;border-top:0}.node-update-advanced-grid{display:grid;grid-template-columns:minmax(260px,.8fr) minmax(520px,1.4fr);gap:14px;padding:14px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,.018)}.node-update-advanced-card{display:flex;flex-direction:column;gap:12px;padding:14px;border:1px solid var(--border);border-radius:9px;background:var(--panel-soft,rgba(255,255,255,.02))}.node-update-advanced-card h3{margin:0 0 5px}.node-update-advanced-card p{margin:0;color:var(--muted);font-size:13px}.node-update-inline-ssh{margin:0}.node-update-live-log-card{grid-column:1/-1}.node-update-inline-log{margin:0;min-height:120px;max-height:280px;overflow:auto;padding:12px;border:1px solid var(--border);border-radius:8px;background:rgba(0,0,0,.24);font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;white-space:pre-wrap;word-break:break-word;color:var(--text)}@media(max-width:1100px){.node-update-advanced-grid{grid-template-columns:1fr}}@media(max-width:760px){.node-update-bulk-toolbar{margin:12px 10px 14px;padding:12px}.node-update-bulk-selection{width:100%;justify-content:space-between}.node-update-bulk-actions{width:100%;margin-left:0}.node-update-bulk-actions .button{width:100%}.node-update-table{min-width:980px}.node-update-advanced-grid{min-width:940px}}
 </style>
 {% endblock %}
 {% block scripts %}<script>
@@ -103,6 +111,7 @@
 
   const rows = Array.from(root.querySelectorAll('[data-update-row]'));
   const advancedPanels = new Map(Array.from(root.querySelectorAll('[data-advanced-panel]')).map(panel => [panel.dataset.nodeId, panel]));
+  const lastLogs = new Map();
   const setAdvanced = (row, open) => {
     const panel = advancedPanels.get(row.dataset.nodeId);
     const toggle = row.querySelector('[data-advanced-toggle]');
@@ -114,6 +123,8 @@
       if (hostInput && !hostInput.value.trim()) {
         try { hostInput.value = new URL(row.dataset.apiUrl || '').hostname || ''; } catch (_) {}
       }
+      const logNode = panel.querySelector('[data-update-log]');
+      if (logNode) logNode.scrollTop = logNode.scrollHeight;
     }
   };
   rows.forEach(row => row.querySelector('[data-advanced-toggle]')?.addEventListener('click', () => {
@@ -146,6 +157,16 @@
     const busy = ['queued','running'].includes(state);
     const panel = advancedPanels.get(row.dataset.nodeId);
     panel?.querySelectorAll('[data-node-inline-update-trigger] button').forEach(button => { button.disabled = busy; });
+    const logNode = panel?.querySelector('[data-update-log]');
+    const logs = Array.isArray(data.logs) ? data.logs : [];
+    const logText = logs.length ? logs.join('\n') : 'Waiting for an update job…';
+    const lastLog = lastLogs.get(row.dataset.nodeId) || '';
+    if (logNode && logText !== lastLog) {
+      const shouldFollow = logNode.scrollTop + logNode.clientHeight >= logNode.scrollHeight - 25;
+      logNode.textContent = logText;
+      if (shouldFollow || panel?.hidden) logNode.scrollTop = logNode.scrollHeight;
+      lastLogs.set(row.dataset.nodeId, logText);
+    }
   };
   const pollRow = async (row) => {
     const url = row.dataset.statusUrl;
