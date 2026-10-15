@@ -35,6 +35,12 @@ else:
             f"{updater.name} runs py_compile in SOURCE_DIR before staging and can create __pycache__"
         )
 
+    # STREAMFORGE_RELEASE_BOUNDED_NODE_UPDATE_CENTER_V1258:
+    # v12.58 changes only Main Node-update routes/template plus VERSION metadata.
+    # Node runtime bytes must match the installed proven v12.57 payload, so a
+    # full-tree stage/cleanup is intentionally not part of this updater.
+    bounded_center_v1258 = "STREAMFORGE_V1258_MAIN_UI_ONLY_NODE_VERSION_ALIGNMENT" in text
+
     # STREAMFORGE_RELEASE_BOUNDED_NODE_BULK_UPDATE_V1257:
     # v12.57 changes Main control-plane routes/templates and aligns the bundled
     # Node VERSION only. The Node runtime payload must remain byte-identical to
@@ -43,24 +49,13 @@ else:
 
     # STREAMFORGE_RELEASE_BOUNDED_PLAYER_UPDATE_V1256:
     # v12.56 intentionally deploys only the Main Web Player template, bundled
-    # Node Web Player runtime, version metadata, and its helper scripts. It does
-    # not stage/copy the complete release tree, so historical full-tree staging
-    # cleanup is not applicable. The bounded updater must declare and prove that
-    # scope explicitly instead.
+    # Node Web Player runtime, version metadata, and its helper scripts.
     bounded_player_v1256 = "STREAMFORGE_V1256_BOUNDED_PLAYER_UPDATE" in text
 
     # STREAMFORGE_RELEASE_BOUNDED_VERSION_ALIGNMENT_V1255:
-    # v12.55 is intentionally not a full-tree deploy: production already runs
-    # the v12.54 Main payload and proven v12.52 Node payload. The updater may
-    # align VERSION files only after proving Node payload byte parity, while
-    # carrying the v12.54 atomic static-cache contract. Staging cleanup is not
-    # applicable because no full release tree is staged.
     alignment_v1255 = "STREAMFORGE_VERSION_ALIGNMENT_V1255" in text
 
     # STREAMFORGE_RELEASE_BOUNDED_MAIN_HOTFIX_V1254:
-    # Main-only hotfixes do not stage the whole release tree, so stale updater
-    # cleanup is not applicable. They must explicitly declare scope, preserve the
-    # Node version, and use non-writing source validation.
     bounded_marker = next(
         (
             marker
@@ -73,7 +68,25 @@ else:
         None,
     )
 
-    if bounded_bulk_v1257:
+    if bounded_center_v1258:
+        if 'cp -a "$SOURCE_DIR/." "$STAGE/"' in text:
+            errors.append(f"{updater.name} v12.58 bounded Node-update release unexpectedly copies the full release tree")
+        for marker in (
+            'TARGET_VERSION="12.58"',
+            'NODE_TARGET_VERSION="12.58"',
+            "STREAMFORGE_NODE_UPDATE_CENTER_CLEANUP_V1258",
+            "STREAMFORGE_NODE_BULK_UPDATE_CENTER_V1257",
+            "STREAMFORGE_V1258_MAIN_UI_ONLY_NODE_VERSION_ALIGNMENT",
+            "STREAMFORGE_WEBPLAYER_HLSJS_FIRST_V1256",
+            "STREAMFORGE_NODE_RELAY_HEALTH_PROBE_SINGLE_OWNER_V1251",
+            "verify_node_update_center_cleanup_v1258.py",
+            "Node runtime payload differs for:",
+            "atomic_copy",
+            "compile(path.read_text(encoding=\"utf-8\"), str(path), \"exec\")",
+        ):
+            if marker not in text:
+                errors.append(f"{updater.name} v12.58 bounded Node-update contract missing {marker}")
+    elif bounded_bulk_v1257:
         if 'cp -a "$SOURCE_DIR/." "$STAGE/"' in text:
             errors.append(f"{updater.name} v12.57 bounded bulk-update release unexpectedly copies the full release tree")
         for marker in (
@@ -147,9 +160,6 @@ else:
                     errors.append(f"{updater.name} v12.54 static-cache contract missing {marker}")
     elif not has_full_cleanup(text):
         # STREAMFORGE_RELEASE_STAGING_DELEGATED_CLEANUP_V1251:
-        # A thin current-version updater may delegate the full deployment to a
-        # proven force-update bridge. In that case the staged bridge itself must
-        # own the wildcard cleanup before the inherited full updater runs.
         bridge_match = re.search(
             r'BASE_WRAPPER="\$SOURCE_DIR/scripts/(force_update_v\d+\.sh)"',
             text,

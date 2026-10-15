@@ -9828,19 +9828,29 @@ def node_status_json(node_id: int, request: Request, db: Session = Depends(get_d
     return result
 
 
+# STREAMFORGE_NODE_UPDATE_CENTER_CLEANUP_V1258:
+# Keep normal, bulk, live status and SSH recovery controls inside one Node
+# Updates center. Legacy single-node GETs redirect here, while the existing
+# POST/update worker contracts remain compatible.
 # STREAMFORGE_NODE_BULK_UPDATE_CENTER_V1257:
 # Node updates are managed from one dedicated page. A bulk submission starts
 # every selected Node immediately by reusing the established isolated per-Node
 # update worker; there is deliberately no global concurrency cap or batch queue.
 @app.get("/nodes/updates", response_class=HTMLResponse, dependencies=[Depends(permission_required("nodes.update"))])
-def node_updates_page(request: Request, message: str = "", error: str = "", db: Session = Depends(get_db)):
+def node_updates_page(
+    request: Request,
+    node: int = 0,
+    message: str = "",
+    error: str = "",
+    db: Session = Depends(get_db),
+):
     if not current_admin(request, db):
         return redirect_login()
     remote_nodes = list(db.scalars(
         select(Node).where(Node.node_type == "remote").order_by(Node.name, Node.id)
     ).all())
     with _NODE_UPDATE_LOCK:
-        update_jobs = {int(node.id): dict(_NODE_UPDATE_JOBS.get(int(node.id)) or {}) for node in remote_nodes}
+        update_jobs = {int(item.id): dict(_NODE_UPDATE_JOBS.get(int(item.id)) or {}) for item in remote_nodes}
     return render(
         request,
         "node_updates.html",
@@ -9848,6 +9858,7 @@ def node_updates_page(request: Request, message: str = "", error: str = "", db: 
         nodes=remote_nodes,
         update_jobs=update_jobs,
         target_version=APP_VERSION,
+        open_node_id=max(0, int(node or 0)),
         message=message,
         error=error,
     )
@@ -9910,31 +9921,27 @@ def node_update_page(node_id: int, request: Request, error: str = "", message: s
     node = db.get(Node, node_id)
     if not node or node.node_type == "local":
         raise HTTPException(404)
-    parsed = urlsplit(node.api_url or "")
-    return render(
-        request,
-        "node_update.html",
-        db,
-        node=node,
-        error=error,
-        message=message,
-        ssh_host=node.ssh_host or parsed.hostname or "",
-        ssh_port=node.ssh_port or 22,
-        ssh_user=node.ssh_user or "root",
-        ssh_password_saved=bool(node.ssh_password_enc),
-        agent_port=normalized_native_control_port(node.agent_port),
-        update_job=dict(_NODE_UPDATE_JOBS.get(node.id) or {}),
-    )
-
-
-def node_update_redirect(node_id: int, *, error: str = "", message: str = "") -> RedirectResponse:
-    values: dict[str, str] = {}
+    values: dict[str, str] = {"node": str(int(node.id))}
     if error:
         values["error"] = error
     if message:
         values["message"] = message
-    suffix = f"?{urlencode(values)}" if values else ""
-    return RedirectResponse(f"/nodes/{node_id}/update{suffix}", status_code=303)
+    return RedirectResponse(
+        f"/nodes/updates?{urlencode(values)}#node-update-{int(node.id)}",
+        status_code=303,
+    )
+
+
+def node_update_redirect(node_id: int, *, error: str = "", message: str = "") -> RedirectResponse:
+    values: dict[str, str] = {"node": str(int(node_id))}
+    if error:
+        values["error"] = error
+    if message:
+        values["message"] = message
+    return RedirectResponse(
+        f"/nodes/updates?{urlencode(values)}#node-update-{int(node_id)}",
+        status_code=303,
+    )
 
 
 def _set_node_update_job(node_id: int, **values: object) -> None:
@@ -10422,6 +10429,7 @@ def node_update_status(node_id: int, request: Request, db: Session = Depends(get
             "message": "No update is running.", "error": "", "logs": [],
             "target_version": APP_VERSION,
         })
+    job["current_version"] = str(node.agent_version or "unknown")
     return JSONResponse(job, headers={"Cache-Control": "no-store"})
 
 

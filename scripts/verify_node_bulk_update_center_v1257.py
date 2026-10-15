@@ -15,7 +15,17 @@ def require(cond, message):
     if not cond:
         errors.append(message)
 
-require(version == "12.57", "Main VERSION must be 12.57")
+def version_at_least_1257(value: str) -> bool:
+    try:
+        major, minor = (int(part) for part in value.split(".", 1))
+    except (TypeError, ValueError):
+        return False
+    return (major, minor) >= (12, 57)
+
+# STREAMFORGE_V1257_HISTORICAL_CARRY_FORWARD:
+# v12.57's UI/parallel-update behavior is a permanent compatibility contract.
+# Later releases must retain it without forcing VERSION back to 12.57.
+require(version_at_least_1257(version), "Main VERSION must be v12.57 or newer")
 require("STREAMFORGE_NODE_BULK_UPDATE_CENTER_V1257" in main, "Main marker missing")
 require('href="/nodes/updates"' in base and 'Node Updates' in base, "sidebar Node Updates entry missing")
 require("can('nodes.update')" in base, "Node Updates navigation must retain nodes.update permission")
@@ -34,8 +44,8 @@ if bulk_path.exists():
     require('data-select-all' in bulk, "Select All control missing")
     require('data-update-row' in bulk, "per-node live update rows missing")
     require('/update/status' in bulk, "per-node status polling endpoint missing")
-    require('Advanced' in bulk, "advanced individual update link missing")
+    require('Advanced' in bulk, "advanced individual update control missing")
 
 if errors:
     raise SystemExit("FAIL: " + "; ".join(errors))
-print("PASS: v12.57 Node Bulk Update Center contract verified")
+print("PASS: v12.57 Node Bulk Update Center carry-forward contract verified")
