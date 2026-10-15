@@ -41,6 +41,14 @@ jobs:
             echo 'v12.59 updater must not restart/reload Nginx' >&2
             exit 1
           fi
+      - name: Verify release notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s release-notes/v12.59.md
+          grep -Fq 'Select All' release-notes/v12.59.md
+          grep -Fq 'Advanced' release-notes/v12.59.md
+          grep -Fq 'streamforge-update --force /root/streamforge-12.59.zip' release-notes/v12.59.md
       - name: Verify carry-forward guards
         run: |
           python3 scripts/verify_node_bulk_update_center_v1257.py
