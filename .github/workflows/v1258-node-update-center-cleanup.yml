@@ -1,0 +1,25 @@
+name: v12.58 Node Update Center Cleanup
+
+on:
+  push:
+    branches:
+      - hotfix/v12.58-node-update-center-cleanup
+  pull_request:
+    paths:
+      - VERSION
+      - node_agent/VERSION
+      - app/main.py
+      - app/templates/node_updates.html
+      - scripts/verify_node_update_center_cleanup_v1258.py
+      - scripts/force_update_v1258.sh
+      - .github/workflows/v1258-node-update-center-cleanup.yml
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify v12.58 Node Update Center cleanup
+        run: python3 scripts/verify_node_update_center_cleanup_v1258.py
+      - name: Verify Python syntax
+        run: python3 -c "from pathlib import Path; compile(Path('app/main.py').read_text(), 'app/main.py', 'exec')"
