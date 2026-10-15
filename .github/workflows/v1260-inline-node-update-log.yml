@@ -24,3 +24,5 @@ jobs:
       - uses: actions/checkout@v4
       - name: Verify v12.60 inline Node update log
         run: python3 scripts/verify_node_inline_update_log_v1260.py
+      - name: Verify v12.60 updater integration
+        run: python3 scripts/test_v1260_updater_integration.py
