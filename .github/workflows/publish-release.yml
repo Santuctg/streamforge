@@ -148,6 +148,37 @@ jobs:
               compile(path.read_text(encoding="utf-8"), str(path), "exec")
           print("PASS: v12.55 release source syntax verified without bytecode output")
           PYV1255
+          elif [[ "$version" == "12.56" ]]; then
+            # STREAMFORGE_V1256_HLSJS_FIRST_RELEASE_SOURCE_CARRY:
+            test "$(tr -d '[:space:]' < node_agent/VERSION)" = "12.56"
+            result="$(python3 scripts/apply_v1256_webplayer_hlsjs_first.py .)"
+            [[ "$result" == "FIXED" || "$result" == "ALREADY_FIXED" ]]
+            python3 scripts/verify_webplayer_hlsjs_first_v1256.py .
+            python3 scripts/verify_main_waiting_retry_v1253.py .
+            python3 scripts/verify_node_relay_probe_dedupe_v1251.py node_agent/app.py
+            python3 scripts/test_v1256_updater_integration.py
+            python3 scripts/verify_release_updater_staging.py
+            grep -Fq 'STREAMFORGE_LOCAL_RELAY_DB_CLOSE_V1250' app/main.py
+            grep -Fq 'STREAMFORGE_MAIN_STATIC_CACHE_SYNC_V1254' scripts/sync_main_static_cache.py
+            grep -Fq 'STREAMFORGE_WEBPLAYER_HLSJS_FIRST_V1256' app/templates/player.html
+            grep -Fq 'STREAMFORGE_WEBPLAYER_HLSJS_FIRST_V1256' node_agent/app.py
+            grep -Fq 'STREAMFORGE_V1256_BOUNDED_PLAYER_UPDATE' scripts/force_update_v1256.sh
+            bash -n scripts/force_update_v1256.sh
+            python3 - node_agent/app.py scripts/apply_v1256_webplayer_hlsjs_first.py scripts/verify_webplayer_hlsjs_first_v1256.py scripts/test_v1256_updater_integration.py <<'PYV1256'
+          from pathlib import Path
+          import sys
+          for raw in sys.argv[1:]:
+              path = Path(raw)
+              compile(path.read_text(encoding="utf-8"), str(path), "exec")
+          print("PASS: v12.56 release source syntax verified without bytecode output")
+          PYV1256
+            if ! git diff --quiet -- app/templates/player.html node_agent/app.py; then
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              git add app/templates/player.html node_agent/app.py
+              git commit -m "Integrate v12.56 HLS.js-first Web Player fix"
+              git push origin HEAD:main
+            fi
           fi
           echo "release_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
@@ -254,6 +285,21 @@ jobs:
               | grep -Fq 'STREAMFORGE_MAIN_STATIC_CACHE_SYNC_V1254'
             unzip -p "$package" "streamforge-$VERSION/scripts/update.sh" \
               | grep -Fq 'force_update_v1255.sh'
+          fi
+          if [[ "$VERSION" == "12.56" ]]; then
+            unzip -p "$package" "streamforge-$VERSION/node_agent/VERSION" | grep -Fx '12.56'
+            unzip -p "$package" "streamforge-$VERSION/app/templates/player.html" \
+              | grep -Fq 'STREAMFORGE_WEBPLAYER_HLSJS_FIRST_V1256'
+            unzip -p "$package" "streamforge-$VERSION/node_agent/app.py" \
+              | grep -Fq 'STREAMFORGE_WEBPLAYER_HLSJS_FIRST_V1256'
+            unzip -p "$package" "streamforge-$VERSION/node_agent/app.py" \
+              | grep -Fq 'STREAMFORGE_NODE_RELAY_HEALTH_PROBE_SINGLE_OWNER_V1251'
+            unzip -p "$package" "streamforge-$VERSION/app/main.py" \
+              | grep -Fq 'STREAMFORGE_LOCAL_RELAY_DB_CLOSE_V1250'
+            unzip -p "$package" "streamforge-$VERSION/scripts/force_update_v1256.sh" \
+              | grep -Fq 'STREAMFORGE_V1256_BOUNDED_PLAYER_UPDATE'
+            unzip -p "$package" "streamforge-$VERSION/scripts/update.sh" \
+              | grep -Fq 'force_update_v1256.sh'
           fi
 
           gh release upload "$TAG" "$package" \
