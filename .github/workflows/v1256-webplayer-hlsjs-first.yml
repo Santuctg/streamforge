@@ -1,0 +1,28 @@
+name: v12.56 Web Player HLS.js First
+
+on:
+  push:
+    branches:
+      - hotfix/v12.56-webplayer-hlsjs-first
+    paths:
+      - app/templates/player.html
+      - node_agent/app.py
+      - scripts/apply_v1256_webplayer_hlsjs_first.py
+      - scripts/verify_webplayer_hlsjs_first_v1256.py
+      - .github/workflows/v1256-webplayer-hlsjs-first.yml
+  pull_request:
+    paths:
+      - app/templates/player.html
+      - node_agent/app.py
+      - scripts/apply_v1256_webplayer_hlsjs_first.py
+      - scripts/verify_webplayer_hlsjs_first_v1256.py
+      - .github/workflows/v1256-webplayer-hlsjs-first.yml
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify HLS.js-first browser engine selection
+        run: python3 scripts/verify_webplayer_hlsjs_first_v1256.py .
