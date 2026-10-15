@@ -20,14 +20,13 @@ def prepare_install(base: Path) -> tuple[Path, Path]:
     app_root = base / "opt/streamforge"
     backup_root = base / "var/backups/streamforge"
     (app_root / "app/templates").mkdir(parents=True)
-    (app_root / "node_agent").mkdir(parents=True)
     (app_root / "scripts").mkdir(parents=True)
+    shutil.copytree(ROOT / "node_agent", app_root / "node_agent", dirs_exist_ok=True)
     (app_root / "VERSION").write_text("12.56\n", encoding="utf-8")
     (app_root / "node_agent/VERSION").write_text("12.56\n", encoding="utf-8")
     (app_root / "app/main.py").write_text("OLD_MAIN\n", encoding="utf-8")
     (app_root / "app/templates/base.html").write_text("OLD_BASE\n", encoding="utf-8")
     (app_root / "app/templates/nodes.html").write_text("OLD_NODES\n", encoding="utf-8")
-    shutil.copy2(ROOT / "node_agent/app.py", app_root / "node_agent/app.py")
     return app_root, backup_root
 
 
