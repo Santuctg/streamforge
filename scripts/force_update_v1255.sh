@@ -15,6 +15,10 @@ set -Eeuo pipefail
 #
 # STREAMFORGE_NODE_RELAY_HEALTH_PROBE_SINGLE_OWNER_V1251:
 # Carry forward the proven Node relay-health probe single-owner guard.
+#
+# STREAMFORGE_V1255_ROLLBACK_GUARD:
+# Once backup is complete, both implicit command failures and explicit
+# post-write validation failures route through rollback().
 
 SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TARGET_VERSION="12.55"
@@ -153,6 +157,10 @@ rollback(){
   fi
   exit "$rc"
 }
+abort_after_write(){
+  echo "[StreamForge v${TARGET_VERSION} Version Alignment] ERROR: $*" >&2
+  rollback 1
+}
 trap 'rollback $?' ERR
 
 log "Re-applying atomic Main static deployment and Nginx direct-cache parity."
@@ -167,6 +175,12 @@ install -m 0755 "$SOURCE_DIR/scripts/force_update_v1255.sh" "$APP_ROOT/scripts/f
 
 printf '%s\n' "$TARGET_VERSION" > "$APP_ROOT/VERSION"
 printf '%s\n' "$NODE_TARGET_VERSION" > "$APP_ROOT/node_agent/VERSION"
+
+# Test-only fault injection proves that explicit failures after production
+# writes restore both VERSION files and backed-up static trees.
+if [[ "${STREAMFORGE_V1255_TEST_FAIL_AFTER_WRITE:-0}" == "1" ]]; then
+  abort_after_write "controlled post-write rollback test"
+fi
 
 python3 "$SOURCE_DIR/scripts/sync_main_static_cache.py" \
   "$APP_ROOT/app/static" "$STATIC_CACHE_ROOT"
@@ -200,21 +214,21 @@ for src in sorted(path for path in source.rglob("*") if path.is_file()):
 print(f"STREAMFORGE_MAIN_STATIC_CACHE_SYNC_V1254: verified SHA256 parity for {count} static assets")
 PYV1255STATIC
 
-[[ "$(tr -d '[:space:]' < "$APP_ROOT/VERSION")" == "$TARGET_VERSION" ]] || die "Main VERSION did not align to v12.55"
-[[ "$(tr -d '[:space:]' < "$APP_ROOT/node_agent/VERSION")" == "$NODE_TARGET_VERSION" ]] || die "bundled Node Agent VERSION did not align to v12.55"
+[[ "$(tr -d '[:space:]' < "$APP_ROOT/VERSION")" == "$TARGET_VERSION" ]] || abort_after_write "Main VERSION did not align to v12.55"
+[[ "$(tr -d '[:space:]' < "$APP_ROOT/node_agent/VERSION")" == "$NODE_TARGET_VERSION" ]] || abort_after_write "bundled Node Agent VERSION did not align to v12.55"
 grep -Fq 'STREAMFORGE_MAIN_WAITING_RECOVERY_V1253' "$APP_ROOT/app/static/app.js" \
-  || die "installed app.js lost V1253 Waiting UI marker"
+  || abort_after_write "installed app.js lost V1253 Waiting UI marker"
 grep -Fq 'STREAMFORGE_MAIN_WAITING_RECOVERY_V1253' "$STATIC_CACHE_ROOT/app.js" \
-  || die "Nginx static cache app.js lost V1253 Waiting UI marker"
+  || abort_after_write "Nginx static cache app.js lost V1253 Waiting UI marker"
 grep -Fq 'STREAMFORGE_NODE_RELAY_HEALTH_PROBE_SINGLE_OWNER_V1251' "$APP_ROOT/node_agent/app.py" \
-  || die "installed bundled Node Agent lost V1251 relay-health guard"
+  || abort_after_write "installed bundled Node Agent lost V1251 relay-health guard"
 
 if [[ "$TEST_MODE" != "1" ]]; then
   log "Restarting Main HTTP workers to load v12.55 version metadata."
   systemctl restart "$MAIN_SERVICE"
   systemctl restart "$PUBLIC_SERVICE"
-  systemctl is-active --quiet "$MAIN_SERVICE" || die "$MAIN_SERVICE is not active"
-  systemctl is-active --quiet "$PUBLIC_SERVICE" || die "$PUBLIC_SERVICE is not active"
+  systemctl is-active --quiet "$MAIN_SERVICE" || abort_after_write "$MAIN_SERVICE is not active"
+  systemctl is-active --quiet "$PUBLIC_SERVICE" || abort_after_write "$PUBLIC_SERVICE is not active"
 fi
 
 ROLLBACK_NEEDED=0
