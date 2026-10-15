@@ -1,0 +1,42 @@
+name: V12.55 Version Alignment
+
+on:
+  pull_request:
+    paths:
+      - VERSION
+      - node_agent/VERSION
+      - scripts/force_update_v1255.sh
+      - scripts/update.sh
+      - scripts/test_v1255_version_alignment.py
+      - .github/workflows/v1255-version-alignment.yml
+      - release-notes/v12.55.md
+  push:
+    branches:
+      - release/v12.55-version-alignment
+    paths:
+      - VERSION
+      - node_agent/VERSION
+      - scripts/force_update_v1255.sh
+      - scripts/update.sh
+      - scripts/test_v1255_version_alignment.py
+      - .github/workflows/v1255-version-alignment.yml
+      - release-notes/v12.55.md
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify v12.55 Main/Node version alignment
+        run: python3 scripts/test_v1255_version_alignment.py
+      - name: Verify updater shell syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -f scripts/force_update_v1255.sh ]]; then
+            bash -n scripts/force_update_v1255.sh
+          fi
+          bash -n scripts/update.sh
