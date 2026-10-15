@@ -25,6 +25,11 @@ require('data-advanced-panel' in bulk, "inline Advanced panel missing")
 require('/nodes/{{ node.id }}/update/api' in bulk, "inline per-node API update action missing")
 require('/nodes/{{ node.id }}/update/ssh' in bulk, "inline SSH recovery action missing")
 
+# The bulk form must remain structurally independent from per-Node forms, and a
+# cancelled confirmation must not leave Update Selected disabled.
+require('form="node-bulk-update-form"' in bulk, "bulk checkboxes/button must target the standalone bulk form")
+require("bulkForm.addEventListener('submit'" not in bulk, "cancelled bulk confirmation must not disable Update Selected")
+
 # Legacy GET stays compatible but redirects into the unified Update Center.
 legacy_get = re.search(
     r'@app\.get\("/nodes/\{node_id\}/update".*?\ndef node_update_page\(.*?\n(?P<body>.*?)(?=\n\ndef |\n@app\.)',
