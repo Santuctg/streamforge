@@ -35,6 +35,14 @@ else:
             f"{updater.name} runs py_compile in SOURCE_DIR before staging and can create __pycache__"
         )
 
+    # STREAMFORGE_RELEASE_BOUNDED_PLAYER_UPDATE_V1256:
+    # v12.56 intentionally deploys only the Main Web Player template, bundled
+    # Node Web Player runtime, version metadata, and its helper scripts. It does
+    # not stage/copy the complete release tree, so historical full-tree staging
+    # cleanup is not applicable. The bounded updater must declare and prove that
+    # scope explicitly instead.
+    bounded_player_v1256 = "STREAMFORGE_V1256_BOUNDED_PLAYER_UPDATE" in text
+
     # STREAMFORGE_RELEASE_BOUNDED_VERSION_ALIGNMENT_V1255:
     # v12.55 is intentionally not a full-tree deploy: production already runs
     # the v12.54 Main payload and proven v12.52 Node payload. The updater may
@@ -59,7 +67,23 @@ else:
         None,
     )
 
-    if alignment_v1255:
+    if bounded_player_v1256:
+        if 'cp -a "$SOURCE_DIR/." "$STAGE/"' in text:
+            errors.append(f"{updater.name} v12.56 bounded player update unexpectedly copies the full release tree")
+        for marker in (
+            'TARGET_VERSION="12.56"',
+            'NODE_TARGET_VERSION="12.56"',
+            "STREAMFORGE_WEBPLAYER_HLSJS_FIRST_V1256",
+            "STREAMFORGE_MAIN_WAITING_RECOVERY_V1253",
+            "STREAMFORGE_NODE_RELAY_HEALTH_PROBE_SINGLE_OWNER_V1251",
+            "STREAMFORGE_MAIN_STATIC_CACHE_SYNC_V1254",
+            "verify_webplayer_hlsjs_first_v1256.py",
+            "atomic_copy",
+            "compile(path.read_text(encoding=\"utf-8\"), str(path), \"exec\")",
+        ):
+            if marker not in text:
+                errors.append(f"{updater.name} v12.56 bounded player contract missing {marker}")
+    elif alignment_v1255:
         if 'cp -a "$SOURCE_DIR/." "$STAGE/"' in text:
             errors.append(f"{updater.name} v12.55 alignment unexpectedly copies the full release tree")
         for marker in (
