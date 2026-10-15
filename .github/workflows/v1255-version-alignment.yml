@@ -8,6 +8,7 @@ on:
       - scripts/force_update_v1255.sh
       - scripts/update.sh
       - scripts/test_v1255_version_alignment.py
+      - scripts/test_v1255_updater_integration.py
       - .github/workflows/v1255-version-alignment.yml
       - release-notes/v12.55.md
   push:
@@ -19,6 +20,7 @@ on:
       - scripts/force_update_v1255.sh
       - scripts/update.sh
       - scripts/test_v1255_version_alignment.py
+      - scripts/test_v1255_updater_integration.py
       - .github/workflows/v1255-version-alignment.yml
       - release-notes/v12.55.md
 
@@ -32,6 +34,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Verify v12.55 Main/Node version alignment
         run: python3 scripts/test_v1255_version_alignment.py
+      - name: Verify v12.55 updater integration
+        run: python3 scripts/test_v1255_updater_integration.py
       - name: Verify updater shell syntax
         shell: bash
         run: |
