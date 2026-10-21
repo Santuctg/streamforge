@@ -9519,6 +9519,9 @@ async def node_panel_live_auth(
         if verify_password(new_password, admin.password_hash):
             raise HTTPException(400, "New password must be different from the current password")
         admin.password_hash = hash_password(new_password)
+        # STREAMFORGE_PANEL_USER_SAVED_PASSWORD_V1263: include Node-panel self-reset
+        # in encrypted saved-password escrow; never send escrow to Nodes.
+        admin.password_vault_enc = encrypt_panel_password(new_password)
         db.commit()
         db.refresh(admin)
         auth_version = _panel_admin_auth_version(admin)
