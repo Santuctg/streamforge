@@ -91,6 +91,16 @@ def _connect():
     db_path = Path(os.environ.get("STREAMFORGE_LOGIN_GUARD_DB", GUARD_PATH))
     try:
         db_path.parent.mkdir(parents=True, exist_ok=True)
+        if db_path.is_symlink():
+            raise AuthGuardUnavailable("Login protection store path is unsafe")
+        if not db_path.exists():
+            try:
+                fd = os.open(db_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW, 0o600)
+                os.close(fd)
+            except FileExistsError:
+                pass
+        if not stat.S_ISREG(db_path.stat().st_mode) or db_path.stat().st_mode & 0o007:
+            raise AuthGuardUnavailable("Login protection store permissions unsafe")
         connection = sqlite3.connect(str(db_path), timeout=3, isolation_level=None)
         connection.execute("PRAGMA busy_timeout=3000")
         connection.execute("CREATE TABLE IF NOT EXISTS login_guard ("
