@@ -38,6 +38,8 @@ from sqlalchemy.orm import Session, object_session, selectinload
 from starlette.middleware.sessions import SessionMiddleware
 
 from .auth import current_admin, hash_password, verify_password
+from .panel_password_security import (encrypt_panel_password, decrypt_panel_password, VaultUnavailable,
+    login_allowed, record_login_failure, clear_login_failures, AuthGuardUnavailable)
 from .config import settings
 from .db import Base, SessionLocal, engine, ensure_runtime_schema, get_db
 from .ffmpeg import stream_manager
@@ -5582,6 +5584,38 @@ def login_page(request: Request, db: Session = Depends(get_db)):
     return render(request, "login.html", db, error=None)
 
 
+# STREAMFORGE_PANEL_PASSWORD_VAULT_LOGIN_GUARD_V1263:
+# Durable, bounded login attempts and a separate encrypted recoverable vault.
+_DUMMY_LOGIN_HASH = hash_password("unavailable-account-padding-" + secrets.token_urlsafe(18))
+
+
+def _guard_allowed(scope: str, ip: str, username: str) -> bool:
+    try:
+        return login_allowed(scope, ip, username)
+    except AuthGuardUnavailable as exc:
+        raise HTTPException(503, "Login protection is unavailable") from exc
+
+
+def _guard_failed(scope: str, ip: str, username: str) -> None:
+    try:
+        record_login_failure(scope, ip, username)
+    except AuthGuardUnavailable as exc:
+        raise HTTPException(503, "Login protection is unavailable") from exc
+
+
+def _guard_succeeded(scope: str, ip: str, username: str) -> None:
+    try:
+        clear_login_failures(scope, ip, username)
+    except AuthGuardUnavailable as exc:
+        raise HTTPException(503, "Login protection is unavailable") from exc
+
+
+def _update_panel_password(admin: AdminUser, new_password: str) -> None:
+    ciphertext = encrypt_panel_password(new_password, admin.id)
+    admin.password_hash = hash_password(new_password)
+    admin.password_vault_enc = ciphertext
+
+
 @app.post("/login", response_class=HTMLResponse)
 def login(
     request: Request,
@@ -5589,11 +5623,21 @@ def login(
     password: str = Form(...),
     db: Session = Depends(get_db),
 ):
-    admin = db.scalar(select(AdminUser).where(AdminUser.username == username.strip()))
-    if not admin or not admin.is_active or not admin.main_panel_access or not verify_password(password, admin.password_hash):
-        # STREAMFORGE_ACCESS_LOG_CLIENT_IP_V73: Access logs always retain the real browser/client IP.
-        log_event(f"Failed panel login for {username.strip() or 'unknown'}", scope="auth", level="warning", actor=username.strip() or None, details={"ip": client_ip(request)})
+    submitted = username.strip()[:80]
+    ip = client_ip(request)
+    if not _guard_allowed("main", ip, submitted):
+        response = render(request, "login.html", db, error="Too many login attempts. Try again later.")
+        response.status_code = 429
+        response.headers["Retry-After"] = "900"
+        return response
+    admin = db.scalar(select(AdminUser).where(AdminUser.username == submitted))
+    valid = verify_password(password, admin.password_hash if (admin and admin.is_active and admin.main_panel_access) else _DUMMY_LOGIN_HASH)
+    if not valid or not admin or not admin.is_active or not admin.main_panel_access:
+        _guard_failed("main", ip, submitted)
+        log_event("Failed panel login", scope="auth", level="warning", actor=submitted or None, details={"ip": ip})
         return render(request, "login.html", db, error="Invalid username or password")
+    _guard_succeeded("main", ip, submitted)
+    request.session.clear()
     request.session["admin_id"] = admin.id
     log_event("Panel login succeeded", scope="auth", actor=admin.username, details={"ip": client_ip(request)})
     return RedirectResponse(first_allowed_path(admin), status_code=303)
