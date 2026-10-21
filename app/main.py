@@ -9521,6 +9521,10 @@ async def node_panel_live_auth(
     if action not in {"login", "session", "change_password"} or not username:
         raise HTTPException(400, "Invalid live-auth action")
 
+    node_scope = "node:" + node.slug
+    node_client = submitted_client_ip if submitted_client_ip else "unknown"
+    if action == "login" and not _guard_allowed(node_scope, node_client, username):
+        raise HTTPException(429, "Too many login attempts. Try again later")
     admin = db.scalar(
         select(AdminUser)
         .options(selectinload(AdminUser.role))
@@ -9532,6 +9536,7 @@ async def node_panel_live_auth(
     )
     if not admin:
         if action == "login":
+            _guard_failed(node_scope, node_client, username)
             log_event(
                 f"Failed live Node panel login for {username or 'unknown'} on {node.name}",
                 scope="auth", level="warning", node_id=node.id, actor=username or None, details={"ip": submitted_client_ip} if submitted_client_ip else None,
@@ -9542,11 +9547,13 @@ async def node_panel_live_auth(
     if action == "login":
         password = str(payload.get("password") or "")
         if not verify_password(password, admin.password_hash):
+            _guard_failed(node_scope, node_client, username)
             log_event(
                 f"Failed live Node panel login for {username or 'unknown'} on {node.name}",
                 scope="auth", level="warning", node_id=node.id, actor=username or None, details={"ip": submitted_client_ip} if submitted_client_ip else None,
             )
             raise HTTPException(401, "Invalid username or password")
+        _guard_succeeded(node_scope, node_client, username)
         log_event(
             f"Live Node panel login succeeded on {node.name}",
             scope="auth", node_id=node.id, actor=admin.username, details={"ip": submitted_client_ip} if submitted_client_ip else None,
@@ -9561,7 +9568,7 @@ async def node_panel_live_auth(
             raise HTTPException(400, "New password must contain at least 8 characters")
         if verify_password(new_password, admin.password_hash):
             raise HTTPException(400, "New password must be different from the current password")
-        admin.password_hash = hash_password(new_password)
+        _update_panel_password(admin, new_password)
         db.commit()
         db.refresh(admin)
         auth_version = _panel_admin_auth_version(admin)
@@ -12449,7 +12456,7 @@ def account_password_change(
     if error:
         return render(request, "account_password.html", db, message="", error=error)
 
-    admin.password_hash = hash_password(new_password)
+    _update_panel_password(admin, new_password)
     affected_node_ids = {item.id for item in admin.nodes}
     db.commit()
     sync_errors = sync_panel_users_for_node_ids(affected_node_ids, request, db)
@@ -12547,6 +12554,8 @@ def admin_user_create(
         nodes=selected_nodes,
     )
     db.add(panel_user)
+    db.flush()
+    panel_user.password_vault_enc = encrypt_panel_password(password, panel_user.id)
     db.commit()
     sync_errors = sync_panel_users_for_node_ids({item.id for item in selected_nodes}, request, db)
     return panel_admin_redirect(
@@ -12636,7 +12645,7 @@ def admin_user_update(
     panel_user.main_panel_access = new_main_access
     panel_user.nodes = selected_nodes
     if password:
-        panel_user.password_hash = hash_password(password)
+        _update_panel_password(panel_user, password)
     db.commit()
     affected_node_ids = old_node_ids | {item.id for item in selected_nodes}
     sync_errors = sync_panel_users_for_node_ids(affected_node_ids, request, db)
