@@ -31,6 +31,9 @@ else:
             f"{updater.name} runs py_compile in SOURCE_DIR before staging and can create __pycache__"
         )
 
+    # STREAMFORGE_RELEASE_NODE_SELF_PASSWORD_V1267:
+    bounded_self_pw_v1267 = "STREAMFORGE_V1267_NODE_SELF_PASSWORD_SESSION_ONLY" in text
+
     # STREAMFORGE_RELEASE_BOUNDED_MANAGED_VAULT_V1266:
     # Staged Main patches plus a single versioned Node Agent app.py change.
     bounded_managed_v1266 = "STREAMFORGE_V1266_BOUNDED_AUTO_VAULT" in text
@@ -90,7 +93,22 @@ else:
         None,
     )
 
-    if bounded_managed_v1266:
+    if bounded_self_pw_v1267:
+        if 'cp -a "$SRC/." "$STAGE/"' in text:
+            errors.append(f"{updater.name} v12.67 unexpectedly copies full release")
+        for marker in (
+            'TARGET="12.67"',
+            '12.66|12.67',
+            'STREAMFORGE_V1267_NODE_APP_ONLY_PARITY',
+            'STREAMFORGE_V1267_SELF_PASSWORD_PERMISSION_FIX',
+            'node_agent/app.py',
+            'test_v1267_node_self_password.py',
+            'PREVIOUS_NODE_BLOB="a071e851db49804c413a6d4db9de792a20adb69a"',
+            'Rolling back from',
+        ):
+            if marker not in text:
+                errors.append(f"{updater.name} v12.67 bounded Node permission contract missing {marker}")
+    elif bounded_managed_v1266:
         if 'cp -a "$SRC/." "$STAGE/"' in text:
             errors.append(f"{updater.name} v12.66 unexpectedly copies full release source")
         for marker in (

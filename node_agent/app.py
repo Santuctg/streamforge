@@ -7192,7 +7192,10 @@ def require_node_panel_user(request: Request, permission: str = "channels.view")
         raise HTTPException(503, MAIN_PANEL_DISCONNECTED_DETAIL)
     if status != "ok" or not user:
         raise HTTPException(401, detail or "Node panel session was revoked")
-    if not _has_panel_permission(user, permission):
+    # STREAMFORGE_V1267_SELF_PASSWORD_PERMISSION_FIX: empty permission means
+    # valid personal session only; do not require Super Admin wildcard.
+    # All actual resource checks still enforce the named permission.
+    if permission and not _has_panel_permission(user, permission):
         raise HTTPException(403, "Permission denied")
     return user
 
