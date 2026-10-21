@@ -24,19 +24,23 @@ die(){ echo "[StreamForge v${TARGET_VERSION} Panel User Saved Password Vault] ER
 # escrow with a default/weak/missing Main secret. Read without displaying it.
 if [[ "$TEST_MODE" != "1" ]]; then
   MAIN_PID="$(systemctl show -p MainPID --value "$MAIN_SERVICE" 2>/dev/null || true)"
-  [[ "$MAIN_PID" =~ ^[1-9][0-9]*$ ]] || die "Main Panel service must be running to verify vault key safety"
-  python3 - "$MAIN_PID" <<'PYV1263KEY' || die "Set a stable 32+ character STREAMFORGE_SECRET_KEY in Main service before v12.63 deployment"
+  PUBLIC_PID="$(systemctl show -p MainPID --value "$PUBLIC_SERVICE" 2>/dev/null || true)"
+  [[ "$MAIN_PID" =~ ^[1-9][0-9]*$ && "$PUBLIC_PID" =~ ^[1-9][0-9]*$ ]] || die "Both Main and Public services must be running to verify vault key consistency"
+  python3 - "$MAIN_PID" "$PUBLIC_PID" <<'PYV1263KEY' || die "Set the same stable 32+ character STREAMFORGE_SECRET_KEY for both Main HTTP services before v12.63 deployment"
 import sys
 from pathlib import Path
-pid = sys.argv[1]
-try:
-    data = (Path("/proc")/pid/"environ").read_bytes().split(b"\\0")
-    keys = [value.split(b"=", 1)[1] for value in data if value.startswith(b"STREAMFORGE_SECRET_KEY=")]
-except OSError:
+def service_secret(pid):
+    try:
+        data = (Path("/proc")/pid/"environ").read_bytes().split(b"\\0")
+    except OSError:
+        return None
+    values = [entry.split(b"=", 1)[1] for entry in data if entry.startswith(b"STREAMFORGE_SECRET_KEY=")]
+    return values[0] if len(values) == 1 else None
+main = service_secret(sys.argv[1])
+public = service_secret(sys.argv[2])
+if not main or len(main) < 32 or main == b"dev-change-me-now" or public != main:
     sys.exit(1)
-if len(keys) != 1 or len(keys[0]) < 32 or keys[0] == b"dev-change-me-now":
-    sys.exit(1)
-print("PASS: configured Main vault encryption key meets minimum length; value not shown")
+print("PASS: Main and Public vault keys match and meet minimum length; values not shown")
 PYV1263KEY
 fi
 
