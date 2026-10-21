@@ -113,6 +113,23 @@ class AdminUser(Base):
     )
 
 
+
+# STREAMFORGE_PANEL_CREDENTIAL_VAULT_V1263:
+# Main-only recoverable credentials, separate from the one-way login hash and
+# intentionally absent from Node Agent synchronisation.
+class PanelUserCredentialVault(Base):
+    __tablename__ = "panel_user_credential_vault"
+
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("admin_users.id", ondelete="CASCADE"), primary_key=True
+    )
+    ciphertext: Mapped[str] = mapped_column(Text, nullable=False)
+    password_hash_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+
 class ChannelCategory(Base):
     __tablename__ = "channel_categories"
 
