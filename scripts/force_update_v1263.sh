@@ -20,6 +20,26 @@ log(){ echo "[StreamForge v${TARGET_VERSION} Panel User Saved Password Vault] $*
 die(){ echo "[StreamForge v${TARGET_VERSION} Panel User Saved Password Vault] ERROR: $*" >&2; exit 1; }
 
 [[ "$TEST_MODE" == "1" || ${EUID} -eq 0 ]] || die "run with sudo/root"
+# STREAMFORGE_V1263_SECRET_PREFLIGHT: never enable recoverable password
+# escrow with a default/weak/missing Main secret. Read without displaying it.
+if [[ "$TEST_MODE" != "1" ]]; then
+  MAIN_PID="$(systemctl show -p MainPID --value "$MAIN_SERVICE" 2>/dev/null || true)"
+  [[ "$MAIN_PID" =~ ^[1-9][0-9]*$ ]] || die "Main Panel service must be running to verify vault key safety"
+  python3 - "$MAIN_PID" <<'PYV1263KEY' || die "Set a stable 32+ character STREAMFORGE_SECRET_KEY in Main service before v12.63 deployment"
+import sys
+from pathlib import Path
+pid = sys.argv[1]
+try:
+    data = (Path("/proc")/pid/"environ").read_bytes().split(b"\\0")
+    keys = [value.split(b"=", 1)[1] for value in data if value.startswith(b"STREAMFORGE_SECRET_KEY=")]
+except OSError:
+    sys.exit(1)
+if len(keys) != 1 or len(keys[0]) < 32 or keys[0] == b"dev-change-me-now":
+    sys.exit(1)
+print("PASS: configured Main vault encryption key meets minimum length; value not shown")
+PYV1263KEY
+fi
+
 [[ -f "$SOURCE_DIR/VERSION" ]] || die "package VERSION missing"
 [[ -f "$SOURCE_DIR/node_agent/VERSION" ]] || die "package Node Agent VERSION missing"
 [[ "$(tr -d '[:space:]' < "$SOURCE_DIR/VERSION")" == "$TARGET_VERSION" ]] || die "wrong package Main version"
