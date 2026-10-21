@@ -23,7 +23,7 @@
           <td data-label="Status"><span class="status {{ 'running' if item.is_active else 'stopped' }}">{{ 'Active' if item.is_active else 'Disabled' }}</span></td>
           <td data-label="Created">{{ item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else '—' }}</td>
           <td data-label="Actions" class="actions">
-            {% if can('panel_users.edit') %}<a class="button small" href="/admin-users/{{ item.id }}/edit">Edit</a><a class="button small" href="/admin-users/{{ item.id }}/edit?focus=password" title="Set a new password for this panel user">Change password</a>{% endif %}{% if vault_active and can('panel_users.password_reveal') %}{% if item.id in vault_saved_ids %}<button class="button small" type="button" data-vault-reveal-user-id="{{ item.id }}" data-vault-reveal-username="{{ item.username }}">Show saved password</button>{% else %}<small class="muted-tag" title="New or reset managed password required">Not saved</small>{% endif %}{% endif %}
+            {% if can('panel_users.edit') %}<a class="button small" href="/admin-users/{{ item.id }}/edit">Edit</a><button class="button small" type="button" data-panel-pw-reset-id="{{ item.id }}" data-panel-pw-reset-name="{{ item.username }}" aria-label="Change password for {{ item.username }}">Change password</button>{% endif %}{% if vault_active and can('panel_users.password_reveal') %}{% if item.id in vault_saved_ids %}<button class="button small" type="button" data-vault-reveal-user-id="{{ item.id }}" data-vault-reveal-username="{{ item.username }}">Show saved password</button>{% else %}<small class="muted-tag" title="New or reset managed password required">Not saved</small>{% endif %}{% endif %}
             {% if can('panel_users.delete') and item.id != admin.id %}<form method="post" action="/admin-users/{{ item.id }}/delete" onsubmit="return confirm('Delete panel user {{ item.username }}?')"><button class="button ghost-danger small">Delete</button></form>{% endif %}
           </td>
         </tr>
@@ -39,7 +39,7 @@
       <div class="mobile-record-row"><span>Access</span><div>{% if item.main_panel_access %}<span class="category-badge">Main Panel</span>{% endif %}{% for node in item.nodes %}<span class="node-badge">{{ node.name }}</span>{% endfor %}{% if not item.main_panel_access and not item.nodes %}<span class="muted-tag">No access location</span>{% endif %}</div></div>
       <div class="mobile-record-row"><span>Status</span><div><span class="status {{ 'running' if item.is_active else 'stopped' }}">{{ 'Active' if item.is_active else 'Disabled' }}</span></div></div>
       <div class="mobile-record-row"><span>Created</span><div>{{ item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else '—' }}</div></div>
-      <div class="mobile-record-actions"><span>Actions</span><div>{% if can('panel_users.edit') %}<a class="button small" href="/admin-users/{{ item.id }}/edit">Edit</a><a class="button small" href="/admin-users/{{ item.id }}/edit?focus=password" title="Set a new password for this panel user">Change password</a>{% endif %}{% if vault_active and can('panel_users.password_reveal') %}{% if item.id in vault_saved_ids %}<button class="button small" type="button" data-vault-reveal-user-id="{{ item.id }}" data-vault-reveal-username="{{ item.username }}">Show saved password</button>{% else %}<small class="muted-tag" title="New or reset managed password required">Not saved</small>{% endif %}{% endif %}{% if can('panel_users.delete') and item.id != admin.id %}<form method="post" action="/admin-users/{{ item.id }}/delete" onsubmit="return confirm('Delete panel user {{ item.username }}?')"><button class="button ghost-danger small">Delete</button></form>{% endif %}</div></div>
+      <div class="mobile-record-actions"><span>Actions</span><div>{% if can('panel_users.edit') %}<a class="button small" href="/admin-users/{{ item.id }}/edit">Edit</a><button class="button small" type="button" data-panel-pw-reset-id="{{ item.id }}" data-panel-pw-reset-name="{{ item.username }}" aria-label="Change password for {{ item.username }}">Change password</button>{% endif %}{% if vault_active and can('panel_users.password_reveal') %}{% if item.id in vault_saved_ids %}<button class="button small" type="button" data-vault-reveal-user-id="{{ item.id }}" data-vault-reveal-username="{{ item.username }}">Show saved password</button>{% else %}<small class="muted-tag" title="New or reset managed password required">Not saved</small>{% endif %}{% endif %}{% if can('panel_users.delete') and item.id != admin.id %}<form method="post" action="/admin-users/{{ item.id }}/delete" onsubmit="return confirm('Delete panel user {{ item.username }}?')"><button class="button ghost-danger small">Delete</button></form>{% endif %}</div></div>
     </article>
   {% else %}
     <div class="mobile-empty">No panel users found.</div>
@@ -197,6 +197,149 @@
     if (deadlineRows.length) render();
   }, 1000);
   load();
+})();
+</script>
+{% endif %}
+
+
+{# STREAMFORGE_V1268_PASSWORD_RESET_MODAL: reset only a password, not account role/access. #}
+<style>
+.sf-pw-reset-overlay[hidden]{display:none !important}
+.sf-pw-reset-overlay{position:fixed;inset:0;z-index:10020;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(4,11,27,.76)}
+.sf-pw-reset-dialog{width:min(520px,100%);max-height:min(90vh,760px);overflow-y:auto;padding:24px;background:var(--panel,#111821);color:var(--text,#edf4fb);border:1px solid var(--line,#304156);border-radius:14px;box-shadow:0 18px 56px #000a}
+.sf-pw-reset-dialog h3{margin:0 0 8px;font-size:18px}
+.sf-pw-reset-dialog .sf-pw-reset-note{color:var(--muted,#8da0b5);font-size:13px;line-height:1.5;margin:7px 0 16px}
+.sf-pw-reset-dialog label{display:block;font-size:13px;margin:14px 0 7px;color:var(--text,#edf4fb)}
+.sf-pw-reset-dialog .sf-pw-reset-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:20px}
+.sf-pw-reset-error{color:#ff9aa4;font-size:13px;margin:12px 0 0}
+.sf-pw-reset-dialog input[type="password"],
+.sf-vault-dialog input[type="password"]{
+  display:block;width:100%;height:42px;min-height:42px;box-sizing:border-box;
+  background:#0b1118 !important;color:var(--text,#edf4fb) !important;
+  border:1px solid #304156 !important;border-radius:8px !important;
+  padding:9px 12px !important;font:inherit;outline:none !important;color-scheme:dark;
+  box-shadow:none !important;-webkit-text-fill-color:var(--text,#edf4fb);
+}
+.sf-pw-reset-dialog input[type="password"]:focus-visible,
+.sf-vault-dialog input[type="password"]:focus-visible{
+  border-color:var(--accent,#37c7a2) !important;
+  box-shadow:0 0 0 2px rgba(55,199,162,.17) !important;
+}
+.sf-pw-reset-dialog input[type="password"]:-webkit-autofill,
+.sf-vault-dialog input[type="password"]:-webkit-autofill{
+  -webkit-box-shadow:0 0 0 1000px #0b1118 inset !important;
+  -webkit-text-fill-color:var(--text,#edf4fb) !important;
+  caret-color:var(--text,#edf4fb);
+}
+@media(max-width:580px){.sf-pw-reset-dialog{padding:18px}.sf-pw-reset-actions .button{flex:1 1 120px}}
+</style>
+{% if can('panel_users.edit') %}
+<div class="sf-pw-reset-overlay" data-panel-pw-reset-overlay hidden>
+  <section class="sf-pw-reset-dialog" role="dialog" aria-modal="true" aria-labelledby="sf-pw-reset-title" aria-describedby="sf-pw-reset-info">
+    <h3 id="sf-pw-reset-title">Change password</h3>
+    <p class="sf-pw-reset-note" data-panel-pw-reset-account></p>
+    <p class="sf-pw-reset-note" id="sf-pw-reset-info">The new password is encrypted in the managed vault. Authorized administrators can reveal it after reauthentication.</p>
+    <form data-panel-pw-reset-form autocomplete="off">
+      <input type="hidden" data-panel-pw-reset-csrf value="{{ vault_csrf_token }}">
+      <label for="sf-pw-reset-value">New password</label>
+      <input id="sf-pw-reset-value" type="password" data-panel-pw-reset-value minlength="8" autocomplete="new-password" required>
+      <label for="sf-pw-reset-confirm">Confirm new password</label>
+      <input id="sf-pw-reset-confirm" type="password" data-panel-pw-reset-confirm minlength="8" autocomplete="new-password" required>
+      <p class="sf-pw-reset-error" data-panel-pw-reset-error role="alert" hidden></p>
+      <div class="sf-pw-reset-actions">
+        <button class="button primary" type="submit" data-panel-pw-reset-submit>Change password</button>
+        <button class="button" type="button" data-panel-pw-reset-cancel>Cancel</button>
+      </div>
+    </form>
+  </section>
+</div>
+<script>
+(() => {
+  const overlay = document.querySelector('[data-panel-pw-reset-overlay]');
+  if (!overlay) return;
+  const root = String(window.STREAMFORGE_APP_ROOT || '').replace(/\/+$/, '');
+  const form = overlay.querySelector('[data-panel-pw-reset-form]');
+  const pw = overlay.querySelector('[data-panel-pw-reset-value]');
+  const confirmPw = overlay.querySelector('[data-panel-pw-reset-confirm]');
+  const submit = overlay.querySelector('[data-panel-pw-reset-submit]');
+  const cancel = overlay.querySelector('[data-panel-pw-reset-cancel]');
+  const error = overlay.querySelector('[data-panel-pw-reset-error]');
+  const account = overlay.querySelector('[data-panel-pw-reset-account]');
+  const csrf = overlay.querySelector('[data-panel-pw-reset-csrf]');
+  let targetId = null;
+  let trigger = null;
+  let busy = false;
+  const showError = message => { error.textContent = message; error.hidden = false; };
+  const close = () => {
+    if (busy) return;
+    form.reset();
+    error.textContent = '';
+    error.hidden = true;
+    overlay.hidden = true;
+    targetId = null;
+    const previous = trigger;
+    trigger = null;
+    if (previous && previous.isConnected) previous.focus();
+  };
+  document.querySelectorAll('[data-panel-pw-reset-id]').forEach(button => {
+    button.addEventListener('click', () => {
+      if (busy) return;
+      close();
+      const id = Number(button.dataset.panelPwResetId);
+      if (!Number.isSafeInteger(id) || id < 1) return;
+      targetId = id;
+      trigger = button;
+      account.textContent = 'Account: ' + String(button.dataset.panelPwResetName || '');
+      overlay.hidden = false;
+      pw.focus();
+    });
+  });
+  cancel.addEventListener('click', close);
+  overlay.addEventListener('click', event => { if (event.target === overlay) close(); });
+  document.addEventListener('keydown', event => {
+    if (overlay.hidden) return;
+    if (event.key === 'Escape') { event.preventDefault(); close(); }
+    if (event.key === 'Tab') {
+      const items = [pw, confirmPw, submit, cancel].filter(el => !el.disabled);
+      const index = items.indexOf(document.activeElement);
+      if (event.shiftKey && index <= 0) { event.preventDefault(); items[items.length - 1].focus(); }
+      else if (!event.shiftKey && index === items.length - 1) { event.preventDefault(); items[0].focus(); }
+    }
+  });
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    if (busy || !Number.isSafeInteger(targetId) || targetId < 1) return;
+    error.hidden = true;
+    const raw = pw.value;
+    const verification = confirmPw.value;
+    if (raw.length < 8) return showError('Password must contain at least 8 characters.');
+    if (raw !== verification) return showError('Password confirmation does not match.');
+    if (!csrf.value) return showError('Reload this page before changing a password.');
+    const body = new URLSearchParams({
+      password: raw, password_confirm: verification, csrf_token: csrf.value,
+    });
+    pw.value = ''; confirmPw.value = '';
+    busy = true; submit.disabled = true; cancel.disabled = true;
+    try {
+      const response = await fetch(root + '/admin-users/' + targetId + '/password/reset', {
+        method:'POST', credentials:'same-origin', cache:'no-store',
+        headers:{'Content-Type':'application/x-www-form-urlencoded','Accept':'application/json'},
+        body,
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) {
+        showError(String(payload.error || 'Unable to change password.'));
+        return;
+      }
+      const message = String(payload.sync_warning || '').trim();
+      window.location.assign(root + '/admin-users?message=' +
+        encodeURIComponent(message ? 'Password changed. Node sync warning: ' + message : 'Password changed successfully.'));
+    } catch (_) {
+      showError('Request failed. Check your connection and try again.');
+    } finally {
+      busy = false; submit.disabled = false; cancel.disabled = false;
+    }
+  });
 })();
 </script>
 {% endif %}

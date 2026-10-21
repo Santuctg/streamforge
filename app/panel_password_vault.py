@@ -24,7 +24,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
-from .auth import current_admin, verify_password
+from .auth import current_admin, verify_password, hash_password
 from .audit_log import log_event
 from .db import get_db
 from .models import AdminUser, PanelUserCredentialVault
@@ -317,6 +317,67 @@ def unblock_panel_ip(
     log_event("Panel login IP manually unblocked", scope="auth",
               actor=actor.username, details={"target_ip": target_ip})
     return _secret_response({"ok": True, "unblocked_ip": target_ip})
+
+
+# STREAMFORGE_V1268_PASSWORD_RESET_MODAL_API:
+# Panel Users reset is account management, NOT a self-password permission.
+# The dedicated POST updates only the hash+encrypted vault, not role/access.
+@router.post("/admin-users/{admin_user_id}/password/reset")
+def reset_panel_user_password_modal(
+    admin_user_id: int,
+    request: Request,
+    password: str = Form(...),
+    password_confirm: str = Form(...),
+    csrf_token: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    actor = current_admin(request, db)
+    if not actor or not actor.is_active or not actor.main_panel_access or not has_permission(actor, "panel_users.edit"):
+        return _secret_response({"error": "Not permitted"}, 403)
+    if not _request_is_secure_same_origin(request):
+        return _secret_response({"error": "HTTPS same-origin request required"}, 403)
+    expected = request.session.get(CSRF_SESSION_KEY)
+    if not isinstance(expected, str) or not hmac.compare_digest(expected, csrf_token):
+        return _secret_response({"error": "Invalid request. Reload page."}, 403)
+    target = db.get(AdminUser, int(admin_user_id))
+    if not vault_target_visible(actor, target):
+        return _secret_response({"error": "Not permitted"}, 403)
+    if len(password) < 8:
+        return _secret_response({"error": "Password must contain at least 8 characters"}, 400)
+    if password != password_confirm:
+        return _secret_response({"error": "Password confirmation does not match"}, 400)
+    if not vault_enabled():
+        return _secret_response({"error": "Encrypted password vault unavailable; password unchanged"}, 503)
+    # Credential hash and recoverable ciphertext succeed or fail as one DB transaction.
+    try:
+        target.password_hash = hash_password(password)
+        if not vault_store(db, target, password):
+            db.rollback()
+            return _secret_response({"error": "Encrypted password vault unavailable; password unchanged"}, 503)
+        affected_node_ids = {node.id for node in target.nodes}
+        db.commit()
+    except Exception:
+        db.rollback()
+        log_event("Panel password reset failed before commit", scope="auth", level="error",
+                  actor=actor.username, details={"target_user_id": int(admin_user_id)})
+        return _secret_response({"error": "Password change could not be saved"}, 503)
+    log_event("Panel user password reset from modal", scope="auth", actor=actor.username,
+              details={"target_user_id": int(admin_user_id)})
+    # Remote Node logins are centrally verified against this Main credential;
+    # sync only the existing Node metadata, without sending plaintext.
+    sync_errors = []
+    try:
+        from .main import sync_panel_users_for_node_ids
+        sync_errors = sync_panel_users_for_node_ids(affected_node_ids, request, db)
+    except Exception:
+        log_event("Panel password reset Node metadata sync unavailable", scope="auth",
+                  level="warning", actor=actor.username,
+                  details={"target_user_id": int(admin_user_id)})
+        sync_errors = ["Node metadata sync pending"]
+    return _secret_response({
+        "ok": True, "message": "Password changed successfully",
+        "sync_warning": "; ".join(sync_errors)[:300],
+    })
 
 
 @router.post("/admin-users/{admin_user_id}/password/reveal")

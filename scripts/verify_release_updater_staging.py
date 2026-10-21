@@ -31,6 +31,9 @@ else:
             f"{updater.name} runs py_compile in SOURCE_DIR before staging and can create __pycache__"
         )
 
+    # STREAMFORGE_RELEASE_MAIN_PW_MODAL_V1268:
+    bounded_main_pw_modal_v1268 = "STREAMFORGE_V1268_MAIN_PASSWORD_MODAL_SCOPED" in text
+
     # STREAMFORGE_RELEASE_NODE_SELF_PASSWORD_V1267:
     bounded_self_pw_v1267 = "STREAMFORGE_V1267_NODE_SELF_PASSWORD_SESSION_ONLY" in text
 
@@ -93,7 +96,23 @@ else:
         None,
     )
 
-    if bounded_self_pw_v1267:
+    if bounded_main_pw_modal_v1268:
+        if 'cp -a "$SRC/." "$STAGE/"' in text:
+            errors.append(f"{updater.name} v12.68 unexpectedly copies full release tree")
+        for marker in (
+            'STREAMFORGE_V1268_MAIN_PASSWORD_MODAL_SCOPED',
+            '12.67|12.68',
+            'STREAMFORGE_V1268_MAIN_ONLY_NODE_PARITY',
+            'scripts/apply_v1268_password_modal.py',
+            'STREAMFORGE_V1268_PW_MODAL_CSRF',
+            'STREAMFORGE_V1268_PASSWORD_RESET_MODAL_API',
+            'app/templates/admin_users.html',
+            'atomic_copy',
+            'Rolling back from',
+        ):
+            if marker not in text:
+                errors.append(f"{updater.name} v12.68 Main popup contract missing {marker}")
+    elif bounded_self_pw_v1267:
         if 'cp -a "$SRC/." "$STAGE/"' in text:
             errors.append(f"{updater.name} v12.67 unexpectedly copies full release")
         for marker in (
