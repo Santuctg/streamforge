@@ -12518,6 +12518,14 @@ async def admin_user_reveal_saved_password(admin_user_id: int, request: Request,
     actor = enforce_permission(request, db, "panel_users.view")
     if not admin_is_super_admin(actor):
         raise HTTPException(403, "Insufficient permissions")
+    # Only disclose recovered credentials over encrypted transport.
+    # Nginx sets the forwarded scheme on its trusted loopback connection.
+    peer = str(request.client.host if request.client else "")
+    proxy_tls = peer in {"127.0.0.1", "::1"} and (
+        request.headers.get("x-forwarded-proto", "").split(",", 1)[0].strip() == "https"
+    )
+    if request.url.scheme != "https" and not proxy_tls:
+        raise HTTPException(403, "Use HTTPS for this operation")
     if request.headers.get("sec-fetch-site", "same-origin") not in {"same-origin", "none"}:
         raise HTTPException(403, "Cross-site request blocked")
     origin = request.headers.get("origin")
