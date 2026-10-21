@@ -47,19 +47,19 @@
   </div>
 
 
-{# STREAMFORGE_V1264_PANEL_IP_LOCKOUT_UI — visible only to unrestricted Super Admin. #}
+{# STREAMFORGE_V1265_BLOCK_SERVER_UI: 5th failed request origin. #}
 {% if is_super_admin %}
 <section class="panel" data-vault-lock-console style="margin-top:20px" data-vault-lock-csrf="{{ vault_csrf_token }}">
   <div class="panel-head">
     <div><h2>Security · Panel Login · Blocked IPs</h2>
-      <p>Five incorrect Panel login passwords from the same IP within 15 minutes block new Main and Remote Node Panel logins from that IP for 3 hours. Accounts are not blocked; users sharing a NAT/public IP may be affected.</p>
+      <p>Five incorrect Panel login passwords from the same IP within 15 minutes block new Main and Remote Node Panel logins from that IP for 3 hours. Triggered by shows which server handled the fifth failure; older blocks may show Unknown. Accounts are not blocked.</p>
     </div>
     <button type="button" class="button small" data-vault-lock-refresh>Refresh</button>
   </div>
   <p class="field-help" data-vault-lock-status role="status">Loading blocked IPs…</p>
   <div class="table-wrap">
-    <table><thead><tr><th>IP address</th><th>Failed attempts</th><th>Blocked until</th><th>Remaining</th><th>Action</th></tr></thead>
-      <tbody data-vault-lock-rows><tr><td colspan="5">Loading…</td></tr></tbody>
+    <table><thead><tr><th>IP address</th><th>Triggered by server</th><th>Failed attempts</th><th>Blocked until</th><th>Remaining</th><th>Action</th></tr></thead>
+      <tbody data-vault-lock-rows><tr><td colspan="6">Loading…</td></tr></tbody>
     </table>
   </div>
   <div class="sf-vault-overlay" data-vault-unlock-overlay hidden style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(4,11,27,.72);align-items:center;justify-content:center;padding:18px">
@@ -107,7 +107,7 @@
     if (!deadlineRows.length) {
       const tr = document.createElement('tr');
       const cell = document.createElement('td');
-      cell.colSpan = 5;
+      cell.colSpan = 6;
       cell.textContent = 'No IP addresses currently blocked from Panel login.';
       tr.appendChild(cell); tbody.appendChild(tr); return;
     }
@@ -115,6 +115,7 @@
       const tr = document.createElement('tr');
       const fields = [
         String(item.ip),
+        String(item.blocked_by_server || 'Unknown (blocked before tracking)'),
         String(item.failed_attempts),
         new Date(item.blocked_until * 1000).toLocaleString(),
         Math.max(0, Math.ceil(item.blocked_until - Date.now() / 1000)) + ' sec',
