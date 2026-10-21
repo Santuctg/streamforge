@@ -70,8 +70,11 @@ app.dependency_overrides[get_db]=get_test_db
 def login(user_id:int, request: __import__("fastapi").Request):
     request.session["admin_id"]=user_id
     return {"csrf": vault_csrf_token(request)}
-client=TestClient(app)
+client=TestClient(app,base_url="https://testserver")
 endpoint=f"/admin-users/{person_id}/password/reveal"
+http_client=TestClient(app,base_url="http://testserver")
+assert http_client.post(endpoint, data={"csrf_token":"bad","reauth_password":"test"}).status_code==403
+
 r=client.get(f"/test/login/{owner_id}")
 assert r.status_code==200
 csrf=r.json()["csrf"]
