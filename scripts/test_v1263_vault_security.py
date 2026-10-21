@@ -150,6 +150,50 @@ response = client.post(endpoint,headers=ORIGIN,data={"csrf_token":csrf,"reauth_p
 assert response.status_code==429, (response.status_code, response.text)
 with Session() as db:
     assert _locked(db.get(AdminUser,owner_id))
+
+# Locked Users console: users with delegated reveal rights cannot inspect or unlock.
+list_url = "/admin-users/password-vault/locked-users"
+unlock_url = f"/admin-users/password-vault/locked-users/{owner_id}/unlock"
+client.get(f"/test/login/{delegate_id}")
+assert client.get(list_url).status_code == 403
+assert client.post(unlock_url, headers=ORIGIN,
+                   data={"csrf_token": csrf, "reauth_password": "AuditorSecret!1"}).status_code == 403
+csrf = client.get(f"/test/login/{owner_id}").json()["csrf"]
+response = client.get(list_url)
+assert response.status_code == 200, response.text
+assert response.headers.get("cache-control","").startswith("no-store")
+assert response.json()["count"] == 1
+assert response.json()["locked_users"][0]["username"] == "operatorroot"
+assert response.json()["locked_users"][0]["failed_attempts"] == 5
+assert response.json()["locked_users"][0]["remaining_seconds"] > 0
+assert client.get(unlock_url).status_code == 405
+assert client.post(unlock_url, headers=ORIGIN,
+                   data={"csrf_token": "wrong", "reauth_password": "SuperRoot!A"}).status_code == 403
+assert client.post(unlock_url, headers={"Origin":"https://evil.example"},
+                   data={"csrf_token": csrf, "reauth_password": "SuperRoot!A"}).status_code == 403
+assert client.post(unlock_url, headers=ORIGIN,
+                   data={"csrf_token": csrf, "reauth_password": "wrong"}).status_code == 403
+assert client.get(list_url).json()["count"] == 1
+response = client.post(unlock_url, headers=ORIGIN,
+                       data={"csrf_token": csrf, "reauth_password": "SuperRoot!A"})
+assert response.status_code == 200, response.text
+assert response.json()["unlocked_actor_id"] == owner_id
+assert client.get(list_url).json()["count"] == 0
+assert client.post(unlock_url, headers=ORIGIN,
+                   data={"csrf_token": csrf, "reauth_password": "SuperRoot!A"}).status_code == 409
+with Session() as db:
+    assert not _locked(db.get(AdminUser, owner_id))
+# Independent unlock throttle: a reveal-locked Super Admin can still unlock
+# after valid reauth, but brute force attempts against unlock itself are capped.
+from app.panel_password_vault import _locked as guard_locked, _clear_failures as guard_clear
+for _ in range(5):
+    assert client.post(unlock_url, headers=ORIGIN,
+                       data={"csrf_token": csrf, "reauth_password": "wrong"}).status_code == 403
+assert client.post(unlock_url, headers=ORIGIN,
+                   data={"csrf_token": csrf, "reauth_password": "SuperRoot!A"}).status_code == 429
+with Session() as db:
+    assert guard_locked(db.get(AdminUser, owner_id), purpose="unlock")
+    guard_clear(db.get(AdminUser, owner_id), purpose="unlock")
 assert client.post(endpoint,headers={"Origin":"https://evil.example"},data={"csrf_token":csrf,"reauth_password":"SuperRoot!A"}).status_code==403
 
 with Session() as db:

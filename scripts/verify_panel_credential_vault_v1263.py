@@ -33,6 +33,12 @@ need('panel_users.password_vault_manage' in contents("app/permissions.py"),"vaul
 need('Super Admin-exclusive sensitive grant' in contents("scripts/apply_v1263_vault.py"),"sensitive permissions Super Admin-grant only")
 need('csrf' in vault and 'session' in vault,"session-bound CSRF")
 need('no-store' in vault,"secret response no-store")
+need('list_vault_locked_users' in vault and 'unlock_vault_locked_user' in vault,
+     "Super Admin lock status and unlock APIs")
+need('unlock_failures' in vault and 'purpose="unlock"' in vault,
+     "separate persistent unlock reauthentication throttle")
+need('data-vault-lock-console' in listing and 'data-vault-unlock-confirm' in listing,
+     "Super Admin Locked Users web console")
 need('log_event' in vault,"audited reveal")
 need('password_hash_fingerprint' in vault,"stale-secret protection")
 need('vault_store' in contents("scripts/apply_v1263_vault.py") and 'vault_discard' in contents("scripts/apply_v1263_vault.py"),"atomic create/edit/self-change integration")

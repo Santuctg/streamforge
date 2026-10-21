@@ -59,9 +59,12 @@ def _guard_connection():
         conn = sqlite3.connect(str(path), timeout=5, isolation_level=None)
         try:
             conn.execute("PRAGMA busy_timeout=5000")
-            conn.execute("CREATE TABLE IF NOT EXISTS reveal_failures ("
-                         "actor_id INTEGER PRIMARY KEY, window_start INTEGER NOT NULL,"
-                         "failures INTEGER NOT NULL, blocked_until INTEGER NOT NULL)")
+            for table in ("reveal_failures", "unlock_failures"):
+                conn.execute(
+                    f"CREATE TABLE IF NOT EXISTS {table} ("
+                    "actor_id INTEGER PRIMARY KEY, window_start INTEGER NOT NULL,"
+                    "failures INTEGER NOT NULL, blocked_until INTEGER NOT NULL)"
+                )
             return conn
         except Exception:
             conn.close()
@@ -70,25 +73,33 @@ def _guard_connection():
         raise VaultGuardUnavailable("Vault reveal guard unavailable") from exc
 
 
-def _locked(actor: AdminUser) -> bool:
+def _guard_table(purpose: str) -> str:
+    if purpose not in {"reveal", "unlock"}:
+        raise ValueError("Unsupported guard purpose")
+    return "unlock_failures" if purpose == "unlock" else "reveal_failures"
+
+
+def _locked(actor: AdminUser, purpose: str = "reveal") -> bool:
+    table = _guard_table(purpose)
     now = int(time.time())
     try:
         with closing(_guard_connection()) as conn:
             record = conn.execute(
-                "SELECT blocked_until FROM reveal_failures WHERE actor_id = ?", (int(actor.id),)
+                f"SELECT blocked_until FROM {table} WHERE actor_id = ?", (int(actor.id),)
             ).fetchone()
             return bool(record and int(record[0]) > now)
     except sqlite3.Error as exc:
         raise VaultGuardUnavailable("Vault reveal guard unavailable") from exc
 
 
-def _failure(actor: AdminUser) -> None:
+def _failure(actor: AdminUser, purpose: str = "reveal") -> None:
+    table = _guard_table(purpose)
     now = int(time.time())
     conn = _guard_connection()
     try:
         conn.execute("BEGIN IMMEDIATE")
         row = conn.execute(
-            "SELECT window_start, failures, blocked_until FROM reveal_failures WHERE actor_id = ?",
+            f"SELECT window_start, failures, blocked_until FROM {table} WHERE actor_id = ?",
             (int(actor.id),),
         ).fetchone()
         if row is None or now - int(row[0]) >= 900:
@@ -98,7 +109,7 @@ def _failure(actor: AdminUser) -> None:
         if failures >= 5:
             blocked = max(blocked, now + 900)
         conn.execute(
-            "INSERT INTO reveal_failures(actor_id,window_start,failures,blocked_until) "
+            f"INSERT INTO {table}(actor_id,window_start,failures,blocked_until) "
             "VALUES(?,?,?,?) ON CONFLICT(actor_id) DO UPDATE SET "
             "window_start=excluded.window_start,failures=excluded.failures,"
             "blocked_until=excluded.blocked_until",
@@ -112,10 +123,11 @@ def _failure(actor: AdminUser) -> None:
         conn.close()
 
 
-def _clear_failures(actor: AdminUser) -> None:
+def _clear_failures(actor: AdminUser, purpose: str = "reveal") -> None:
+    table = _guard_table(purpose)
     try:
         with closing(_guard_connection()) as conn:
-            conn.execute("DELETE FROM reveal_failures WHERE actor_id = ?", (int(actor.id),))
+            conn.execute(f"DELETE FROM {table} WHERE actor_id = ?", (int(actor.id),))
     except sqlite3.Error as exc:
         raise VaultGuardUnavailable("Vault reveal guard unavailable") from exc
 
@@ -239,6 +251,107 @@ def _secret_response(body: dict, status: int = 200) -> JSONResponse:
             "X-Content-Type-Options": "nosniff",
         },
     )
+
+
+# STREAMFORGE_V1263_VAULT_LOCKED_USERS_WEB: read-only status and audited
+# Super Admin-only manual unlock. This does not affect Main or Node logins.
+def _vault_super_admin(actor: AdminUser | None) -> bool:
+    return bool(actor and actor.is_active and actor.main_panel_access
+                and actor.role and SUPERUSER_PERMISSION in role_permission_set(actor.role))
+
+
+def _locked_rows(db: Session) -> list[dict]:
+    now = int(time.time())
+    try:
+        with closing(_guard_connection()) as conn:
+            records = conn.execute(
+                "SELECT actor_id, failures, blocked_until FROM reveal_failures "
+                "WHERE blocked_until > ? ORDER BY blocked_until DESC, actor_id", (now,),
+            ).fetchall()
+    except sqlite3.Error as exc:
+        raise VaultGuardUnavailable("Vault reveal guard unavailable") from exc
+    rows = []
+    for actor_id, failures, deadline in records:
+        user = db.get(AdminUser, int(actor_id))
+        rows.append({
+            "actor_id": int(actor_id),
+            "username": user.username if user else "Deleted account",
+            "failed_attempts": int(failures),
+            "blocked_until": int(deadline),
+            "remaining_seconds": max(0, int(deadline) - now),
+            "account_exists": user is not None,
+        })
+    return rows
+
+
+def _unlock_reveal_actor(actor_id: int) -> bool:
+    now = int(time.time())
+    conn = _guard_connection()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        cursor = conn.execute(
+            "DELETE FROM reveal_failures WHERE actor_id = ? AND blocked_until > ?",
+            (int(actor_id), now),
+        )
+        conn.commit()
+        return cursor.rowcount == 1
+    except sqlite3.Error as exc:
+        conn.rollback()
+        raise VaultGuardUnavailable("Vault reveal guard unavailable") from exc
+    finally:
+        conn.close()
+
+
+@router.get("/admin-users/password-vault/locked-users")
+def list_vault_locked_users(request: Request, db: Session = Depends(get_db)):
+    actor = current_admin(request, db)
+    if not _vault_super_admin(actor):
+        return _secret_response({"error": "Super Admin access required"}, 403)
+    try:
+        users = _locked_rows(db)
+    except VaultGuardUnavailable:
+        return _secret_response({"error": "Lockout information unavailable"}, 503)
+    return _secret_response({"locked_users": users, "count": len(users)})
+
+
+@router.post("/admin-users/password-vault/locked-users/{actor_id}/unlock")
+def unlock_vault_locked_user(
+    actor_id: int, request: Request,
+    reauth_password: str = Form(...), csrf_token: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    actor = current_admin(request, db)
+    if not _vault_super_admin(actor):
+        return _secret_response({"error": "Super Admin access required"}, 403)
+    if not _request_is_secure_same_origin(request):
+        return _secret_response({"error": "HTTPS same-origin request required"}, 403)
+    expected = request.session.get(CSRF_SESSION_KEY)
+    if not isinstance(expected, str) or not hmac.compare_digest(expected, csrf_token):
+        return _secret_response({"error": "Invalid request. Reload page."}, 403)
+    if actor_id < 1:
+        return _secret_response({"error": "Invalid account"}, 400)
+    try:
+        if _locked(actor, purpose="unlock"):
+            log_event("Vault manual unlock reauthentication throttled", scope="auth",
+                      level="warning", actor=actor.username,
+                      details={"target_user_id": actor_id})
+            return _secret_response({"error": "Too many attempts. Try later."}, 429)
+        if not verify_password(reauth_password, actor.password_hash):
+            _failure(actor, purpose="unlock")
+            log_event("Vault manual unlock reauthentication denied", scope="auth",
+                      level="warning", actor=actor.username,
+                      details={"target_user_id": actor_id})
+            return _secret_response({"error": "Authentication failed"}, 403)
+        _clear_failures(actor, purpose="unlock")
+        if not _unlock_reveal_actor(actor_id):
+            return _secret_response({"error": "No active reveal lock for this account"}, 409)
+    except VaultGuardUnavailable:
+        log_event("Vault manual unlock guard unavailable", scope="auth", level="error",
+                  actor=actor.username, details={"target_user_id": actor_id})
+        return _secret_response({"error": "Unlock protection unavailable"}, 503)
+    log_event("Panel password reveal manually unlocked", scope="auth",
+              actor=actor.username, details={"target_user_id": actor_id})
+    return _secret_response({"ok": True, "unlocked_actor_id": actor_id})
 
 
 @router.post("/admin-users/{admin_user_id}/password/reveal")

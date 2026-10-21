@@ -47,6 +47,159 @@
   </div>
 
 
+{# STREAMFORGE_V1263_VAULT_LOCKED_USERS_WEB — visible only to unrestricted Super Admin. #}
+{% if is_super_admin %}
+<section class="panel" data-vault-lock-console style="margin-top:20px" data-vault-lock-csrf="{{ vault_csrf_token }}">
+  <div class="panel-head">
+    <div><h2>Security · Password Vault · Locked Users</h2>
+      <p>Saved-password reveal locks only. Main Panel and Node login remain unaffected.</p>
+    </div>
+    <button type="button" class="button small" data-vault-lock-refresh>Refresh</button>
+  </div>
+  <p class="field-help" data-vault-lock-status role="status">Loading lockouts…</p>
+  <div class="table-wrap">
+    <table><thead><tr><th>Account</th><th>Failed attempts</th><th>Blocked until</th><th>Remaining</th><th>Action</th></tr></thead>
+      <tbody data-vault-lock-rows><tr><td colspan="5">Loading…</td></tr></tbody>
+    </table>
+  </div>
+  <div class="sf-vault-overlay" data-vault-unlock-overlay hidden style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(4,11,27,.72);align-items:center;justify-content:center;padding:18px">
+    <section class="sf-vault-dialog" role="dialog" aria-modal="true" aria-labelledby="vault-unlock-heading" style="background:var(--panel,#121a29);color:var(--text,inherit);padding:22px;border-radius:14px;width:min(520px,100%);border:1px solid var(--border)">
+      <h3 id="vault-unlock-heading">Manually unlock saved-password reveal</h3>
+      <p data-vault-unlock-label></p>
+      <label for="vault-unlock-password">Your Super Admin password</label>
+      <input id="vault-unlock-password" type="password" data-vault-unlock-password autocomplete="current-password" style="width:100%;box-sizing:border-box">
+      <p data-vault-unlock-error role="alert" hidden></p>
+      <div class="form-actions">
+        <button type="button" class="button primary" data-vault-unlock-confirm>Unlock</button>
+        <button type="button" class="button" data-vault-unlock-cancel>Cancel</button>
+      </div>
+    </section>
+  </div>
+</section>
+<script>
+(() => {
+  const panel = document.querySelector('[data-vault-lock-console]');
+  if (!panel) return;
+  const root = String(window.STREAMFORGE_APP_ROOT || '').replace(/\/+$/, '');
+  const tbody = panel.querySelector('[data-vault-lock-rows]');
+  const status = panel.querySelector('[data-vault-lock-status]');
+  const overlay = panel.querySelector('[data-vault-unlock-overlay]');
+  const pwd = panel.querySelector('[data-vault-unlock-password]');
+  const msg = panel.querySelector('[data-vault-unlock-error]');
+  const confirm = panel.querySelector('[data-vault-unlock-confirm]');
+  const label = panel.querySelector('[data-vault-unlock-label]');
+  let activeId = null;
+  let requestSeq = 0;
+  let countdown = null;
+  let deadlineRows = [];
+  const clearDialog = () => {
+    requestSeq++;
+    activeId = null;
+    pwd.value = '';
+    confirm.disabled = false;
+    msg.hidden = true;
+    msg.textContent = '';
+    overlay.hidden = true;
+    overlay.style.display = 'none';
+  };
+  const render = () => {
+    tbody.replaceChildren();
+    if (!deadlineRows.length) {
+      const tr = document.createElement('tr');
+      const cell = document.createElement('td');
+      cell.colSpan = 5;
+      cell.textContent = 'No accounts currently blocked from saved-password reveal.';
+      tr.appendChild(cell); tbody.appendChild(tr); return;
+    }
+    for (const item of deadlineRows) {
+      const tr = document.createElement('tr');
+      const fields = [
+        String(item.username) + ' (#' + String(item.actor_id) + ')',
+        String(item.failed_attempts),
+        new Date(item.blocked_until * 1000).toLocaleString(),
+        Math.max(0, Math.ceil(item.blocked_until - Date.now() / 1000)) + ' sec',
+      ];
+      for (const value of fields) {
+        const cell = document.createElement('td');
+        cell.textContent = value;
+        tr.appendChild(cell);
+      }
+      const action = document.createElement('td');
+      const button = document.createElement('button');
+      button.type = 'button'; button.className = 'button small';
+      button.textContent = 'Unlock';
+      button.addEventListener('click', () => {
+        clearDialog();
+        activeId = item.actor_id;
+        label.textContent = 'Account: ' + item.username + ' (#' + item.actor_id + ')';
+        overlay.hidden = false;
+        overlay.style.display = 'flex';
+        pwd.focus();
+      });
+      action.appendChild(button); tr.appendChild(action); tbody.appendChild(tr);
+    }
+  };
+  const load = async () => {
+    if (document.hidden) return;
+    try {
+      status.textContent = 'Loading…';
+      const response = await fetch(root + '/admin-users/password-vault/locked-users',
+        {credentials:'same-origin', cache:'no-store', headers:{Accept:'application/json'}});
+      const payload = await response.json();
+      if (!response.ok || !Array.isArray(payload.locked_users)) throw Error(payload.error || 'Unable to load lockouts');
+      deadlineRows = payload.locked_users;
+      status.textContent = String(deadlineRows.length) + ' active saved-password reveal lock(s)';
+      render();
+    } catch (err) {
+      deadlineRows = []; tbody.replaceChildren();
+      status.textContent = 'Cannot load locked users: ' + String(err.message || err);
+    }
+  };
+  panel.querySelector('[data-vault-lock-refresh]').addEventListener('click', load);
+  panel.querySelector('[data-vault-unlock-cancel]').addEventListener('click', clearDialog);
+  overlay.addEventListener('click', event => { if (event.target === overlay) clearDialog(); });
+  document.addEventListener('keydown', event => { if (event.key === 'Escape' && !overlay.hidden) clearDialog(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) clearDialog(); });
+  window.addEventListener('pagehide', clearDialog);
+  confirm.addEventListener('click', async () => {
+    if (!activeId || !pwd.value) {
+      msg.textContent = 'Enter your Super Admin password.'; msg.hidden = false; return;
+    }
+    const target = activeId;
+    const seq = ++requestSeq;
+    const body = new URLSearchParams({
+      reauth_password: pwd.value, csrf_token: panel.dataset.vaultLockCsrf,
+    });
+    pwd.value = '';
+    confirm.disabled = true;
+    msg.hidden = true;
+    try {
+      const response = await fetch(root + '/admin-users/password-vault/locked-users/' + target + '/unlock', {
+        method:'POST', credentials:'same-origin', cache:'no-store',
+        headers:{'Content-Type':'application/x-www-form-urlencoded', Accept:'application/json'}, body,
+      });
+      const payload = await response.json();
+      if (seq !== requestSeq || activeId !== target || overlay.hidden) return;
+      if (!response.ok) {
+        msg.textContent = String(payload.error || 'Unable to unlock'); msg.hidden = false; return;
+      }
+      clearDialog();
+      await load();
+    } catch (_) {
+      if (seq === requestSeq) {
+        msg.textContent = 'Unlock request failed. Try again.'; msg.hidden = false;
+      }
+    } finally { if (seq === requestSeq) confirm.disabled = false; }
+  });
+  countdown = setInterval(() => {
+    if (document.hidden || overlay.hidden === false) return;
+    if (deadlineRows.length) render();
+  }, 1000);
+  load();
+})();
+</script>
+{% endif %}
+
 {% if vault_active %}
 {# STREAMFORGE_PANEL_CREDENTIAL_VAULT_V1263: no plaintext is embedded in HTML. #}
 <style>

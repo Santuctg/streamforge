@@ -57,7 +57,7 @@ def transform(source: str) -> str:
         '            {item.id for item in panel_users if vault_password_available(db, item)}\n'
         '            if can_vault_reveal(actor) and vault_enabled() else set()\n'
         '        ),\n'
-        '        vault_csrf_token=vault_csrf_token(request) if can_vault_reveal(actor) and vault_enabled() else "",\n'
+        '        vault_csrf_token=(vault_csrf_token(request) if admin_is_super_admin(actor) or (can_vault_reveal(actor) and vault_enabled()) else ""),\n'
         '        error=error,',
         "listing render",
     )

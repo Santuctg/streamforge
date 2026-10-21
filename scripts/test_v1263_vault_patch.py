@@ -32,6 +32,7 @@ for marker in (
     '"panel_users.password_vault_manage"',
     '"panel_users.password_reveal"',
     "Vault role permissions changed",
+    "vault_csrf_token(request) if admin_is_super_admin(actor)",
 ):
     assert marker in updated, marker
 assert source.count("admin.password_hash = hash_password(new_password)")>=1
