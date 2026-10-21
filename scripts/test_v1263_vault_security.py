@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 from starlette.middleware.sessions import SessionMiddleware
 from app.auth import hash_password
 from app.db import Base, get_db
@@ -19,7 +20,7 @@ from app.panel_password_vault import (
 )
 
 assert not vault_enabled(), "test must start without vault key"
-engine=create_engine("sqlite://")
+engine=create_engine("sqlite://", connect_args={"check_same_thread":False},poolclass=StaticPool)
 Base.metadata.create_all(engine)
 Session=sessionmaker(bind=engine,autoflush=False,expire_on_commit=False)
 role=Role(name="Super Admin",permissions=json.dumps(["*"]))
