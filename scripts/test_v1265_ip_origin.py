@@ -2,7 +2,11 @@
 """Functional persistent IP-block source-server provenance and compatibility tests."""
 import os
 import tempfile
+import sys
+from pathlib import Path
 from unittest.mock import patch
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 with tempfile.TemporaryDirectory(prefix="sf-block-source-test-") as temp:
     os.environ["STREAMFORGE_PANEL_LOGIN_GUARD_DB"] = os.path.join(temp, "guard.sqlite3")
