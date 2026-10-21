@@ -95,7 +95,8 @@ assert client.post(endpoint,headers=ORIGIN,data={"csrf_token":csrf,"reauth_passw
 
 # Five incorrect attempts persist across fresh DB connections (and workers).
 client.get(f"/test/login/{owner_id}")
-for _ in range(5):
+# One failed attempt was already recorded in the earlier reauthentication test.
+for _ in range(4):
     assert client.post(endpoint,headers=ORIGIN,data={"csrf_token":csrf,"reauth_password":"wrong"}).status_code==403
 assert client.post(endpoint,headers=ORIGIN,data={"csrf_token":csrf,"reauth_password":"SuperRoot!A"}).status_code==429
 from app.panel_password_vault import _locked
