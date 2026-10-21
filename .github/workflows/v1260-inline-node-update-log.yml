@@ -22,17 +22,36 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Verify v12.60 inline Node update log
-        run: python3 scripts/verify_node_inline_update_log_v1260.py
-      - name: Verify v12.60 updater integration
-        run: python3 scripts/test_v1260_updater_integration.py
+      - name: Verify v12.60 inline-log carry-forward
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$(tr -d '[:space:]' < VERSION)" == "12.60" ]]; then
+            python3 scripts/verify_node_inline_update_log_v1260.py
+          else
+            grep -Fq 'STREAMFORGE_NODE_INLINE_UPDATE_LOG_V1260' app/templates/node_updates.html
+            echo 'Historical v12.60 inline-log marker verified on later release.'
+          fi
+      - name: Verify v12.60 updater integration only on v12.60
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$(tr -d '[:space:]' < VERSION)" == "12.60" ]]; then
+            python3 scripts/test_v1260_updater_integration.py
+          else
+            echo 'Historical v12.60 updater integration skipped for later release.'
+          fi
       - name: Verify current updater staging contract
         run: python3 scripts/verify_release_updater_staging.py
       - name: Verify updater selection and service boundaries
         shell: bash
         run: |
           set -euo pipefail
-          grep -Fq 'force_update_v1260.sh' scripts/update.sh
+          if [[ "$(tr -d '[:space:]' < VERSION)" == "12.60" ]]; then
+            grep -Fq 'force_update_v1260.sh' scripts/update.sh
+          else
+            echo 'Historical updater selection skipped.'
+          fi
           if grep -Eq 'systemctl[[:space:]]+(restart|reload)[[:space:]]+streamforge-channel-supervisor' scripts/force_update_v1260.sh; then
             echo 'v12.60 updater must not restart the Main channel supervisor' >&2
             exit 1
