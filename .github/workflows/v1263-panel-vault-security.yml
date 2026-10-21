@@ -39,3 +39,25 @@ jobs:
               compile(Path(name).read_text(),name,'exec')
           print('PASS: bounded Python and Bash syntax')
           PY
+      - name: Verify current bounded release staging
+        run: python3 scripts/verify_release_updater_staging.py
+      - name: Verify hardening boundaries and earlier release features
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'force_update_v1263.sh' scripts/update.sh
+          grep -Fq 'STREAMFORGE_V1263_MAIN_SECURITY_NODE_RUNTIME_ALIGNMENT' scripts/force_update_v1263.sh
+          grep -Fq 'STREAMFORGE_PANEL_USER_PASSWORD_LINK_FIX_V1262' app/templates/admin_user_form.html
+          grep -Fq 'STREAMFORGE_PANEL_USER_PASSWORD_VISIBILITY_V1261' app/templates/admin_user_form.html
+          grep -Fq 'STREAMFORGE_NODE_INLINE_UPDATE_LOG_V1260' app/templates/node_updates.html
+          grep -Fq 'STREAMFORGE_NODE_UPDATE_UI_SPACING_V1259' app/templates/node_updates.html
+          python3 scripts/verify_node_bulk_update_center_v1257.py
+          python3 scripts/verify_webplayer_hlsjs_first_v1256.py .
+          python3 scripts/verify_node_relay_probe_dedupe_v1251.py node_agent/app.py
+          if grep -Eq 'systemctl[[:space:]]+(restart|reload)[[:space:]]+streamforge-channel-supervisor' scripts/force_update_v1263.sh; then exit 1; fi
+          if grep -Eq 'systemctl[[:space:]]+(restart|reload)[[:space:]]+nginx' scripts/force_update_v1263.sh; then exit 1; fi
+      - name: Verify v12.63 release notes
+        run: |
+          test -s release-notes/v12.63.md
+          grep -Fq 'Back up this key' release-notes/v12.63.md
+          grep -Fq 'streamforge-update --force /root/streamforge-12.63.zip' release-notes/v12.63.md
