@@ -20,5 +20,9 @@ assert 'panel_user.password_vault_enc = encrypt_panel_password(password)' in mai
 assert 'Cache-Control' in main
 assert "Show saved password" in tpl
 assert "No saved password" in tpl
+assert main.count("admin.password_vault_enc = encrypt_panel_password(new_password)") >= 2, "Main+Node self resets must escrow"
+assert "password_vault_enc=encrypt_panel_password(password)" in main
+assert "panel_user.password_vault_enc = encrypt_panel_password(password)" in main
+assert "5:" not in main or "_VAULT_FAILED_ATTEMPTS" in main
 assert "password_hash" not in tpl
 print("PASS: v12.63 Panel User encrypted saved-password vault contract")
