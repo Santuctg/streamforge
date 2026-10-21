@@ -88,7 +88,7 @@
       <div class="panel-user-password-field">
         <label for="panel-user-password">Password</label>
         <div class="panel-user-password-input" data-panel-password-group>
-          <input id="panel-user-password" data-panel-password-field type="password" name="password" minlength="8" {% if not panel_user or not panel_user.id %}required{% endif %} autocomplete="new-password" placeholder="{{ 'Leave blank to keep current password' if panel_user and panel_user.id else 'Minimum 8 characters' }}">
+          <input id="panel-user-password" data-panel-user-password-focus data-panel-password-field type="password" name="password" minlength="8" {% if not panel_user or not panel_user.id %}required{% endif %} autocomplete="new-password" placeholder="{{ 'Leave blank to keep current password' if panel_user and panel_user.id else 'Minimum 8 characters' }}">
           <button type="button" class="button small" data-panel-password-toggle aria-label="Show new password" aria-pressed="false">Show</button>
         </div>
         {% if panel_user and panel_user.id %}<small class="field-help">Leave blank to keep the current password. Existing passwords cannot be displayed.</small>{% endif %}
