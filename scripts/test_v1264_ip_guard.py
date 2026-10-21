@@ -27,9 +27,11 @@ with tempfile.TemporaryDirectory(prefix="sf-v1264-ip-guard-") as tmp:
     assert guard.main_panel_client_ip(
         request("127.0.0.1", {"x-forwarded-for": "203.0.113.4, " + a})
     ) == a
-    assert guard.main_panel_client_ip(
-        request(a, {"x-forwarded-for": b})
-    ) == a
+    try:
+        guard.main_panel_client_ip(request(a, {"x-forwarded-for": b}))
+        raise AssertionError("untrusted direct-XFF request must fail closed")
+    except guard.LoginGuardUnavailable:
+        pass
     # Uvicorn may already have changed request.client to the untrusted FIRST
     # XFF hop; the backend loopback bind still identifies the Nginx proxy.
     assert guard.main_panel_client_ip(
