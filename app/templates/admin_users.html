@@ -92,7 +92,9 @@
     const adminInput = form.querySelector('[name="admin_password"]');
     if (!button || !details || !result || !adminInput) continue;
     let timer = null;
+    let sequence = 0;
     const clear = () => {
+      sequence += 1;
       if (timer) clearTimeout(timer);
       timer = null;
       result.textContent = '';
@@ -108,6 +110,7 @@
     form.addEventListener('submit', async event => {
       event.preventDefault();
       clear();
+      const thisRequest = sequence;
       const password = adminInput.value;
       adminInput.value = '';
       if (!password) return;
@@ -120,6 +123,7 @@
           headers:{Accept:'application/json'}, body:payload,
         });
         const data = await response.json();
+        if (thisRequest !== sequence || document.hidden) return;
         if (!response.ok || !data.ok || typeof data.password !== 'string') {
           result.textContent = String(data.message || 'Could not reveal saved password.');
           return;
@@ -128,7 +132,9 @@
         result.setAttribute('data-revealed', '1');
         timer = setTimeout(clear, 10000);
       } catch (_) {
-        result.textContent = 'Unable to verify. Try again.';
+        if (thisRequest === sequence && !document.hidden) {
+          result.textContent = 'Unable to verify. Try again.';
+        }
       }
     });
   }
