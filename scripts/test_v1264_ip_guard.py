@@ -14,8 +14,11 @@ with tempfile.TemporaryDirectory(prefix="sf-v1264-ip-guard-") as tmp:
             guard.LOGIN_LOCK_SECONDS) == (5, 900, 10800)
     now = 2_000_000_000
 
-    def request(peer, headers):
-        return SimpleNamespace(client=SimpleNamespace(host=peer), headers=headers)
+    def request(peer, headers, server=None):
+        return SimpleNamespace(
+            client=SimpleNamespace(host=peer), headers=headers,
+            scope={"server": server} if server else {},
+        )
 
     # Browser-forged first XFF is ignored. Only the last hop sent from loopback
     # Nginx is used. Direct remote clients cannot supply a trusted XFF value.
@@ -27,6 +30,19 @@ with tempfile.TemporaryDirectory(prefix="sf-v1264-ip-guard-") as tmp:
     assert guard.main_panel_client_ip(
         request(a, {"x-forwarded-for": b})
     ) == a
+    # Uvicorn may already have changed request.client to the untrusted FIRST
+    # XFF hop; the backend loopback bind still identifies the Nginx proxy.
+    assert guard.main_panel_client_ip(
+        request("203.0.113.4", {"x-forwarded-for": "203.0.113.4, " + a},
+                ("127.0.0.1", 8800))
+    ) == a
+    try:
+        guard.main_panel_client_ip(
+            request(a, {"x-forwarded-for": b}, ("0.0.0.0", 8800))
+        )
+        raise AssertionError("publicly bound backend must reject forwarded spoofing")
+    except guard.LoginGuardUnavailable:
+        pass
     assert guard.normalize_client_ip("::ffff:" + a) == a
     assert guard.normalize_client_ip("2001:0db8::2") == "2001:db8::2"
     try:

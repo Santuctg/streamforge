@@ -48,10 +48,22 @@ def main_panel_client_ip(request) -> str:
     Nginx real_ip trust for those specific CDN ranges first.
     """
     peer = normalize_client_ip(request.client.host if request.client else "")
-    if ipaddress.ip_address(peer).is_loopback:
-        header = request.headers.get("x-forwarded-for", "")
-        if header:
-            return normalize_client_ip(header.split(",")[-1])
+    header = request.headers.get("x-forwarded-for", "")
+    # The local socket bind is authoritative even if Uvicorn's trusted-proxy
+    # middleware has rewritten scope["client"] using an untrusted first XFF hop.
+    server = request.scope.get("server") if hasattr(request, "scope") else None
+    if server:
+        try:
+            on_loopback_backend = ipaddress.ip_address(server[0]).is_loopback
+        except (ValueError, TypeError, IndexError):
+            raise LoginGuardUnavailable("Unknown Panel backend bind address")
+    else:
+        on_loopback_backend = ipaddress.ip_address(peer).is_loopback
+    if header:
+        if not on_loopback_backend:
+            # Do not accept forged proxy headers on publicly bound backends.
+            raise LoginGuardUnavailable("Panel forwarded IP requires loopback backend")
+        return normalize_client_ip(header.split(",")[-1])
     return peer
 
 
