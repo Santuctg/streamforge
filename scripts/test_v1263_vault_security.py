@@ -77,7 +77,7 @@ def login(user_id:int, request: __import__("fastapi").Request):
 client=TestClient(app,base_url="https://testserver")
 endpoint=f"/admin-users/{person_id}/password/reveal"
 http_client=TestClient(app,base_url="http://testserver")
-assert http_client.post(endpoint, headers=ORIGIN, data={"csrf_token":"bad","reauth_password":"test"}, headers=ORIGIN).status_code==403
+assert http_client.post(endpoint, headers=ORIGIN, data={"csrf_token":"bad","reauth_password":"test"}).status_code==403
 assert client.post(endpoint,headers=ORIGIN,data={"csrf_token":"bad","reauth_password":"test"}).status_code==403
 
 r=client.get(f"/test/login/{owner_id}")

@@ -16,6 +16,7 @@ import sqlite3
 import stat
 import time
 from pathlib import Path
+from contextlib import closing
 from urllib.parse import urlsplit
 
 from cryptography.fernet import Fernet, InvalidToken
@@ -72,7 +73,7 @@ def _guard_connection():
 def _locked(actor: AdminUser) -> bool:
     now = int(time.time())
     try:
-        with _guard_connection() as conn:
+        with closing(_guard_connection()) as conn:
             record = conn.execute(
                 "SELECT blocked_until FROM reveal_failures WHERE actor_id = ?", (int(actor.id),)
             ).fetchone()
@@ -113,7 +114,7 @@ def _failure(actor: AdminUser) -> None:
 
 def _clear_failures(actor: AdminUser) -> None:
     try:
-        with _guard_connection() as conn:
+        with closing(_guard_connection()) as conn:
             conn.execute("DELETE FROM reveal_failures WHERE actor_id = ?", (int(actor.id),))
     except sqlite3.Error as exc:
         raise VaultGuardUnavailable("Vault reveal guard unavailable") from exc
