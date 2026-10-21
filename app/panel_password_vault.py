@@ -28,7 +28,7 @@ from .auth import current_admin, verify_password
 from .audit_log import log_event
 from .db import get_db
 from .models import AdminUser, PanelUserCredentialVault
-from .permissions import SUPERUSER_PERMISSION, role_permission_set
+from .permissions import SUPERUSER_PERMISSION, role_permission_set, has_permission
 
 router = APIRouter()
 CSRF_SESSION_KEY = "sf_panel_vault_csrf"
@@ -197,11 +197,28 @@ def vault_password_available(db: Session, user: AdminUser) -> bool:
     )
 
 
-def is_vault_admin(actor: AdminUser | None) -> bool:
-    return bool(
-        actor and actor.is_active and actor.main_panel_access and actor.role
-        and SUPERUSER_PERMISSION in role_permission_set(actor.role)
-    )
+# STREAMFORGE_V1263_VAULT_RBAC: independent privileges, never inferred from edit/view.
+def can_vault_reveal(actor: AdminUser | None) -> bool:
+    return bool(actor and actor.main_panel_access
+                and has_permission(actor, "panel_users.password_reveal"))
+
+
+def can_vault_manage(actor: AdminUser | None) -> bool:
+    return bool(actor and actor.main_panel_access
+                and has_permission(actor, "panel_users.password_vault_manage"))
+
+
+def vault_target_visible(actor: AdminUser | None, target: AdminUser | None) -> bool:
+    """Mirror Main Panel role ceiling: delegated users cannot reveal above their role."""
+    if not actor or not target or not actor.role or not target.role:
+        return False
+    actor_keys = role_permission_set(actor.role)
+    target_keys = role_permission_set(target.role)
+    if SUPERUSER_PERMISSION in actor_keys:
+        return True
+    if SUPERUSER_PERMISSION in target_keys:
+        return False
+    return target_keys.issubset(actor_keys)
 
 
 def vault_csrf_token(request: Request) -> str:
@@ -236,7 +253,7 @@ def reveal_panel_user_password(
     if not _request_is_secure_same_origin(request):
         return _secret_response({"error": "HTTPS same-origin request required"}, 403)
     actor = current_admin(request, db)
-    if not is_vault_admin(actor):
+    if not can_vault_reveal(actor):
         return _secret_response({"error": "Not permitted"}, 403)
 
     expected = request.session.get(CSRF_SESSION_KEY)
@@ -264,6 +281,9 @@ def reveal_panel_user_password(
         return _secret_response({"error": "Credential vault is not configured"}, 503)
 
     target = db.get(AdminUser, admin_user_id)
+    # The UI filters targets by hierarchy, but API callers must meet the same guard.
+    if not vault_target_visible(actor, target):
+        return _secret_response({"error": "Not permitted"}, 403)
     row = db.get(PanelUserCredentialVault, admin_user_id) if target else None
     if target is None or row is None:
         return _secret_response({"error": "No saved password. Reset and opt in."}, 404)

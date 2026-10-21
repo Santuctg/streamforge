@@ -103,6 +103,9 @@ PERMISSION_GROUPS: "OrderedDict[str, list[tuple[str, str, str]]]" = OrderedDict(
                 ("panel_users.create", "Add panel users", "Create administrator/operator login accounts. Super Admin role assignment remains Super Admin-only."),
                 ("panel_users.edit", "Edit panel users", "Edit username, password, status, access locations and role for visible non-Super Admin accounts."),
                 ("panel_users.delete", "Remove panel users", "Delete visible non-Super Admin panel accounts."),
+                # STREAMFORGE_V1263_VAULT_RBAC: only a Super Admin can grant these privileged keys.
+                ("panel_users.password_reveal", "Reveal saved passwords", "View opt-in encrypted credentials for panel users in your access scope; requires own-password verification and audit."),
+                ("panel_users.password_vault_manage", "Save passwords in vault", "Opt in to encrypted storage on Panel User create or password reset (also requires create/edit permission)."),
                 ("roles.view", "View roles", "See role definitions at or below your own permission level."),
                 ("roles.create", "Add roles", "Create custom roles using only permissions you already have."),
                 ("roles.edit", "Edit roles", "Edit visible custom roles at or below your own permission level."),
@@ -159,6 +162,8 @@ PERMISSION_DEPENDENCIES: dict[str, set[str]] = {
     "panel_users.create": {"panel_users.view"},
     "panel_users.edit": {"panel_users.view"},
     "panel_users.delete": {"panel_users.view"},
+    "panel_users.password_reveal": {"panel_users.view"},
+    "panel_users.password_vault_manage": {"panel_users.view"},
     "roles.create": {"roles.view"},
     "roles.edit": {"roles.view"},
     "roles.delete": {"roles.view"},
