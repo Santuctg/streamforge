@@ -1,0 +1,56 @@
+#!/usr/bin/env python3
+"""v12.63 saved credential vault security contract (no password recovery from hashes)."""
+from pathlib import Path
+R=Path(__file__).resolve().parents[1]
+def contents(path):
+    file=R/path
+    return file.read_text(encoding="utf-8") if file.exists() else ""
+model=contents("app/models.py")
+main=contents("app/main.py")
+vault=contents("app/panel_password_vault.py")
+login_guard=contents("app/panel_login_guard.py")
+listing=contents("app/templates/admin_users.html")
+app_form=contents("app/templates/admin_user_form.html")
+auth=contents("app/auth.py")
+errors=[]
+def need(ok,message):
+    if not ok:errors.append(message)
+need(contents("VERSION").strip()=="12.63","Main VERSION 12.63")
+need(contents("node_agent/VERSION").strip()=="12.63","bundled Node VERSION 12.63")
+need("STREAMFORGE_PANEL_CREDENTIAL_VAULT_V1263" in vault,"module marker")
+need("STREAMFORGE_PANEL_CREDENTIAL_VAULT_V1263" in contents("scripts/apply_v1263_vault.py"),"Main integration patch marker")
+need('STREAMFORGE_PANEL_PASSWORD_VAULT_KEY' in vault,"dedicated external Fernet key")
+need('settings.secret_key' not in vault,"no reuse of Main cookie secret")
+need('class PanelUserCredentialVault' in model,"dedicated Main-only encrypted table")
+need('ondelete="CASCADE"' in model,"FK cascade protection")
+need('password_hash' in model and 'hashlib.scrypt' in auth,"scrypt authentication unchanged")
+need('encrypt(' in vault and 'decrypt(' in vault,"encryption/decryption")
+need('verify_password' in vault,"super admin re-authentication")
+need('has_permission' in vault and 'panel_users.password_reveal' in vault,"role-permission reveal check")
+need('vault_target_visible' in vault and 'SUPERUSER_PERMISSION' in vault,"hierarchy and Super Admin protection")
+need('can_vault_manage' in vault,"independent vault management permission")
+need('panel_users.password_reveal' in contents("app/permissions.py"),"role permissions published")
+need('panel_users.password_vault_manage' in contents("app/permissions.py"),"vault management permission published")
+need('Super Admin-exclusive sensitive grant' in contents("scripts/apply_v1263_vault.py"),"sensitive permissions Super Admin-grant only")
+need('csrf' in vault and 'session' in vault,"session-bound CSRF")
+need('no-store' in vault,"secret response no-store")
+need('list_panel_locked_logins' in vault and 'unlock_panel_login_user' in vault,
+     "Super Admin Panel login lock status and unlock APIs")
+need('LOGIN_LOCK_SECONDS = 3 * 60 * 60' in login_guard and 'FAILED_ATTEMPTS = 5' in login_guard,
+     "five bad Panel login attempts / three-hour lockout")
+need('record_login_failure' in contents("scripts/apply_v1263_vault.py"),
+     "Main and Node login cross-worker lockout integration")
+need('unlock_failures' in vault and 'purpose="unlock"' in vault,
+     "separate persistent unlock reauthentication throttle")
+need('data-vault-lock-console' in listing and 'data-vault-unlock-confirm' in listing,
+     "Super Admin Panel Login Locked Users web console")
+need('log_event' in vault,"audited reveal")
+need('password_hash_fingerprint' in vault,"stale-secret protection")
+need('vault_store' in contents("scripts/apply_v1263_vault.py") and 'vault_discard' in contents("scripts/apply_v1263_vault.py"),"atomic create/edit/self-change integration")
+need('Show saved password' in listing and 'item.id in vault_saved_ids' in listing,"explicit show action only for available secrets")
+need('data-vault-secret-value' in listing and 'setTimeout' in listing,"auto-hide")
+need('data-vault-password-consent' in app_form,"explicit save consent")
+need('STREAMFORGE_PANEL_USER_PASSWORD_LINK_FIX_V1262' in listing,"v12.62 route fix retained")
+need('STREAMFORGE_PANEL_USER_PASSWORD_VISIBILITY_V1261' in app_form,"v12.61 form retained")
+if errors:raise SystemExit("FAIL v12.63: "+", ".join(errors))
+print("PASS: v12.63 encrypted saved-password vault security and UI contracts")

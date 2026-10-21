@@ -31,6 +31,10 @@ else:
             f"{updater.name} runs py_compile in SOURCE_DIR before staging and can create __pycache__"
         )
 
+    # STREAMFORGE_RELEASE_BOUNDED_PANEL_CREDENTIAL_VAULT_V1263:
+    # Main-only additive model/module/template update with staged patch and rollback.
+    bounded_vault_v1263 = "STREAMFORGE_V1263_MAIN_ONLY_VAULT_UPDATE" in text
+
     # STREAMFORGE_RELEASE_BOUNDED_PANEL_PASSWORD_NAV_V1262:
     # v12.62 is limited to the Panel user templates plus version metadata.
     bounded_password_nav_v1262 = "STREAMFORGE_V1262_MAIN_UI_ONLY_NODE_VERSION_ALIGNMENT" in text
@@ -74,7 +78,29 @@ else:
         None,
     )
 
-    if bounded_password_nav_v1262:
+    if bounded_vault_v1263:
+        if 'cp -a "$SRC/." "$STAGE/"' in text:
+            errors.append(f"{updater.name} v12.63 vault unexpectedly copies full release tree")
+        for marker in (
+            'TARGET_VERSION="12.63"',
+            'NODE_TARGET_VERSION="12.63"',
+            '12.62|12.63',
+            'STREAMFORGE_V1263_MAIN_ONLY_VAULT_UPDATE',
+            'STREAMFORGE_V1263_MAIN_UI_ONLY_NODE_VERSION_ALIGNMENT',
+            'STREAMFORGE_PANEL_CREDENTIAL_VAULT_V1263',
+            'app/panel_password_vault.py',
+            'app/models.py',
+            'app/templates/admin_users.html',
+            'app/templates/admin_user_form.html',
+            'scripts/apply_v1263_vault.py',
+            'Node runtime payload differs for:',
+            'compile(p.read_text(encoding="utf-8"),str(p),"exec")',
+            'atomic_copy',
+            'Rolling back from',
+        ):
+            if marker not in text:
+                errors.append(f"{updater.name} v12.63 vault contract missing {marker}")
+    elif bounded_password_nav_v1262:
         if 'cp -a "$SOURCE_DIR/." "$STAGE/"' in text:
             errors.append(f"{updater.name} v12.62 bounded navigation fix copies full release tree")
         for marker in (

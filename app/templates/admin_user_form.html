@@ -100,6 +100,14 @@
           <button type="button" class="button small" data-panel-password-toggle aria-label="Show confirmation" aria-pressed="false">Show</button>
         </div>
       </div>
+      {# STREAMFORGE_PANEL_CREDENTIAL_VAULT_V1263: opt-in only for NEW passwords. Never display an existing hash or credential. #}
+      {% if can('panel_users.password_vault_manage') %}
+        {% if vault_active %}
+          <label class="check" style="grid-column:1/-1"><input type="checkbox" name="vault_remember" value="yes" data-vault-password-consent><span>Save this new password in the encrypted vault so Super Admin can reveal it later (requires re-authentication). Leave unchecked to store only a one-way hash.</span></label>
+        {% else %}
+          <div class="field-help" style="grid-column:1/-1">Saved-password vault is disabled until a separate server-side encryption key is configured. Login passwords are still securely hashed.</div>
+        {% endif %}
+      {% endif %}
       <label class="check"><input type="checkbox" name="is_active" {% if not panel_user or panel_user.is_active %}checked{% endif %}><span>Active account</span></label>
       <label class="check"><input type="checkbox" name="main_panel_access" {% if not panel_user or panel_user.main_panel_access %}checked{% endif %}><span>Main Panel access</span></label>
     </div>
