@@ -5589,6 +5589,20 @@ def login_page(request: Request, db: Session = Depends(get_db)):
 _DUMMY_LOGIN_HASH = hash_password("unavailable-account-padding-" + secrets.token_urlsafe(18))
 
 
+def _trusted_login_guard_ip(request: Request) -> str:
+    # STREAMFORGE_PANEL_GUARD_PROXY_IP_V1263: Nginx sets X-Real-IP from
+    # $remote_addr. Never trust the leftmost user-supplied X-Forwarded-For.
+    peer = str(request.client.host if request.client else "unknown")
+    try:
+        peer_address = ipaddress.ip_address(peer)
+        if peer_address.is_loopback:
+            real = str(request.headers.get("x-real-ip") or "").strip()
+            return str(ipaddress.ip_address(real))
+        return str(peer_address)
+    except ValueError:
+        return peer[:80]
+
+
 def _guard_allowed(scope: str, ip: str, username: str) -> bool:
     try:
         return login_allowed(scope, ip, username)
@@ -5624,7 +5638,7 @@ def login(
     db: Session = Depends(get_db),
 ):
     submitted = username.strip()[:80]
-    ip = client_ip(request)
+    ip = _trusted_login_guard_ip(request)
     if not _guard_allowed("main", ip, submitted):
         response = render(request, "login.html", db, error="Too many login attempts. Try again later.")
         response.status_code = 429
@@ -12524,7 +12538,7 @@ async def admin_user_reveal_saved_password(admin_user_id: int, request: Request,
     expected_token = str(request.session.get("panel_vault_csrf") or "")
     if not expected_token or not token or not hmac.compare_digest(token, expected_token):
         raise HTTPException(403, "Invalid request token")
-    client = client_ip(request)
+    client = _trusted_login_guard_ip(request)
     if not _guard_allowed("reveal", client, actor.username):
         raise HTTPException(429, "Too many verification attempts")
     verifier_password = data.get("current_password")
