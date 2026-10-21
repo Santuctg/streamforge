@@ -62,7 +62,7 @@
 <div class="sf-vault-overlay" data-vault-overlay hidden>
   <section class="sf-vault-dialog" role="dialog" aria-modal="true" aria-labelledby="sf-vault-title">
     <h3 id="sf-vault-title">Show saved password</h3>
-    <p class="sf-vault-note">Re-enter your own Super Admin password. The saved credential appears for 15 seconds only; nobody's existing one-way hash is recoverable.</p>
+    <p class="sf-vault-note">Re-enter your own Super Admin password. The saved credential appears for 10 seconds only; nobody's existing one-way hash is recoverable.</p>
     <p data-vault-user-label></p>
     <label for="sf-vault-reauth">Your Super Admin password</label>
     <input id="sf-vault-reauth" type="password" data-vault-reauth autocomplete="current-password" aria-label="Re-authenticate Super Admin">
@@ -75,7 +75,7 @@
       <small class="sf-vault-note" data-vault-countdown></small>
     </div>
     <div class="vault-actions">
-      <button type="button" class="button primary" data-vault-confirm>Reveal for 15 seconds</button>
+      <button type="button" class="button primary" data-vault-confirm>Reveal for 10 seconds</button>
       <button type="button" class="button" data-vault-close>Close</button>
     </div>
   </section>
@@ -172,12 +172,12 @@
       secretValue.value = payload.password;
       result.hidden = false;
       let remaining = 15;
-      count.textContent = 'Hides in 15 seconds';
+      count.textContent = 'Hides in 10 seconds';
       countdownTimer = setInterval(() => {
         remaining--;
         count.textContent = 'Hides in ' + remaining + ' seconds';
       }, 1000);
-      hideTimer = setTimeout(wipe, 15000);
+      hideTimer = setTimeout(wipe, 10000);
     } catch (_) {
       if (seq === requestSeq) {
         error.textContent = 'Request failed. Try again.';

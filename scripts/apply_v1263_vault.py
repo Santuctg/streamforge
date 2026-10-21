@@ -120,6 +120,32 @@ def transform(source: str) -> str:
         "reset stored password",
     )
     source = source[:start] + routes + source[finish:]
+    # Node live-auth changes the authoritative hash, so an escrow is now stale.
+    source = replace_once(
+        source,
+        '        admin.password_hash = hash_password(new_password)\n'
+        '        db.commit()\n'
+        '        db.refresh(admin)\n'
+        '        auth_version = _panel_admin_auth_version(admin)',
+        '        admin.password_hash = hash_password(new_password)\n'
+        '        vault_discard(db, admin.id)  # Node password changes revoke the saved secret\n'
+        '        db.commit()\n'
+        '        db.refresh(admin)\n'
+        '        auth_version = _panel_admin_auth_version(admin)',
+        "Node self-service password change",
+    )
+    # Force deletion even if SQLite FK cascade is not enabled on a connection.
+    source = replace_once(
+        source,
+        '    old_node_ids = {item.id for item in panel_user.nodes}\n'
+        '    db.delete(panel_user)\n'
+        '    db.commit()',
+        '    old_node_ids = {item.id for item in panel_user.nodes}\n'
+        '    vault_discard(db, panel_user.id)  # panel-user delete\n'
+        '    db.delete(panel_user)\n'
+        '    db.commit()',
+        "panel-user deletion",
+    )
     compile(source, "app/main.py", "exec")
     return source
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 import os
 import json
+import tempfile
 from contextlib import contextmanager
 from cryptography.fernet import Fernet
 from fastapi import FastAPI
@@ -20,6 +21,9 @@ from app.panel_password_vault import (
 )
 
 assert not vault_enabled(), "test must start without vault key"
+GUARD_TEMP = tempfile.TemporaryDirectory(prefix="sf-vault-reveal-guard-")
+os.environ["STREAMFORGE_PANEL_VAULT_GUARD_DB"] = os.path.join(GUARD_TEMP.name, "guard.sqlite3")
+ORIGIN = {"Origin": "https://testserver", "Sec-Fetch-Site": "same-origin"}
 engine=create_engine("sqlite://", connect_args={"check_same_thread":False},poolclass=StaticPool)
 Base.metadata.create_all(engine)
 Session=sessionmaker(bind=engine,autoflush=False,expire_on_commit=False)
@@ -73,23 +77,35 @@ def login(user_id:int, request: __import__("fastapi").Request):
 client=TestClient(app,base_url="https://testserver")
 endpoint=f"/admin-users/{person_id}/password/reveal"
 http_client=TestClient(app,base_url="http://testserver")
-assert http_client.post(endpoint, data={"csrf_token":"bad","reauth_password":"test"}).status_code==403
+assert http_client.post(endpoint, headers=ORIGIN, data={"csrf_token":"bad","reauth_password":"test"}, headers=ORIGIN).status_code==403
+assert client.post(endpoint,headers=ORIGIN,data={"csrf_token":"bad","reauth_password":"test"}).status_code==403
 
 r=client.get(f"/test/login/{owner_id}")
 assert r.status_code==200
 csrf=r.json()["csrf"]
-assert client.post(endpoint,data={"csrf_token":csrf,"reauth_password":"SuperRoot!A"}).json()["password"]=="DifferentSecret!B"
-response=client.post(endpoint,data={"csrf_token":csrf,"reauth_password":"SuperRoot!A"})
+assert client.post(endpoint,headers=ORIGIN,data={"csrf_token":csrf,"reauth_password":"SuperRoot!A"}).json()["password"]=="DifferentSecret!B"
+response=client.post(endpoint,headers=ORIGIN,data={"csrf_token":csrf,"reauth_password":"SuperRoot!A"})
 assert response.headers.get("cache-control","").startswith("no-store")
 assert "NewSecret!A" not in response.text
-assert client.post(endpoint,data={"csrf_token":"bad","reauth_password":"SuperRoot!A"}).status_code==403
-assert client.post(endpoint,data={"csrf_token":csrf,"reauth_password":"WRONG"}).status_code==403
+assert client.post(endpoint,headers=ORIGIN,data={"csrf_token":"bad","reauth_password":"SuperRoot!A"}).status_code==403
+assert client.post(endpoint,headers=ORIGIN,data={"csrf_token":csrf,"reauth_password":"WRONG"}).status_code==403
 assert client.get(endpoint).status_code==405
 client.get(f"/test/login/{person_id}")
-assert client.post(endpoint,data={"csrf_token":csrf,"reauth_password":"ViewerPass!A"}).status_code==403
+assert client.post(endpoint,headers=ORIGIN,data={"csrf_token":csrf,"reauth_password":"ViewerPass!A"}).status_code==403
+
+# Five incorrect attempts persist across fresh DB connections (and workers).
+client.get(f"/test/login/{owner_id}")
+for _ in range(5):
+    assert client.post(endpoint,headers=ORIGIN,data={"csrf_token":csrf,"reauth_password":"wrong"}).status_code==403
+assert client.post(endpoint,headers=ORIGIN,data={"csrf_token":csrf,"reauth_password":"SuperRoot!A"}).status_code==429
+from app.panel_password_vault import _locked
+with Session() as db:
+    assert _locked(db.get(AdminUser,owner_id))
+assert client.post(endpoint,headers={"Origin":"https://evil.example"},data={"csrf_token":csrf,"reauth_password":"SuperRoot!A"}).status_code==403
 
 with Session() as db:
     vault_discard(db,person_id)
     db.commit()
     assert db.get(PanelUserCredentialVault,person_id) is None
-print("PASS: vault encryption, disabled key, reauth/CSRF, hash drift, no-store, authorisation and discard")
+GUARD_TEMP.cleanup()
+print("PASS: vault encryption, disabled key, origin/CSRF, shared rate-limit, hash drift and discard")

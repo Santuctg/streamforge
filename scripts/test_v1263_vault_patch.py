@@ -24,6 +24,8 @@ for marker in (
     "vault_store(db, panel_user, password)",
     "vault_discard(db, panel_user.id)",
     "vault_discard(db, admin.id)",
+    "Node password changes revoke the saved secret",
+    "vault_discard(db, panel_user.id)  # panel-user delete",
 ):
     assert marker in updated, marker
 assert source.count("admin.password_hash = hash_password(new_password)")>=1
