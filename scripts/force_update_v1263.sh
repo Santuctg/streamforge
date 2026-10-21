@@ -71,14 +71,14 @@ PYV1263SYNTAX
 [[ -f "$APP_ROOT/VERSION" ]] || die "installed Main VERSION missing"
 INSTALLED_VERSION="$(tr -d '[:space:]' < "$APP_ROOT/VERSION")"
 case "$INSTALLED_VERSION" in
-  12.62|12.63) ;;
-  *) die "v12.63 encrypted vault requires installed Main v12.62 or v12.63; found $INSTALLED_VERSION" ;;
+  12.61|12.62|12.63) ;;
+  *) die "v12.63 encrypted vault requires installed Main v12.61, v12.62 or v12.63; found $INSTALLED_VERSION" ;;
 esac
 [[ -f "$APP_ROOT/node_agent/VERSION" ]] || die "installed bundled Node Agent VERSION missing"
 INSTALLED_NODE_VERSION="$(tr -d '[:space:]' < "$APP_ROOT/node_agent/VERSION")"
 case "$INSTALLED_NODE_VERSION" in
-  12.62|12.63) ;;
-  *) die "v12.63 requires bundled Node Agent v12.62 or v12.63; found $INSTALLED_NODE_VERSION" ;;
+  12.61|12.62|12.63) ;;
+  *) die "v12.63 requires bundled Node Agent v12.61, v12.62 or v12.63; found $INSTALLED_NODE_VERSION" ;;
 esac
 
 # STREAMFORGE_V1263_MAIN_UI_ONLY_NODE_VERSION_ALIGNMENT:
