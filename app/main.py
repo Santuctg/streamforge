@@ -12477,6 +12477,9 @@ def admin_users_page(
     db: Session = Depends(get_db),
 ):
     actor = enforce_permission(request, db, "panel_users.view")
+    # Per-session CSRF token for sensitive credential reveal POST only.
+    if not request.session.get("panel_vault_csrf"):
+        request.session["panel_vault_csrf"] = secrets.token_urlsafe(32)
     panel_users = db.scalars(select(AdminUser).order_by(AdminUser.username)).unique().all()
     if not admin_is_super_admin(actor):
         panel_users = [
@@ -12488,8 +12491,70 @@ def admin_users_page(
         "admin_users.html",
         db,
         panel_users=panel_users,
+        vault_csrf=request.session["panel_vault_csrf"],
         error=error,
         message=message,
+    )
+
+
+# STREAMFORGE_PANEL_PASSWORD_VAULT_LOGIN_GUARD_V1263:
+# POST-only, session-CSRF-bound, super-admin-only and reauthenticated every reveal.
+@app.post("/admin-users/{admin_user_id}/password/reveal", dependencies=[Depends(permission_required("panel_users.view"))])
+async def admin_user_reveal_saved_password(admin_user_id: int, request: Request, db: Session = Depends(get_db)):
+    actor = enforce_permission(request, db, "panel_users.view")
+    if not admin_is_super_admin(actor):
+        raise HTTPException(403, "Insufficient permissions")
+    if request.headers.get("sec-fetch-site", "same-origin") not in {"same-origin", "none"}:
+        raise HTTPException(403, "Cross-site request blocked")
+    origin = request.headers.get("origin")
+    if origin:
+        parsed = urlsplit(origin)
+        if parsed.scheme not in {"http", "https"} or parsed.netloc.lower() != str(request.headers.get("host") or "").lower():
+            raise HTTPException(403, "Cross-origin request blocked")
+    raw = await request.body()
+    if len(raw) > 4096:
+        raise HTTPException(413, "Request too large")
+    try:
+        data = json.loads(raw)
+    except (ValueError, UnicodeError):
+        raise HTTPException(400, "Invalid request")
+    if not isinstance(data, dict):
+        raise HTTPException(400, "Invalid request")
+    token = str(data.get("csrf_token") or "")
+    expected_token = str(request.session.get("panel_vault_csrf") or "")
+    if not expected_token or not token or not hmac.compare_digest(token, expected_token):
+        raise HTTPException(403, "Invalid request token")
+    client = client_ip(request)
+    if not _guard_allowed("reveal", client, actor.username):
+        raise HTTPException(429, "Too many verification attempts")
+    verifier_password = data.get("current_password")
+    if not isinstance(verifier_password, str) or len(verifier_password) > 1024:
+        raise HTTPException(400, "Invalid request")
+    if not verify_password(verifier_password, actor.password_hash):
+        _guard_failed("reveal", client, actor.username)
+        log_event("Panel password reveal verification failed", scope="auth", level="warning",
+                  actor=actor.username, details={"ip":client, "target_id":admin_user_id})
+        raise HTTPException(401, "Verification failed")
+    _guard_succeeded("reveal", client, actor.username)
+    target = db.get(AdminUser, admin_user_id)
+    if not target:
+        raise HTTPException(404)
+    if not target.password_vault_enc:
+        raise HTTPException(409, "Saved password unavailable. Set a new password first.")
+    try:
+        password = decrypt_panel_password(target.password_vault_enc, target.id)
+    except VaultUnavailable as exc:
+        log_event("Panel password vault unavailable", scope="auth", level="error",
+                  actor=actor.username, details={"target_id":target.id})
+        raise HTTPException(503, "Password vault unavailable") from exc
+    if password is None:
+        raise HTTPException(409, "Saved password unavailable. Set a new password first.")
+    log_event("Panel password revealed", scope="auth", actor=actor.username,
+              details={"target_id": target.id, "ip":client})
+    return JSONResponse(
+        {"password":password},
+        headers={"Cache-Control":"no-store, private, max-age=0", "Pragma":"no-cache",
+                 "X-Content-Type-Options":"nosniff", "Referrer-Policy":"no-referrer"},
     )
 
 
