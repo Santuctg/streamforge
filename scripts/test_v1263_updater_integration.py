@@ -33,8 +33,8 @@ def setup(base):
         dst=app/"app"/("static/"+name if name.endswith(".js") else name)
         shutil.copy2(src,dst)
     shutil.copy2(ROOT/"app/templates/node_updates.html", app/"app/templates/node_updates.html")
-    (app/"VERSION").write_text("12.62\n")
-    (app/"node_agent/VERSION").write_text("12.62\n")
+    (app/"VERSION").write_text("12.61\n")
+    (app/"node_agent/VERSION").write_text("12.61\n")
     return app,backup
 
 def run(app,backup,fail=False):
