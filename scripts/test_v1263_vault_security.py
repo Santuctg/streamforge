@@ -136,12 +136,17 @@ with Session() as db:
 assert client.post(low_endpoint, headers=ORIGIN, data=delegated_payload).status_code == 403
 
 # Five incorrect attempts persist across fresh DB connections (and workers).
+# Reset earlier failures explicitly, so the lockout test is independent of the
+# preceding authorization/revocation cases.
+from app.panel_password_vault import _locked, _clear_failures
+with Session() as db:
+    _clear_failures(db.get(AdminUser, owner_id))
 client.get(f"/test/login/{owner_id}")
-# One failed attempt was already recorded in the earlier reauthentication test.
-for _ in range(4):
-    assert client.post(endpoint,headers=ORIGIN,data={"csrf_token":csrf,"reauth_password":"wrong"}).status_code==403
-assert client.post(endpoint,headers=ORIGIN,data={"csrf_token":csrf,"reauth_password":"SuperRoot!A"}).status_code==429
-from app.panel_password_vault import _locked
+for _ in range(5):
+    response = client.post(endpoint,headers=ORIGIN,data={"csrf_token":csrf,"reauth_password":"wrong"})
+    assert response.status_code==403, (response.status_code, response.text)
+response = client.post(endpoint,headers=ORIGIN,data={"csrf_token":csrf,"reauth_password":"SuperRoot!A"})
+assert response.status_code==429, (response.status_code, response.text)
 with Session() as db:
     assert _locked(db.get(AdminUser,owner_id))
 assert client.post(endpoint,headers={"Origin":"https://evil.example"},data={"csrf_token":csrf,"reauth_password":"SuperRoot!A"}).status_code==403
