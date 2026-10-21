@@ -31,7 +31,7 @@ for path in app/main.py app/models.py app/db.py app/panel_password_vault.py; do
   [[ -f "$SOURCE_DIR/$path" ]] || die "missing vault source $path"
 done
 [[ -f "$SOURCE_DIR/scripts/verify_panel_saved_password_v1263.py" ]] || die "v12.63 verifier missing"
-grep -Fq "$MARKER" "$SOURCE_DIR/app/templates/admin_user_form.html" || die "v12.63 vault marker missing"
+grep -Fq "$MARKER" "$SOURCE_DIR/app/main.py" || die "v12.63 vault marker missing"
 grep -Fq 'STREAMFORGE_NODE_UPDATE_UI_SPACING_V1259' "$SOURCE_DIR/app/templates/node_updates.html" || die "V1259 Node Update UI spacing guard missing"
 grep -Fq 'STREAMFORGE_NODE_UPDATE_CENTER_CLEANUP_V1258' "$SOURCE_DIR/app/main.py" || die "V1258 Node Update Center guard missing"
 grep -Fq 'STREAMFORGE_NODE_BULK_UPDATE_CENTER_V1257' "$SOURCE_DIR/app/main.py" || die "V1257 bulk-update guard missing"
