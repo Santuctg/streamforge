@@ -2,6 +2,8 @@
 """Real Fernet crypto tests using a disposable application secret."""
 import types
 import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from importlib import import_module
 
 # Import the production vault in isolation: no real credentials or database.
