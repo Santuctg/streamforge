@@ -27,3 +27,15 @@ jobs:
         run: python3 -m pip install cryptography --quiet
       - name: Run vault, rate-limit and injection regression
         run: PYTHONPATH=. python3 scripts/test_v1263_security.py
+      - name: Check bounded updater install and rollback
+        run: PYTHONPATH=. python3 scripts/test_v1263_updater_integration.py
+      - name: Verify Python and shell syntax
+        run: |
+          bash -n scripts/force_update_v1263.sh
+          bash -n scripts/update.sh
+          python3 - <<'PY'
+          from pathlib import Path
+          for name in ('app/panel_password_security.py','app/models.py','app/db.py','app/main.py','scripts/test_v1263_security.py','scripts/test_v1263_updater_integration.py'):
+              compile(Path(name).read_text(),name,'exec')
+          print('PASS: bounded Python and Bash syntax')
+          PY
