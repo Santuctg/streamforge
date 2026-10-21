@@ -156,6 +156,9 @@ def reveal_panel_user_password(
     db: Session = Depends(get_db),
 ):
     """Authenticated one-time reveal; never cache or embed plaintext in pages."""
+    # Credentials may only cross the wire over HTTPS; proxies must forward scheme correctly.
+    if request.url.scheme != "https":
+        return _secret_response({"error": "HTTPS is required to reveal a saved password"}, 403)
     actor = current_admin(request, db)
     if not is_vault_admin(actor):
         return _secret_response({"error": "Not permitted"}, 403)
