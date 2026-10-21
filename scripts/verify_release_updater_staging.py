@@ -31,6 +31,10 @@ else:
             f"{updater.name} runs py_compile in SOURCE_DIR before staging and can create __pycache__"
         )
 
+    # STREAMFORGE_RELEASE_BOUNDED_PANEL_PASSWORD_UI_V1261:
+    # v12.61 changes only two Main Panel User templates and aligned metadata.
+    bounded_password_ui_v1261 = "STREAMFORGE_V1261_MAIN_UI_ONLY_NODE_VERSION_ALIGNMENT" in text
+
     # STREAMFORGE_RELEASE_BOUNDED_NODE_INLINE_LOG_V1260:
     # v12.60 changes only the Main Node Updates template plus VERSION metadata.
     # Node runtime bytes must match the installed proven v12.59 payload.
@@ -66,7 +70,29 @@ else:
         None,
     )
 
-    if bounded_inline_log_v1260:
+    if bounded_password_ui_v1261:
+        if 'cp -a "$SOURCE_DIR/." "$STAGE/"' in text:
+            errors.append(f"{updater.name} v12.61 bounded password UI unexpectedly copies full release tree")
+        for marker in (
+            'TARGET_VERSION="12.61"',
+            'NODE_TARGET_VERSION="12.61"',
+            '12.60|12.61',
+            'STREAMFORGE_PANEL_USER_PASSWORD_VISIBILITY_V1261',
+            'STREAMFORGE_V1261_MAIN_UI_ONLY_NODE_VERSION_ALIGNMENT',
+            'STREAMFORGE_NODE_UPDATE_UI_SPACING_V1259',
+            'STREAMFORGE_NODE_UPDATE_CENTER_CLEANUP_V1258',
+            'STREAMFORGE_WEBPLAYER_HLSJS_FIRST_V1256',
+            'STREAMFORGE_NODE_RELAY_HEALTH_PROBE_SINGLE_OWNER_V1251',
+            'verify_panel_user_password_visibility_v1261.py',
+            'app/templates/admin_users.html',
+            'app/templates/admin_user_form.html',
+            'Node runtime payload differs for:',
+            'atomic_copy',
+            'compile(path.read_text(encoding="utf-8"), str(path), "exec")',
+        ):
+            if marker not in text:
+                errors.append(f"{updater.name} v12.61 bounded password UI contract missing {marker}")
+    elif bounded_inline_log_v1260:
         if 'cp -a "$SOURCE_DIR/." "$STAGE/"' in text:
             errors.append(f"{updater.name} v12.60 bounded inline-log release unexpectedly copies the full release tree")
         for marker in (
