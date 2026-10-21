@@ -22,6 +22,9 @@ def setup(base):
     shutil.copytree(ROOT/"node_agent",app/"node_agent",dirs_exist_ok=True)
     for name in ("auth.py", "models.py"):
         shutil.copy2(ROOT/"app"/name, app/"app"/name)
+    (app/"app/static").mkdir(parents=True)
+    shutil.copy2(ROOT/"app/static/panel_nav.js", app/"app/static/panel_nav.js")
+    shutil.copy2(ROOT/"app/main.py", app/"app/main.py")
     (app/"VERSION").write_text("12.61\n")
     (app/"node_agent/VERSION").write_text("12.61\n")
     for file in FILES[2:]:
