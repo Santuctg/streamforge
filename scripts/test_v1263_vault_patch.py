@@ -33,6 +33,11 @@ for marker in (
     '"panel_users.password_reveal"',
     "Vault role permissions changed",
     "vault_csrf_token(request) if admin_is_super_admin(actor)",
+    "STREAMFORGE_V1263_PANEL_LOGIN_LOCK_GUARD",
+    "if login_locked(admin.id)",
+    "record_login_failure(admin.id)",
+    "clear_login_failures(admin.id)",
+    "Panel login guard unavailable",
 ):
     assert marker in updated, marker
 assert source.count("admin.password_hash = hash_password(new_password)")>=1
@@ -42,6 +47,9 @@ assert updated.count("vault_active=can_vault_manage(actor)") == 4
 assert "if key in ALL_PERMISSION_KEYS and key not in" in updated
 # All credential storage changes keep the current scrypt verifier.
 assert "password_hash = hash_password(password)" in updated
+assert updated.count("record_login_failure(admin.id)") == 2
+assert updated.count("login_locked(admin.id)") == 4
+assert updated.count("clear_login_failures(admin.id)") == 2
 with tempfile.TemporaryDirectory() as t:
     path=Path(t)/"main.py"
     path.write_text(source,encoding="utf-8")

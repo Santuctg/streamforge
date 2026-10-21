@@ -8,6 +8,7 @@ def contents(path):
 model=contents("app/models.py")
 main=contents("app/main.py")
 vault=contents("app/panel_password_vault.py")
+login_guard=contents("app/panel_login_guard.py")
 listing=contents("app/templates/admin_users.html")
 app_form=contents("app/templates/admin_user_form.html")
 auth=contents("app/auth.py")
@@ -33,12 +34,16 @@ need('panel_users.password_vault_manage' in contents("app/permissions.py"),"vaul
 need('Super Admin-exclusive sensitive grant' in contents("scripts/apply_v1263_vault.py"),"sensitive permissions Super Admin-grant only")
 need('csrf' in vault and 'session' in vault,"session-bound CSRF")
 need('no-store' in vault,"secret response no-store")
-need('list_vault_locked_users' in vault and 'unlock_vault_locked_user' in vault,
-     "Super Admin lock status and unlock APIs")
+need('list_panel_locked_logins' in vault and 'unlock_panel_login_user' in vault,
+     "Super Admin Panel login lock status and unlock APIs")
+need('LOGIN_LOCK_SECONDS = 3 * 60 * 60' in login_guard and 'FAILED_ATTEMPTS = 5' in login_guard,
+     "five bad Panel login attempts / three-hour lockout")
+need('record_login_failure' in contents("scripts/apply_v1263_vault.py"),
+     "Main and Node login cross-worker lockout integration")
 need('unlock_failures' in vault and 'purpose="unlock"' in vault,
      "separate persistent unlock reauthentication throttle")
 need('data-vault-lock-console' in listing and 'data-vault-unlock-confirm' in listing,
-     "Super Admin Locked Users web console")
+     "Super Admin Panel Login Locked Users web console")
 need('log_event' in vault,"audited reveal")
 need('password_hash_fingerprint' in vault,"stale-secret protection")
 need('vault_store' in contents("scripts/apply_v1263_vault.py") and 'vault_discard' in contents("scripts/apply_v1263_vault.py"),"atomic create/edit/self-change integration")

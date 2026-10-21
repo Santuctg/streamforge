@@ -16,6 +16,7 @@ die(){ echo "[StreamForge v12.63 Vault] ERROR: $*" >&2; exit 1; }
 [[ "$(cat "$SRC/node_agent/VERSION" | tr -d '[:space:]')" == "$NODE_TARGET_VERSION" ]] || die "package Node VERSION mismatch"
 [[ -f "$SRC/scripts/apply_v1263_vault.py" ]] || die "missing scoped Main patcher"
 [[ -f "$SRC/app/panel_password_vault.py" ]] || die "missing vault source"
+[[ -f "$SRC/app/panel_login_guard.py" ]] || die "missing login guard source"
 [[ -f "$SRC/app/models.py" ]] || die "missing model source"
 [[ -f "$SRC/app/permissions.py" ]] || die "missing permissions source"
 [[ -f "$SRC/app/templates/admin_users.html" ]] || die "missing listing source"
@@ -24,7 +25,7 @@ grep -Fq STREAMFORGE_PANEL_CREDENTIAL_VAULT_V1263 "$SRC/app/panel_password_vault
 grep -Fq STREAMFORGE_PANEL_USER_PASSWORD_LINK_FIX_V1262 "$SRC/app/templates/admin_users.html" || die "v12.62 navigation guard absent"
 grep -Fq STREAMFORGE_NODE_INLINE_UPDATE_LOG_V1260 "$SRC/app/templates/node_updates.html" || die "v12.60 Node log guard absent"
 python3 "$SRC/scripts/verify_panel_credential_vault_v1263.py"
-for path in "$SRC/scripts/apply_v1263_vault.py" "$SRC/app/panel_password_vault.py" "$SRC/app/models.py" "$SRC/app/permissions.py"; do
+for path in "$SRC/scripts/apply_v1263_vault.py" "$SRC/app/panel_password_vault.py" "$SRC/app/panel_login_guard.py" "$SRC/app/models.py" "$SRC/app/permissions.py"; do
   python3 - "$path" <<'PYCOMPILE'
 from pathlib import Path
 import sys
@@ -83,6 +84,11 @@ for f in VERSION node_agent/VERSION app/main.py app/models.py app/permissions.py
   mkdir -p "$BACKUP_DIR/$(dirname "$f")"
   cp -a "$APP_ROOT/$f" "$BACKUP_DIR/$f"
 done
+EXISTING_LOGIN_GUARD=0
+if [[ -e "$APP_ROOT/app/panel_login_guard.py" ]]; then
+  EXISTING_LOGIN_GUARD=1
+  cp -a "$APP_ROOT/app/panel_login_guard.py" "$BACKUP_DIR/app/panel_login_guard.py"
+fi
 EXISTING_MODULE=0
 if [[ -e "$APP_ROOT/app/panel_password_vault.py" ]]; then
   EXISTING_MODULE=1
@@ -99,6 +105,11 @@ rollback(){
     for f in VERSION node_agent/VERSION app/main.py app/models.py app/permissions.py app/templates/admin_users.html app/templates/admin_user_form.html; do
       cp -a "$BACKUP_DIR/$f" "$APP_ROOT/$f" 2>/dev/null || true
     done
+    if [[ "$EXISTING_LOGIN_GUARD" == "1" ]]; then
+      cp -a "$BACKUP_DIR/app/panel_login_guard.py" "$APP_ROOT/app/panel_login_guard.py" 2>/dev/null || true
+    else
+      rm -f "$APP_ROOT/app/panel_login_guard.py"
+    fi
     if [[ "$EXISTING_MODULE" == "1" ]]; then
       cp -a "$BACKUP_DIR/app/panel_password_vault.py" "$APP_ROOT/app/panel_password_vault.py" 2>/dev/null || true
     else
@@ -125,6 +136,7 @@ atomic_copy(){
 
 log "Installing bounded Main-only encrypted Panel credential vault."
 atomic_copy "$SRC/app/panel_password_vault.py" "$APP_ROOT/app/panel_password_vault.py" 0644
+atomic_copy "$SRC/app/panel_login_guard.py" "$APP_ROOT/app/panel_login_guard.py" 0644
 atomic_copy "$SRC/app/models.py" "$APP_ROOT/app/models.py" 0644
 atomic_copy "$SRC/app/permissions.py" "$APP_ROOT/app/permissions.py" 0644
 atomic_copy "$SRC/app/templates/admin_users.html" "$APP_ROOT/app/templates/admin_users.html" 0644
@@ -146,6 +158,7 @@ cmp -s "$STAGING/main.py" "$APP_ROOT/app/main.py" || abort "Main patch differs f
 cmp -s "$SRC/app/models.py" "$APP_ROOT/app/models.py" || abort "Models differ from package"
 cmp -s "$SRC/app/permissions.py" "$APP_ROOT/app/permissions.py" || abort "Permissions differ from package"
 cmp -s "$SRC/app/panel_password_vault.py" "$APP_ROOT/app/panel_password_vault.py" || abort "Vault module differs from package"
+cmp -s "$SRC/app/panel_login_guard.py" "$APP_ROOT/app/panel_login_guard.py" || abort "Panel login guard differs from package"
 grep -Fq STREAMFORGE_PANEL_CREDENTIAL_VAULT_V1263 "$APP_ROOT/app/main.py" || abort "Main integration missing"
 if [[ "$TEST_MODE" != "1" ]]; then
   log "Restarting Main HTTP workers only."

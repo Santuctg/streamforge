@@ -13,6 +13,7 @@ UPDATER = ROOT / "scripts/force_update_v1263.sh"
 FILES = ("VERSION", "node_agent/VERSION", "app/main.py", "app/models.py", "app/permissions.py",
          "app/templates/admin_users.html", "app/templates/admin_user_form.html")
 MODULE = "app/panel_password_vault.py"
+LOGIN_GUARD_MODULE = "app/panel_login_guard.py"
 
 
 def file_hash(file: Path) -> str:
@@ -58,6 +59,7 @@ def main() -> None:
         for rel in FILES[3:]:
             assert file_hash(app/rel)==file_hash(ROOT/rel),rel
         assert file_hash(app/MODULE)==file_hash(ROOT/MODULE)
+        assert file_hash(app/LOGIN_GUARD_MODULE)==file_hash(ROOT/LOGIN_GUARD_MODULE)
         main_src=(app/"app/main.py").read_text(encoding="utf-8")
         assert "STREAMFORGE_PANEL_CREDENTIAL_VAULT_V1263" in main_src
         assert "app.include_router(panel_vault_router)" in main_src
@@ -74,6 +76,7 @@ def main() -> None:
         for rel,value in originals.items():
             assert (app/rel).read_bytes()==value,rel
         assert not (app/MODULE).exists()
+        assert not (app/LOGIN_GUARD_MODULE).exists()
     print("PASS: v12.63 install, idempotent reinstall, controlled rollback, Node parity")
 
 

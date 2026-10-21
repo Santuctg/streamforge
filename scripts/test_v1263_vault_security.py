@@ -23,6 +23,7 @@ from app.panel_password_vault import (
 assert not vault_enabled(), "test must start without vault key"
 GUARD_TEMP = tempfile.TemporaryDirectory(prefix="sf-vault-reveal-guard-")
 os.environ["STREAMFORGE_PANEL_VAULT_GUARD_DB"] = os.path.join(GUARD_TEMP.name, "guard.sqlite3")
+os.environ["STREAMFORGE_PANEL_LOGIN_GUARD_DB"] = os.path.join(GUARD_TEMP.name, "login-guard.sqlite3")
 ORIGIN = {"Origin": "https://testserver", "Sec-Fetch-Site": "same-origin"}
 engine=create_engine("sqlite://", connect_args={"check_same_thread":False},poolclass=StaticPool)
 Base.metadata.create_all(engine)
@@ -139,6 +140,9 @@ assert client.post(low_endpoint, headers=ORIGIN, data=delegated_payload).status_
 # Reset earlier failures explicitly, so the lockout test is independent of the
 # preceding authorization/revocation cases.
 from app.panel_password_vault import _locked, _clear_failures
+from app.panel_login_guard import (record_login_failure, login_locked, clear_login_failures,
+                                   LOGIN_LOCK_SECONDS, FAILED_ATTEMPTS)
+assert LOGIN_LOCK_SECONDS == 10800 and FAILED_ATTEMPTS == 5
 with Session() as db:
     _clear_failures(db.get(AdminUser, owner_id))
 # Disabling delegated Main access may revoke that session/CSRF token.
@@ -151,9 +155,14 @@ assert response.status_code==429, (response.status_code, response.text)
 with Session() as db:
     assert _locked(db.get(AdminUser,owner_id))
 
-# Locked Users console: users with delegated reveal rights cannot inspect or unlock.
-list_url = "/admin-users/password-vault/locked-users"
-unlock_url = f"/admin-users/password-vault/locked-users/{owner_id}/unlock"
+# Locked Users console concerns real Main/Node Panel login, NOT saved-password reveal.
+# The same guard is used by both Main login entrypoints.
+assert not login_locked(owner_id)
+for attempt in range(5):
+    assert record_login_failure(owner_id) is (attempt == 4)
+assert login_locked(owner_id)
+list_url = "/admin-users/login-security/locked-users"
+unlock_url = f"/admin-users/login-security/locked-users/{owner_id}/unlock"
 client.get(f"/test/login/{delegate_id}")
 assert client.get(list_url).status_code == 403
 assert client.post(unlock_url, headers=ORIGIN,
@@ -165,7 +174,8 @@ assert response.headers.get("cache-control","").startswith("no-store")
 assert response.json()["count"] == 1
 assert response.json()["locked_users"][0]["username"] == "operatorroot"
 assert response.json()["locked_users"][0]["failed_attempts"] == 5
-assert response.json()["locked_users"][0]["remaining_seconds"] > 0
+remaining = response.json()["locked_users"][0]["remaining_seconds"]
+assert LOGIN_LOCK_SECONDS - 30 <= remaining <= LOGIN_LOCK_SECONDS
 assert client.get(unlock_url).status_code == 405
 assert client.post(unlock_url, headers=ORIGIN,
                    data={"csrf_token": "wrong", "reauth_password": "SuperRoot!A"}).status_code == 403
@@ -181,8 +191,10 @@ assert response.json()["unlocked_actor_id"] == owner_id
 assert client.get(list_url).json()["count"] == 0
 assert client.post(unlock_url, headers=ORIGIN,
                    data={"csrf_token": csrf, "reauth_password": "SuperRoot!A"}).status_code == 409
+assert not login_locked(owner_id)
+# Unlocking Panel login never wipes the unrelated saved-password reveal lock.
 with Session() as db:
-    assert not _locked(db.get(AdminUser, owner_id))
+    assert _locked(db.get(AdminUser, owner_id))
 # Independent unlock throttle: a reveal-locked Super Admin can still unlock
 # after valid reauth, but brute force attempts against unlock itself are capped.
 from app.panel_password_vault import _locked as guard_locked, _clear_failures as guard_clear
