@@ -12,6 +12,7 @@ on:
       - app/panel_password_security.py
       - app/templates/admin_users.html
       - scripts/test_v1263_security.py
+      - scripts/test_v1263_schema_security.py
       - scripts/force_update_v1263.sh
       - scripts/test_v1263_updater_integration.py
       - scripts/update.sh
@@ -24,9 +25,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install encryption test dependency
-        run: python3 -m pip install cryptography --quiet
+        run: python3 -m pip install cryptography 'SQLAlchemy>=2.0,<2.2' --quiet
       - name: Run vault, rate-limit and injection regression
         run: PYTHONPATH=. python3 scripts/test_v1263_security.py
+      - name: Test real legacy database migration and safe SQL bind
+        run: PYTHONPATH=. python3 scripts/test_v1263_schema_security.py
       - name: Check bounded updater install and rollback
         run: PYTHONPATH=. python3 scripts/test_v1263_updater_integration.py
       - name: Verify Python and shell syntax
