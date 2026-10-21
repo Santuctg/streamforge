@@ -80,6 +80,12 @@ def run():
     assert "_update_panel_password(panel_user, password)" in main
     assert "_guard_allowed(\"main\", ip, submitted)" in main
     assert "_guard_allowed(node_scope, node_client, username)" in main
+    assert "_trusted_login_guard_ip(request)" in main
+    assert 'request.headers.get("x-real-ip")' in main
+    assert 'request.headers.get("x-forwarded-proto"' in main
+    assert "Use HTTPS for this operation" in main
+    assert "request.headers.get(\"sec-fetch-site\"" in main
+    assert "request.headers.get(\"origin\")" in main
     assert "admin_is_super_admin(actor)" in main
     assert "hmac.compare_digest(token, expected_token)" in main
     assert "verify_password(verifier_password, actor.password_hash)" in main
