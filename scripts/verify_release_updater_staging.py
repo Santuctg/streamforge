@@ -31,6 +31,10 @@ else:
             f"{updater.name} runs py_compile in SOURCE_DIR before staging and can create __pycache__"
         )
 
+    # STREAMFORGE_RELEASE_BOUNDED_PANEL_IP_ORIGIN_V1265:
+    # 12.65 adds server provenance with a bounded Main/Node login patch.
+    bounded_ip_origin_v1265 = "STREAMFORGE_V1265_MAIN_ONLY_IP_BLOCK_ORIGIN_NODE_PARITY" in text
+
     # STREAMFORGE_RELEASE_BOUNDED_PANEL_IP_GUARD_V1264:
     # Strictly scoped Main IP lockout hotfix; never stage the whole source tree.
     bounded_ip_v1264 = "STREAMFORGE_V1264_MAIN_ONLY_IP_LOCK_NODE_PARITY" in text
@@ -82,7 +86,27 @@ else:
         None,
     )
 
-    if bounded_ip_v1264:
+    if bounded_ip_origin_v1265:
+        if 'cp -a "$SRC/." "$STAGE/"' in text:
+            errors.append(f"{updater.name} v12.65 source tracking copied full release tree")
+        for marker in (
+            'TARGET_VERSION="12.65"',
+            'NODE_TARGET_VERSION="12.65"',
+            '12.64|12.65',
+            'STREAMFORGE_V1265_MAIN_ONLY_IP_BLOCK_ORIGIN_NODE_PARITY',
+            'STREAMFORGE_V1265_BLOCK_TRIGGER_SERVER',
+            'scripts/apply_v1264_ip_lock.py',
+            'scripts/apply_v1265_ip_origin.py',
+            'app/panel_login_guard.py',
+            'app/templates/admin_users.html',
+            'Node runtime payload differs for:',
+            'compile(p.read_text(encoding="utf-8"),str(p),"exec")',
+            'atomic_copy',
+            'Rolling back from',
+        ):
+            if marker not in text:
+                errors.append(f"{updater.name} v12.65 bounded origin contract missing {marker}")
+    elif bounded_ip_v1264:
         if 'cp -a "$SRC/." "$STAGE/"' in text:
             errors.append(f"{updater.name} v12.64 IP lockout copies full release tree")
         for marker in (

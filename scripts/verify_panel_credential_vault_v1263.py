@@ -15,8 +15,8 @@ auth=contents("app/auth.py")
 errors=[]
 def need(ok,message):
     if not ok:errors.append(message)
-need(contents("VERSION").strip()=="12.64","Main VERSION 12.64")
-need(contents("node_agent/VERSION").strip()=="12.64","bundled Node VERSION 12.64")
+need(contents("VERSION").strip()=="12.65","Main VERSION 12.65")
+need(contents("node_agent/VERSION").strip()=="12.65","bundled Node VERSION 12.65")
 need("STREAMFORGE_PANEL_CREDENTIAL_VAULT_V1263" in vault,"module marker")
 need("STREAMFORGE_PANEL_CREDENTIAL_VAULT_V1263" in contents("scripts/apply_v1263_vault.py"),"Main integration patch marker")
 need('STREAMFORGE_PANEL_PASSWORD_VAULT_KEY' in vault,"dedicated external Fernet key")
@@ -54,5 +54,10 @@ need('STREAMFORGE_PANEL_USER_PASSWORD_LINK_FIX_V1262' in listing,"v12.62 route f
 need('STREAMFORGE_PANEL_USER_PASSWORD_VISIBILITY_V1261' in app_form,"v12.61 form retained")
 need('ip_failures' in login_guard and 'normalize_client_ip' in login_guard,"durable IP not account login policy")
 need('Blocked IPs' in listing,"blocked IP web listing")
+need('ip_block_origins' in login_guard and 'blocked_by_server' in login_guard,
+     "tracked source server for blocking request")
+need('Triggered by server' in listing, "trigger server UI heading")
+need('STREAMFORGE_V1265_BLOCK_TRIGGER_SERVER' in contents("scripts/apply_v1265_ip_origin.py"),
+     "Main and Node origin patcher")
 if errors: raise SystemExit("FAIL v12.64: "+", ".join(errors))
-print("PASS: v12.64 Panel IP guard, Super Admin unblock and vault security contracts")
+print("PASS: v12.65 blocked IP source server and vault security contracts")

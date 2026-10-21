@@ -1,4 +1,4 @@
-"""Durable IP-based Main/Remote Node Panel login throttling (v12.64).
+"""Durable IP-based Main/Remote Node Panel login throttling (v12.65).
 
 Five bad login attempts in 15 minutes block the source IP for 3 hours.
 No Panel User account is locked. Existing 12.63 actor-ID rows are ignored;
@@ -87,6 +87,13 @@ def _connection():
                 "ip TEXT PRIMARY KEY, window_start INTEGER NOT NULL,"
                 "failures INTEGER NOT NULL, blocked_until INTEGER NOT NULL)"
             )
+            # STREAMFORGE_V1265_BLOCK_TRIGGER_SERVER: independently record
+            # the server handling the 5th failure; older active blocks lack it.
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS ip_block_origins ("
+                "ip TEXT PRIMARY KEY, source_kind TEXT NOT NULL,"
+                "source_name TEXT NOT NULL, source_node_id INTEGER)"
+            )
             return conn
         except Exception:
             conn.close()
@@ -108,9 +115,26 @@ def ip_locked(ip: str) -> bool:
         raise LoginGuardUnavailable("Panel login IP guard unavailable") from exc
 
 
-def record_ip_failure(ip: str) -> bool:
-    """Atomically count every bad login, including unknown usernames."""
+def record_ip_failure(
+    ip: str, *, origin: str = "unknown",
+    node_id: int | None = None, node_name: str | None = None,
+) -> bool:
+    """Atomically count bad logins and record which server caused the block.
+
+    The block origin belongs to the *fifth* failed request, not necessarily
+    all five failed requests when a Main/Node source IP is shared.
+    """
     addr = normalize_client_ip(ip)
+    if origin not in {"main", "node", "unknown"}:
+        raise LoginGuardUnavailable("Invalid Panel server origin")
+    if origin == "node":
+        if not isinstance(node_id, int) or node_id < 1 or not isinstance(node_name, str) or not node_name.strip():
+            raise LoginGuardUnavailable("Missing authenticated Node origin")
+        server = node_name.strip()[:120]
+    elif origin == "main":
+        server, node_id = "Main Server", None
+    else:
+        server, node_id = "Unknown", None
     now = int(time.time())
     conn = _connection()
     try:
@@ -126,6 +150,9 @@ def record_ip_failure(ip: str) -> bool:
         else:
             start, failures = int(row[0]), int(row[1]) + 1
         blocked = now + LOGIN_LOCK_SECONDS if failures >= FAILED_ATTEMPTS else 0
+        # An expired block must never retain a stale server label.
+        if row is not None and int(row[2]) <= now:
+            conn.execute("DELETE FROM ip_block_origins WHERE ip=?", (addr,))
         conn.execute(
             "INSERT INTO ip_failures(ip,window_start,failures,blocked_until)"
             " VALUES(?,?,?,?) ON CONFLICT(ip) DO UPDATE SET "
@@ -133,6 +160,14 @@ def record_ip_failure(ip: str) -> bool:
             "blocked_until=excluded.blocked_until",
             (addr, start, failures, blocked),
         )
+        if blocked > now:
+            conn.execute(
+                "INSERT INTO ip_block_origins(ip,source_kind,source_name,source_node_id) "
+                "VALUES(?,?,?,?) ON CONFLICT(ip) DO UPDATE SET "
+                "source_kind=excluded.source_kind,source_name=excluded.source_name,"
+                "source_node_id=excluded.source_node_id",
+                (addr, origin, server, node_id),
+            )
         conn.commit()
         return blocked > now
     except sqlite3.Error as exc:
@@ -147,10 +182,12 @@ def clear_ip_failures(ip: str) -> None:
     addr = normalize_client_ip(ip)
     try:
         with closing(_connection()) as conn:
-            conn.execute(
+            removed = conn.execute(
                 "DELETE FROM ip_failures WHERE ip=? AND blocked_until <= ?",
                 (addr, int(time.time())),
             )
+            if removed.rowcount:
+                conn.execute("DELETE FROM ip_block_origins WHERE ip=?", (addr,))
     except sqlite3.Error as exc:
         raise LoginGuardUnavailable("Panel login IP guard unavailable") from exc
 
@@ -160,17 +197,30 @@ def list_locked_ips() -> list[dict]:
     try:
         with closing(_connection()) as conn:
             rows = conn.execute(
-                "SELECT ip,failures,blocked_until FROM ip_failures "
-                "WHERE blocked_until > ? ORDER BY blocked_until DESC,ip", (now,)
+                "SELECT f.ip,f.failures,f.blocked_until,"
+                "s.source_kind,s.source_name,s.source_node_id "
+                "FROM ip_failures f LEFT JOIN ip_block_origins s ON s.ip=f.ip "
+                "WHERE f.blocked_until > ? ORDER BY f.blocked_until DESC,f.ip", (now,)
             ).fetchall()
     except sqlite3.Error as exc:
         raise LoginGuardUnavailable("Panel login IP guard unavailable") from exc
-    return [{
-        "ip": str(ip),
-        "failed_attempts": int(failures),
-        "blocked_until": int(deadline),
-        "remaining_seconds": max(0, int(deadline) - now),
-    } for ip,failures,deadline in rows]
+    result = []
+    for ip, failures, deadline, kind, server, node_id in rows:
+        if kind == "node":
+            source_label = "Remote Node: " + (server or "Unknown")
+        elif kind == "main":
+            source_label = "Main Server"
+        else:
+            source_label = "Unknown (blocked before tracking)"
+        result.append({
+            "ip": str(ip),
+            "failed_attempts": int(failures),
+            "blocked_until": int(deadline),
+            "remaining_seconds": max(0, int(deadline) - now),
+            "blocked_by_server": source_label,
+            "blocked_by_node_id": int(node_id) if kind == "node" and node_id is not None else None,
+        })
+    return result
 
 
 def unlock_ip(ip: str) -> bool:
@@ -182,6 +232,8 @@ def unlock_ip(ip: str) -> bool:
         result = conn.execute(
             "DELETE FROM ip_failures WHERE ip=? AND blocked_until > ?", (addr, now)
         )
+        if result.rowcount:
+            conn.execute("DELETE FROM ip_block_origins WHERE ip=?", (addr,))
         conn.commit()
         return result.rowcount == 1
     except sqlite3.Error as exc:
