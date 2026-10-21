@@ -15,8 +15,8 @@ auth=contents("app/auth.py")
 errors=[]
 def need(ok,message):
     if not ok:errors.append(message)
-need(contents("VERSION").strip()=="12.63","Main VERSION 12.63")
-need(contents("node_agent/VERSION").strip()=="12.63","bundled Node VERSION 12.63")
+need(contents("VERSION").strip()=="12.64","Main VERSION 12.64")
+need(contents("node_agent/VERSION").strip()=="12.64","bundled Node VERSION 12.64")
 need("STREAMFORGE_PANEL_CREDENTIAL_VAULT_V1263" in vault,"module marker")
 need("STREAMFORGE_PANEL_CREDENTIAL_VAULT_V1263" in contents("scripts/apply_v1263_vault.py"),"Main integration patch marker")
 need('STREAMFORGE_PANEL_PASSWORD_VAULT_KEY' in vault,"dedicated external Fernet key")
@@ -34,16 +34,16 @@ need('panel_users.password_vault_manage' in contents("app/permissions.py"),"vaul
 need('Super Admin-exclusive sensitive grant' in contents("scripts/apply_v1263_vault.py"),"sensitive permissions Super Admin-grant only")
 need('csrf' in vault and 'session' in vault,"session-bound CSRF")
 need('no-store' in vault,"secret response no-store")
-need('list_panel_locked_logins' in vault and 'unlock_panel_login_user' in vault,
-     "Super Admin Panel login lock status and unlock APIs")
+need('list_panel_blocked_ips' in vault and 'unblock_panel_ip' in vault,
+     "Super Admin Panel IP block status and manual-unblock APIs")
 need('LOGIN_LOCK_SECONDS = 3 * 60 * 60' in login_guard and 'FAILED_ATTEMPTS = 5' in login_guard,
      "five bad Panel login attempts / three-hour lockout")
-need('record_login_failure' in contents("scripts/apply_v1263_vault.py"),
-     "Main and Node login cross-worker lockout integration")
+need('record_ip_failure' in contents("scripts/apply_v1264_ip_lock.py"),
+     "Main and Node shared-IP login throttling integration")
 need('unlock_failures' in vault and 'purpose="unlock"' in vault,
      "separate persistent unlock reauthentication throttle")
 need('data-vault-lock-console' in listing and 'data-vault-unlock-confirm' in listing,
-     "Super Admin Panel Login Locked Users web console")
+     "Super Admin Panel Login Blocked IPs web console")
 need('log_event' in vault,"audited reveal")
 need('password_hash_fingerprint' in vault,"stale-secret protection")
 need('vault_store' in contents("scripts/apply_v1263_vault.py") and 'vault_discard' in contents("scripts/apply_v1263_vault.py"),"atomic create/edit/self-change integration")
@@ -52,5 +52,7 @@ need('data-vault-secret-value' in listing and 'setTimeout' in listing,"auto-hide
 need('data-vault-password-consent' in app_form,"explicit save consent")
 need('STREAMFORGE_PANEL_USER_PASSWORD_LINK_FIX_V1262' in listing,"v12.62 route fix retained")
 need('STREAMFORGE_PANEL_USER_PASSWORD_VISIBILITY_V1261' in app_form,"v12.61 form retained")
-if errors:raise SystemExit("FAIL v12.63: "+", ".join(errors))
-print("PASS: v12.63 encrypted saved-password vault security and UI contracts")
+need('ip_failures' in login_guard and 'normalize_client_ip' in login_guard,"durable IP not account login policy")
+need('Blocked IPs' in listing,"blocked IP web listing")
+if errors: raise SystemExit("FAIL v12.64: "+", ".join(errors))
+print("PASS: v12.64 Panel IP guard, Super Admin unblock and vault security contracts")

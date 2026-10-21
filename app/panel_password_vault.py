@@ -29,7 +29,7 @@ from .audit_log import log_event
 from .db import get_db
 from .models import AdminUser, PanelUserCredentialVault
 from .permissions import SUPERUSER_PERMISSION, role_permission_set, has_permission
-from .panel_login_guard import LoginGuardUnavailable, list_locked_logins, unlock_login_user
+from .panel_login_guard import LoginGuardUnavailable, list_locked_ips, unlock_ip, normalize_client_ip
 
 router = APIRouter()
 CSRF_SESSION_KEY = "sf_panel_vault_csrf"
@@ -254,28 +254,28 @@ def _secret_response(body: dict, status: int = 200) -> JSONResponse:
     )
 
 
-# STREAMFORGE_V1263_VAULT_LOCKED_USERS_WEB: read-only status and audited
-# Super Admin-only manual unlock. This does not affect Main or Node logins.
+# STREAMFORGE_V1264_PANEL_IP_LOCKOUT_UI: read-only blocked IPs and audited
+# Super Admin-only manual unblock. Account identities are never locked.
 def _vault_super_admin(actor: AdminUser | None) -> bool:
     return bool(actor and actor.is_active and actor.main_panel_access
                 and actor.role and SUPERUSER_PERMISSION in role_permission_set(actor.role))
 
 
-@router.get("/admin-users/login-security/locked-users")
-def list_panel_locked_logins(request: Request, db: Session = Depends(get_db)):
+@router.get("/admin-users/login-security/blocked-ips")
+def list_panel_blocked_ips(request: Request, db: Session = Depends(get_db)):
     actor = current_admin(request, db)
     if not _vault_super_admin(actor):
         return _secret_response({"error": "Super Admin access required"}, 403)
     try:
-        users = list_locked_logins(db)
+        users = list_locked_ips()
     except LoginGuardUnavailable:
         return _secret_response({"error": "Panel login lockout information unavailable"}, 503)
-    return _secret_response({"locked_users": users, "count": len(users)})
+    return _secret_response({"blocked_ips": users, "count": len(users)})
 
 
-@router.post("/admin-users/login-security/locked-users/{actor_id}/unlock")
-def unlock_panel_login_user(
-    actor_id: int, request: Request,
+@router.post("/admin-users/login-security/blocked-ips/{ip}/unlock")
+def unblock_panel_ip(
+    ip: str, request: Request,
     reauth_password: str = Form(...), csrf_token: str = Form(...),
     db: Session = Depends(get_db),
 ):
@@ -287,34 +287,36 @@ def unlock_panel_login_user(
     expected = request.session.get(CSRF_SESSION_KEY)
     if not isinstance(expected, str) or not hmac.compare_digest(expected, csrf_token):
         return _secret_response({"error": "Invalid request. Reload page."}, 403)
-    if actor_id < 1:
-        return _secret_response({"error": "Invalid account"}, 400)
+    try:
+        target_ip = normalize_client_ip(ip)
+    except LoginGuardUnavailable:
+        return _secret_response({"error": "Invalid IP address"}, 400)
     try:
         if _locked(actor, purpose="unlock"):
             log_event("Vault manual unlock reauthentication throttled", scope="auth",
                       level="warning", actor=actor.username,
-                      details={"target_user_id": actor_id})
+                      details={"target_ip": target_ip})
             return _secret_response({"error": "Too many attempts. Try later."}, 429)
         if not verify_password(reauth_password, actor.password_hash):
             _failure(actor, purpose="unlock")
             log_event("Vault manual unlock reauthentication denied", scope="auth",
                       level="warning", actor=actor.username,
-                      details={"target_user_id": actor_id})
+                      details={"target_ip": target_ip})
             return _secret_response({"error": "Authentication failed"}, 403)
         _clear_failures(actor, purpose="unlock")
-        if not unlock_login_user(actor_id):
-            return _secret_response({"error": "No active Panel login lock for this account"}, 409)
+        if not unlock_ip(target_ip):
+            return _secret_response({"error": "No active Panel login block for this IP"}, 409)
     except LoginGuardUnavailable:
         log_event("Panel login manual unlock guard unavailable", scope="auth", level="error",
-                  actor=actor.username, details={"target_user_id": actor_id})
+                  actor=actor.username, details={"target_ip": target_ip})
         return _secret_response({"error": "Login unlock protection unavailable"}, 503)
     except VaultGuardUnavailable:
         log_event("Vault manual unlock guard unavailable", scope="auth", level="error",
-                  actor=actor.username, details={"target_user_id": actor_id})
+                  actor=actor.username, details={"target_ip": target_ip})
         return _secret_response({"error": "Unlock protection unavailable"}, 503)
-    log_event("Panel login manually unlocked", scope="auth",
-              actor=actor.username, details={"target_user_id": actor_id})
-    return _secret_response({"ok": True, "unlocked_actor_id": actor_id})
+    log_event("Panel login IP manually unblocked", scope="auth",
+              actor=actor.username, details={"target_ip": target_ip})
+    return _secret_response({"ok": True, "unblocked_ip": target_ip})
 
 
 @router.post("/admin-users/{admin_user_id}/password/reveal")
