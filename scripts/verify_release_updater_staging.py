@@ -31,6 +31,9 @@ else:
             f"{updater.name} runs py_compile in SOURCE_DIR before staging and can create __pycache__"
         )
 
+    # STREAMFORGE_RELEASE_VAULT_UI_NODE_NOTICE_V1269:
+    bounded_ui_notice_v1269 = "STREAMFORGE_V1269_THEME_AND_NODE_FORM_SCOPED" in text
+
     # STREAMFORGE_RELEASE_MAIN_PW_MODAL_V1268:
     bounded_main_pw_modal_v1268 = "STREAMFORGE_V1268_MAIN_PASSWORD_MODAL_SCOPED" in text
 
@@ -96,7 +99,24 @@ else:
         None,
     )
 
-    if bounded_main_pw_modal_v1268:
+    if bounded_ui_notice_v1269:
+        if 'cp -a "$SRC/." "$STAGE/"' in text:
+            errors.append(f"{updater.name} v12.69 unexpectedly copied full release")
+        for marker in (
+            'STREAMFORGE_V1269_THEME_AND_NODE_FORM_SCOPED',
+            '12.68|12.69',
+            'STREAMFORGE_V1269_NODE_FORM_ONLY_PARITY',
+            'OLD_NODE_BLOB="256faac6acf0cee0f3ee223063d222881fb7a824"',
+            'STREAMFORGE_V1269_VAULT_REVEAL_TEXT_DARK',
+            'STREAMFORGE_V1269_COMPACT_NODE_PASSWORD_NOTICE',
+            'app/templates/admin_users.html',
+            'node_agent/app.py',
+            'Rolling back from',
+            'atomic_copy',
+        ):
+            if marker not in text:
+                errors.append(f"{updater.name} v12.69 scope contract missing {marker}")
+    elif bounded_main_pw_modal_v1268:
         if 'cp -a "$SRC/." "$STAGE/"' in text:
             errors.append(f"{updater.name} v12.68 unexpectedly copies full release tree")
         for marker in (
