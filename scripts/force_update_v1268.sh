@@ -18,7 +18,7 @@ import sys, hashlib
 src, dst = map(Path,sys.argv[1:])
 def catalog(root):
  return {p.relative_to(root).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
-         for p in root.rglob("*") if p.is_file() and p.name!="VERSION" 
+         for p in root.rglob("*") if p.is_file() and p.name!="VERSION"
          and "__pycache__" not in p.parts and p.suffix not in {".pyc",".pyo"}}
 a,b=catalog(src),catalog(dst)
 if a!=b:
