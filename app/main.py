@@ -12479,13 +12479,12 @@ def panel_user_reveal_password(
     # Same-origin POST only: do not let a cross-site form cause a password
     # disclosure. API clients with absent Origin/Referer are rejected too.
     origin = request.headers.get("origin", "")
-    target_origin = str(request.base_url).rstrip("/")
     # Behind TLS reverse proxies request.base_url may be http. Prefer
     # the origin and Host equality with explicit trusted proxy scheme.
     from urllib.parse import urlsplit as _split
     parsed_origin = _split(origin)
     host = request.headers.get("host", "").lower()
-    if not parsed_origin.scheme in ("http", "https") or parsed_origin.netloc.lower() != host:
+    if parsed_origin.scheme != "https" or parsed_origin.netloc.lower() != host:
         return reply(403, "Origin validation failed.")
     now = time.monotonic()
     with _VAULT_ATTEMPT_LOCK:
