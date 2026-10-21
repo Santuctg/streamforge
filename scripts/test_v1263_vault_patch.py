@@ -50,9 +50,15 @@ with tempfile.TemporaryDirectory() as t:
 # Compile/execute only the transformed role-grant function, not the full service.
 # This checks that delegated roles cannot turn their own reveal permission into
 # grant authority, while the unrestricted Super Admin can grant both permissions.
-from app.models import Role, AdminUser
-from app.permissions import role_permission_set, ALL_PERMISSION_KEYS, SUPERUSER_PERMISSION
 from types import SimpleNamespace
+# This static integration test runs before third-party packages are installed.
+# Use in-memory role permission fixtures rather than importing the Main ORM.
+AdminUser = SimpleNamespace
+SUPERUSER_PERMISSION = "*"
+PERMISSION_KEYS = {"panel_users.view", "panel_users.password_reveal",
+                   "panel_users.password_vault_manage", "roles.create", "roles.edit"}
+ALL_PERMISSION_KEYS = tuple(sorted(PERMISSION_KEYS))
+role_permission_set = lambda role: set(json.loads(role.permissions))
 updated_ast = ast.parse(updated)
 grant_function = next(
     node for node in updated_ast.body
@@ -66,9 +72,8 @@ grant_ns = {
 }
 exec(compile(ast.Module(body=[grant_function], type_ignores=[]), "<rbac-grant>", "exec"), grant_ns)
 grant = grant_ns["role_assignable_permissions_for_admin"]
-super_actor = SimpleNamespace(role=Role(name="Super Admin", permissions=json.dumps(["*"])))
-delegated_actor = SimpleNamespace(role=Role(
-    name="Auditor/Role Editor",
+super_actor = SimpleNamespace(role=SimpleNamespace(permissions=json.dumps(["*"])))
+delegated_actor = SimpleNamespace(role=SimpleNamespace(
     permissions=json.dumps(["panel_users.view", "panel_users.password_reveal",
                             "panel_users.password_vault_manage", "roles.create", "roles.edit"]),
 ))
