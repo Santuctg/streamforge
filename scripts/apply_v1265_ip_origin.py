@@ -24,9 +24,13 @@ def transform(source: str) -> str:
     if left.count(original) != 1 or right.count(original) != 2:
         raise ValueError("Unexpected number of Main/Remote Node IP failure calls")
     left = left.replace(
-        original,
-        'record_ip_failure(source_ip, origin="main")  # ' + MARKER
+        original, 'record_ip_failure(source_ip, origin="main")'
     )
+    # Place the marker on a separate line; never comment out the 'if:' colon.
+    hook = '            if record_ip_failure(source_ip, origin="main"):'
+    if left.count(hook) != 1:
+        raise ValueError("Expected one Main auth origin call")
+    left = left.replace(hook, '            # ' + MARKER + '\n' + hook)
     right = right.replace(
         original,
         'record_ip_failure(source_ip, origin="node", node_id=node.id, node_name=node.name)'
