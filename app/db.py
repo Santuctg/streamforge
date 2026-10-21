@@ -98,6 +98,9 @@ def ensure_runtime_schema() -> None:
 
     if "admin_users" in table_names:
         admin_columns = {column["name"] for column in inspector.get_columns("admin_users")}
+        # STREAMFORGE_PANEL_USER_SAVED_PASSWORD_V1263: additive migration. Historical hashes remain unrecoverable.
+        if "password_vault_enc" not in admin_columns:
+            statements.append("ALTER TABLE admin_users ADD COLUMN password_vault_enc TEXT")
         if "role_id" not in admin_columns:
             statements.append("ALTER TABLE admin_users ADD COLUMN role_id INTEGER REFERENCES roles(id) ON DELETE SET NULL")
         if "main_panel_access" not in admin_columns:
