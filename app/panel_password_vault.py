@@ -12,8 +12,11 @@ import hmac
 import json
 import os
 import secrets
-import threading
+import sqlite3
+import stat
 import time
+from pathlib import Path
+from urllib.parse import urlsplit
 
 from cryptography.fernet import Fernet, InvalidToken
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
@@ -29,10 +32,105 @@ from .permissions import SUPERUSER_PERMISSION, role_permission_set
 router = APIRouter()
 CSRF_SESSION_KEY = "sf_panel_vault_csrf"
 VAULT_KEY_ENV = "STREAMFORGE_PANEL_PASSWORD_VAULT_KEY"
-# Best-effort in-process throttling. Deployment operators must also rate-limit
-# this authenticated endpoint at the reverse proxy for cross-worker protection.
-_failed_attempts: dict[int, tuple[int, float]] = {}
-_lock = threading.RLock()
+# STREAMFORGE_V1263_DURABLE_REVEAL_GUARD:
+# A shared SQLite failure guard applies across every Main HTTP worker.
+# It never gates existing Main or Remote Node login flows.
+GUARD_DB_ENV = "STREAMFORGE_PANEL_VAULT_GUARD_DB"
+GUARD_DB_DEFAULT = "/var/lib/streamforge/panel-vault-reveal-guard.sqlite3"
+
+
+class VaultGuardUnavailable(RuntimeError):
+    pass
+
+
+def _guard_connection():
+    path = Path(os.environ.get(GUARD_DB_ENV, GUARD_DB_DEFAULT))
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
+        fd = os.open(path, flags, 0o600)
+        try:
+            info = os.fstat(fd)
+            if not stat.S_ISREG(info.st_mode) or info.st_mode & 0o077 or info.st_uid != os.geteuid():
+                raise VaultGuardUnavailable("Vault reveal guard permissions unsafe")
+        finally:
+            os.close(fd)
+        conn = sqlite3.connect(str(path), timeout=5, isolation_level=None)
+        try:
+            conn.execute("PRAGMA busy_timeout=5000")
+            conn.execute("CREATE TABLE IF NOT EXISTS reveal_failures ("
+                         "actor_id INTEGER PRIMARY KEY, window_start INTEGER NOT NULL,"
+                         "failures INTEGER NOT NULL, blocked_until INTEGER NOT NULL)")
+            return conn
+        except Exception:
+            conn.close()
+            raise
+    except (OSError, sqlite3.Error) as exc:
+        raise VaultGuardUnavailable("Vault reveal guard unavailable") from exc
+
+
+def _locked(actor: AdminUser) -> bool:
+    now = int(time.time())
+    try:
+        with _guard_connection() as conn:
+            record = conn.execute(
+                "SELECT blocked_until FROM reveal_failures WHERE actor_id = ?", (int(actor.id),)
+            ).fetchone()
+            return bool(record and int(record[0]) > now)
+    except sqlite3.Error as exc:
+        raise VaultGuardUnavailable("Vault reveal guard unavailable") from exc
+
+
+def _failure(actor: AdminUser) -> None:
+    now = int(time.time())
+    conn = _guard_connection()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute(
+            "SELECT window_start, failures, blocked_until FROM reveal_failures WHERE actor_id = ?",
+            (int(actor.id),),
+        ).fetchone()
+        if row is None or now - int(row[0]) >= 900:
+            start, failures, blocked = now, 1, 0
+        else:
+            start, failures, blocked = int(row[0]), int(row[1]) + 1, int(row[2])
+        if failures >= 5:
+            blocked = max(blocked, now + 900)
+        conn.execute(
+            "INSERT INTO reveal_failures(actor_id,window_start,failures,blocked_until) "
+            "VALUES(?,?,?,?) ON CONFLICT(actor_id) DO UPDATE SET "
+            "window_start=excluded.window_start,failures=excluded.failures,"
+            "blocked_until=excluded.blocked_until",
+            (int(actor.id), start, failures, blocked),
+        )
+        conn.commit()
+    except sqlite3.Error as exc:
+        conn.rollback()
+        raise VaultGuardUnavailable("Vault reveal guard unavailable") from exc
+    finally:
+        conn.close()
+
+
+def _clear_failures(actor: AdminUser) -> None:
+    try:
+        with _guard_connection() as conn:
+            conn.execute("DELETE FROM reveal_failures WHERE actor_id = ?", (int(actor.id),))
+    except sqlite3.Error as exc:
+        raise VaultGuardUnavailable("Vault reveal guard unavailable") from exc
+
+
+def _request_is_secure_same_origin(request: Request) -> bool:
+    # A forwarding header proves TLS only if our direct peer is loopback Nginx.
+    peer = str(request.client.host if request.client else "")
+    direct_tls = request.url.scheme == "https"
+    proxied_tls = peer in {"127.0.0.1", "::1"} and (
+        request.headers.get("x-forwarded-proto", "").split(",", 1)[0].strip().lower() == "https"
+    )
+    parsed = urlsplit(request.headers.get("origin", ""))
+    host = (request.headers.get("host") or "").lower()
+    fetch_site = request.headers.get("sec-fetch-site", "same-origin")
+    return bool((direct_tls or proxied_tls) and parsed.scheme == "https"
+                and parsed.netloc.lower() == host and fetch_site in {"same-origin", "none"})
 
 
 def _cipher() -> Fernet | None:
@@ -125,28 +223,6 @@ def _secret_response(body: dict, status: int = 200) -> JSONResponse:
     )
 
 
-def _throttle_key(actor: AdminUser) -> int:
-    return int(actor.id)
-
-
-def _locked(actor: AdminUser) -> bool:
-    with _lock:
-        count, until = _failed_attempts.get(_throttle_key(actor), (0, 0.0))
-        if until <= time.monotonic():
-            _failed_attempts.pop(_throttle_key(actor), None)
-            return False
-        return count >= 5
-
-
-def _failure(actor: AdminUser) -> None:
-    with _lock:
-        key = _throttle_key(actor)
-        count, until = _failed_attempts.get(key, (0, 0.0))
-        if until <= time.monotonic():
-            count = 0
-        _failed_attempts[key] = (count + 1, time.monotonic() + 900)
-
-
 @router.post("/admin-users/{admin_user_id}/password/reveal")
 def reveal_panel_user_password(
     admin_user_id: int,
@@ -156,9 +232,8 @@ def reveal_panel_user_password(
     db: Session = Depends(get_db),
 ):
     """Authenticated one-time reveal; never cache or embed plaintext in pages."""
-    # Credentials may only cross the wire over HTTPS; proxies must forward scheme correctly.
-    if request.url.scheme != "https":
-        return _secret_response({"error": "HTTPS is required to reveal a saved password"}, 403)
+    if not _request_is_secure_same_origin(request):
+        return _secret_response({"error": "HTTPS same-origin request required"}, 403)
     actor = current_admin(request, db)
     if not is_vault_admin(actor):
         return _secret_response({"error": "Not permitted"}, 403)
@@ -166,18 +241,22 @@ def reveal_panel_user_password(
     expected = request.session.get(CSRF_SESSION_KEY)
     if not isinstance(expected, str) or not hmac.compare_digest(expected, csrf_token):
         return _secret_response({"error": "Invalid request. Reload page."}, 403)
-    if _locked(actor):
-        return _secret_response({"error": "Too many attempts. Try later."}, 429)
-
-    if not verify_password(reauth_password, actor.password_hash):
-        _failure(actor)
-        log_event("Panel credential vault reauthentication denied", scope="auth",
-                  level="warning", actor=actor.username,
-                  details={"target_user_id": int(admin_user_id)})
-        return _secret_response({"error": "Authentication failed"}, 403)
-
-    with _lock:
-        _failed_attempts.pop(_throttle_key(actor), None)
+    try:
+        if _locked(actor):
+            log_event("Panel credential vault reveal throttled", scope="auth", level="warning",
+                      actor=actor.username, details={"target_user_id": int(admin_user_id)})
+            return _secret_response({"error": "Too many attempts. Try later."}, 429)
+        if not verify_password(reauth_password, actor.password_hash):
+            _failure(actor)
+            log_event("Panel credential vault reauthentication denied", scope="auth",
+                      level="warning", actor=actor.username,
+                      details={"target_user_id": int(admin_user_id)})
+            return _secret_response({"error": "Authentication failed"}, 403)
+        _clear_failures(actor)
+    except VaultGuardUnavailable:
+        log_event("Panel credential vault reveal guard unavailable", scope="auth", level="error",
+                  actor=actor.username, details={"target_user_id": int(admin_user_id)})
+        return _secret_response({"error": "Password reveal protection unavailable"}, 503)
 
     cipher = _cipher()
     if cipher is None:
@@ -202,4 +281,4 @@ def reveal_panel_user_password(
 
     log_event("Panel credential vault password revealed", scope="auth",
               actor=actor.username, details={"target_user_id": int(target.id)})
-    return _secret_response({"password": password, "hide_after_seconds": 15})
+    return _secret_response({"password": password, "hide_after_seconds": 10})
