@@ -213,7 +213,8 @@
 .sf-pw-reset-dialog .sf-pw-reset-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:20px}
 .sf-pw-reset-error{color:#ff9aa4;font-size:13px;margin:12px 0 0}
 .sf-pw-reset-dialog input[type="password"],
-.sf-vault-dialog input[type="password"]{
+.sf-vault-dialog input[type="password"],
+.sf-vault-dialog input[data-vault-secret-value]{
   display:block;width:100%;height:42px;min-height:42px;box-sizing:border-box;
   background:#0b1118 !important;color:var(--text,#edf4fb) !important;
   border:1px solid #304156 !important;border-radius:8px !important;
@@ -221,12 +222,14 @@
   box-shadow:none !important;-webkit-text-fill-color:var(--text,#edf4fb);
 }
 .sf-pw-reset-dialog input[type="password"]:focus-visible,
-.sf-vault-dialog input[type="password"]:focus-visible{
+.sf-vault-dialog input[type="password"]:focus-visible,
+.sf-vault-dialog input[data-vault-secret-value]:focus-visible{
   border-color:var(--accent,#37c7a2) !important;
   box-shadow:0 0 0 2px rgba(55,199,162,.17) !important;
 }
 .sf-pw-reset-dialog input[type="password"]:-webkit-autofill,
-.sf-vault-dialog input[type="password"]:-webkit-autofill{
+.sf-vault-dialog input[type="password"]:-webkit-autofill,
+.sf-vault-dialog input[data-vault-secret-value]:-webkit-autofill{
   -webkit-box-shadow:0 0 0 1000px #0b1118 inset !important;
   -webkit-text-fill-color:var(--text,#edf4fb) !important;
   caret-color:var(--text,#edf4fb);
@@ -345,6 +348,7 @@
 {% endif %}
 
 {% if vault_active %}
+{# STREAMFORGE_V1269_VAULT_REVEAL_TEXT_DARK: revealed input changes type to text; retain same dark colors. #}
 {# STREAMFORGE_PANEL_CREDENTIAL_VAULT_V1263: no plaintext is embedded in HTML. #}
 <style>
 .sf-vault-overlay[hidden]{display:none !important}
