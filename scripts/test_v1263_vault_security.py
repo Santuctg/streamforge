@@ -141,7 +141,8 @@ assert client.post(low_endpoint, headers=ORIGIN, data=delegated_payload).status_
 from app.panel_password_vault import _locked, _clear_failures
 with Session() as db:
     _clear_failures(db.get(AdminUser, owner_id))
-client.get(f"/test/login/{owner_id}")
+# Disabling delegated Main access may revoke that session/CSRF token.
+csrf = client.get(f"/test/login/{owner_id}").json()["csrf"]
 for _ in range(5):
     response = client.post(endpoint,headers=ORIGIN,data={"csrf_token":csrf,"reauth_password":"wrong"})
     assert response.status_code==403, (response.status_code, response.text)
