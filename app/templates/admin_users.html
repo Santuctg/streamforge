@@ -4,6 +4,17 @@
 {% block content %}
 {# STREAMFORGE_PANEL_USER_PASSWORD_LINK_FIX_V1262: URL fragments are rejected by hidden-route cookie parser; use query-string focus. #}
 {# STREAMFORGE_PANEL_USER_PASSWORD_VISIBILITY_V1261: authorized editors can set a new password; existing scrypt hashes cannot be displayed. #}
+{# STREAMFORGE_PANEL_USER_SAVED_PASSWORD_V1263:
+    Only Super Admin sees the password escrow status; no password or encrypted
+    ciphertext is rendered until server-side re-authentication succeeds. #}
+<style>
+.panel-vault-reveal { display:inline-block; position:relative; vertical-align:top; }
+.panel-vault-details { padding:10px; min-width:230px; max-width:320px; margin-top:6px;
+  border:1px solid var(--border); border-radius:8px; background:var(--card-bg,var(--panel-bg,#fff)); }
+.panel-vault-details label { display:block; font-size:12px; margin-bottom:8px; }
+.panel-vault-details input { display:block; box-sizing:border-box; width:100%; margin-top:6px; }
+[data-panel-vault-result] { display:block; max-width:280px; overflow-wrap:anywhere; padding-top:8px; }
+</style>
 <section class="panel admin-users-panel">
   <div class="panel-head">
     <div><h2>Login accounts</h2><p>Each panel user receives a role and access locations. Remote Node login and active sessions require live Main Panel connectivity; no cached credential fallback is used.</p></div>
@@ -24,7 +35,16 @@
           <td data-label="Created">{{ item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else '—' }}</td>
           <td data-label="Actions" class="actions">
             {% if can('panel_users.edit') %}<a class="button small" href="/admin-users/{{ item.id }}/edit">Edit</a><a class="button small" href="/admin-users/{{ item.id }}/edit?focus=password" title="Set a new password for this panel user">Change password</a>{% endif %}
-            {% if can('panel_users.delete') and item.id != admin.id %}<form method="post" action="/admin-users/{{ item.id }}/delete" onsubmit="return confirm('Delete panel user {{ item.username }}?')"><button class="button ghost-danger small">Delete</button></form>{% endif %}
+            {% if is_super_admin %}{% if item.password_vault_enc %}
+              <form method="post" action="/admin-users/{{ item.id }}/saved-password" class="panel-vault-reveal" data-panel-vault-form autocomplete="off">
+                <button type="button" class="button small" data-panel-vault-toggle>Show saved password</button>
+                <div class="panel-vault-details" data-panel-vault-details hidden>
+                  <label>Confirm your Admin password<input type="password" name="admin_password" autocomplete="current-password" required></label>
+                  <button type="submit" class="button small">Reveal for 10 seconds</button>
+                  <span role="status" data-panel-vault-result></span>
+                </div>
+              </form>
+              {% else %}<span class="muted-tag">No saved password — reset first</span>{% endif %}{% endif %}{% if can('panel_users.delete') and item.id != admin.id %}<form method="post" action="/admin-users/{{ item.id }}/delete" onsubmit="return confirm('Delete panel user {{ item.username }}?')"><button class="button ghost-danger small">Delete</button></form>{% endif %}
           </td>
         </tr>
       {% else %}<tr><td colspan="6" class="empty">No panel users found.</td></tr>{% endfor %}
@@ -39,7 +59,16 @@
       <div class="mobile-record-row"><span>Access</span><div>{% if item.main_panel_access %}<span class="category-badge">Main Panel</span>{% endif %}{% for node in item.nodes %}<span class="node-badge">{{ node.name }}</span>{% endfor %}{% if not item.main_panel_access and not item.nodes %}<span class="muted-tag">No access location</span>{% endif %}</div></div>
       <div class="mobile-record-row"><span>Status</span><div><span class="status {{ 'running' if item.is_active else 'stopped' }}">{{ 'Active' if item.is_active else 'Disabled' }}</span></div></div>
       <div class="mobile-record-row"><span>Created</span><div>{{ item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else '—' }}</div></div>
-      <div class="mobile-record-actions"><span>Actions</span><div>{% if can('panel_users.edit') %}<a class="button small" href="/admin-users/{{ item.id }}/edit">Edit</a><a class="button small" href="/admin-users/{{ item.id }}/edit?focus=password" title="Set a new password for this panel user">Change password</a>{% endif %}{% if can('panel_users.delete') and item.id != admin.id %}<form method="post" action="/admin-users/{{ item.id }}/delete" onsubmit="return confirm('Delete panel user {{ item.username }}?')"><button class="button ghost-danger small">Delete</button></form>{% endif %}</div></div>
+      <div class="mobile-record-actions"><span>Actions</span><div>{% if can('panel_users.edit') %}<a class="button small" href="/admin-users/{{ item.id }}/edit">Edit</a><a class="button small" href="/admin-users/{{ item.id }}/edit?focus=password" title="Set a new password for this panel user">Change password</a>{% endif %}{% if is_super_admin %}{% if item.password_vault_enc %}
+              <form method="post" action="/admin-users/{{ item.id }}/saved-password" class="panel-vault-reveal" data-panel-vault-form autocomplete="off">
+                <button type="button" class="button small" data-panel-vault-toggle>Show saved password</button>
+                <div class="panel-vault-details" data-panel-vault-details hidden>
+                  <label>Confirm your Admin password<input type="password" name="admin_password" autocomplete="current-password" required></label>
+                  <button type="submit" class="button small">Reveal for 10 seconds</button>
+                  <span role="status" data-panel-vault-result></span>
+                </div>
+              </form>
+              {% else %}<span class="muted-tag">No saved password — reset first</span>{% endif %}{% endif %}{% if can('panel_users.delete') and item.id != admin.id %}<form method="post" action="/admin-users/{{ item.id }}/delete" onsubmit="return confirm('Delete panel user {{ item.username }}?')"><button class="button ghost-danger small">Delete</button></form>{% endif %}</div></div>
     </article>
   {% else %}
     <div class="mobile-empty">No panel users found.</div>
@@ -47,4 +76,72 @@
   </div>
 
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+  // STREAMFORGE_PANEL_USER_SAVED_PASSWORD_V1263: reveal only on explicit click,
+  // and remove plaintext from DOM after ten seconds or page hiding.
+  const forms = [...document.querySelectorAll('[data-panel-vault-form]')];
+  const cleanups = [];
+  for (const form of forms) {
+    const button = form.querySelector('[data-panel-vault-toggle]');
+    const details = form.querySelector('[data-panel-vault-details]');
+    const result = form.querySelector('[data-panel-vault-result]');
+    const adminInput = form.querySelector('[name="admin_password"]');
+    if (!button || !details || !result || !adminInput) continue;
+    let timer = null;
+    let sequence = 0;
+    const clear = () => {
+      sequence += 1;
+      if (timer) clearTimeout(timer);
+      timer = null;
+      result.textContent = '';
+      result.removeAttribute('data-revealed');
+    };
+    cleanups.push(clear);
+    button.addEventListener('click', () => {
+      clear();
+      details.hidden = !details.hidden;
+      if (!details.hidden) adminInput.focus();
+      else adminInput.value = '';
+    });
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      clear();
+      const thisRequest = sequence;
+      const password = adminInput.value;
+      adminInput.value = '';
+      if (!password) return;
+      result.textContent = 'Checking…';
+      try {
+        const payload = new FormData();
+        payload.set('admin_password', password);
+        const response = await fetch(form.action, {
+          method:'POST', credentials:'same-origin', cache:'no-store',
+          headers:{Accept:'application/json'}, body:payload,
+        });
+        const data = await response.json();
+        if (thisRequest !== sequence || document.hidden) return;
+        if (!response.ok || !data.ok || typeof data.password !== 'string') {
+          result.textContent = String(data.message || 'Could not reveal saved password.');
+          return;
+        }
+        result.textContent = data.password;
+        result.setAttribute('data-revealed', '1');
+        timer = setTimeout(clear, 10000);
+      } catch (_) {
+        if (thisRequest === sequence && !document.hidden) {
+          result.textContent = 'Unable to verify. Try again.';
+        }
+      }
+    });
+  }
+  window.addEventListener('pagehide', () => cleanups.forEach(fn => fn()));
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) cleanups.forEach(fn => fn());
+  });
+})();
+</script>
 {% endblock %}

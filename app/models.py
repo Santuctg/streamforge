@@ -100,6 +100,8 @@ class AdminUser(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     username: Mapped[str] = mapped_column(String(80), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
+    # STREAMFORGE_PANEL_USER_SAVED_PASSWORD_V1263: encrypted optional escrow, never a replacement for scrypt auth.
+    password_vault_enc: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     main_panel_access: Mapped[bool] = mapped_column(Boolean, default=True)
     role_id: Mapped[Optional[int]] = mapped_column(
