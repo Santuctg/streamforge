@@ -179,6 +179,30 @@ jobs:
               git commit -m "Integrate v12.56 HLS.js-first Web Player fix"
               git push origin HEAD:main
             fi
+          elif [[ "$version" == "12.63" ]]; then
+            # STREAMFORGE_V1263_VAULT_RELEASE_SOURCE_CARRY:
+            # Keep the cumulative GitHub release tag runnable without requiring
+            # a monolithic app/main.py edit in the feature branch.
+            test "$(tr -d '[:space:]' < node_agent/VERSION)" = "12.63"
+            python3 scripts/verify_panel_credential_vault_v1263.py
+            python3 scripts/test_v1263_vault_patch.py
+            python3 scripts/test_v1263_updater_integration.py
+            python3 scripts/verify_release_updater_staging.py
+            python3 scripts/apply_v1263_vault.py app/main.py
+            python3 - <<'PYV1263'
+          from pathlib import Path
+          for name in ("app/main.py", "app/models.py", "app/panel_password_vault.py"):
+              path = Path(name)
+              compile(path.read_text(encoding="utf-8"), str(path), "exec")
+          print("PASS: v12.63 cumulative release source syntax verified without bytecode output")
+          PYV1263
+            if ! git diff --quiet -- app/main.py; then
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              git add app/main.py
+              git commit -m "Integrate v12.63 Main credential vault routes and lifecycle"
+              git push origin HEAD:main
+            fi
           fi
           echo "release_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
