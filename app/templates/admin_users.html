@@ -4,7 +4,8 @@
 {% block content %}
 {# STREAMFORGE_PANEL_USER_PASSWORD_LINK_FIX_V1262: URL fragments are rejected by hidden-route cookie parser; use query-string focus. #}
 {# STREAMFORGE_PANEL_USER_PASSWORD_VISIBILITY_V1261: authorized editors can set a new password; existing scrypt hashes cannot be displayed. #}
-<section class="panel admin-users-panel">
+{# STREAMFORGE_PANEL_PASSWORD_VAULT_LOGIN_GUARD_V1263: never render plaintext or ciphertext in HTML. #}
+<section class="panel admin-users-panel" data-panel-vault-csrf="{{ vault_csrf }}">
   <div class="panel-head">
     <div><h2>Login accounts</h2><p>Each panel user receives a role and access locations. Remote Node login and active sessions require live Main Panel connectivity; no cached credential fallback is used.</p></div>
     {% if can('panel_users.create') %}<a class="button primary" href="/admin-users/new">+ Add panel user</a>{% endif %}
@@ -24,7 +25,7 @@
           <td data-label="Created">{{ item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else '—' }}</td>
           <td data-label="Actions" class="actions">
             {% if can('panel_users.edit') %}<a class="button small" href="/admin-users/{{ item.id }}/edit">Edit</a><a class="button small" href="/admin-users/{{ item.id }}/edit?focus=password" title="Set a new password for this panel user">Change password</a>{% endif %}
-            {% if can('panel_users.delete') and item.id != admin.id %}<form method="post" action="/admin-users/{{ item.id }}/delete" onsubmit="return confirm('Delete panel user {{ item.username }}?')"><button class="button ghost-danger small">Delete</button></form>{% endif %}
+            {% if is_super_admin %}{% if item.password_vault_enc %}<button type="button" class="button small" data-vault-user-id="{{ item.id }}" data-vault-user-name="{{ item.username }}" aria-label="Show saved password for {{ item.username }}">Show saved</button>{% else %}<span class="muted-tag" title="Existing one-way password hashes cannot be recovered. Change password once to enable.">Reset to enable Show</span>{% endif %}{% endif %} {% if can('panel_users.delete') and item.id != admin.id %}<form method="post" action="/admin-users/{{ item.id }}/delete" onsubmit="return confirm('Delete panel user {{ item.username }}?')"><button class="button ghost-danger small">Delete</button></form>{% endif %}
           </td>
         </tr>
       {% else %}<tr><td colspan="6" class="empty">No panel users found.</td></tr>{% endfor %}
@@ -39,7 +40,7 @@
       <div class="mobile-record-row"><span>Access</span><div>{% if item.main_panel_access %}<span class="category-badge">Main Panel</span>{% endif %}{% for node in item.nodes %}<span class="node-badge">{{ node.name }}</span>{% endfor %}{% if not item.main_panel_access and not item.nodes %}<span class="muted-tag">No access location</span>{% endif %}</div></div>
       <div class="mobile-record-row"><span>Status</span><div><span class="status {{ 'running' if item.is_active else 'stopped' }}">{{ 'Active' if item.is_active else 'Disabled' }}</span></div></div>
       <div class="mobile-record-row"><span>Created</span><div>{{ item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else '—' }}</div></div>
-      <div class="mobile-record-actions"><span>Actions</span><div>{% if can('panel_users.edit') %}<a class="button small" href="/admin-users/{{ item.id }}/edit">Edit</a><a class="button small" href="/admin-users/{{ item.id }}/edit?focus=password" title="Set a new password for this panel user">Change password</a>{% endif %}{% if can('panel_users.delete') and item.id != admin.id %}<form method="post" action="/admin-users/{{ item.id }}/delete" onsubmit="return confirm('Delete panel user {{ item.username }}?')"><button class="button ghost-danger small">Delete</button></form>{% endif %}</div></div>
+      <div class="mobile-record-actions"><span>Actions</span><div>{% if can('panel_users.edit') %}<a class="button small" href="/admin-users/{{ item.id }}/edit">Edit</a><a class="button small" href="/admin-users/{{ item.id }}/edit?focus=password" title="Set a new password for this panel user">Change password</a>{% endif %}{% if is_super_admin %}{% if item.password_vault_enc %}<button type="button" class="button small" data-vault-user-id="{{ item.id }}" data-vault-user-name="{{ item.username }}" aria-label="Show saved password for {{ item.username }}">Show saved</button>{% else %}<span class="muted-tag" title="Existing one-way password hashes cannot be recovered. Change password once to enable.">Reset to enable Show</span>{% endif %}{% endif %} {% if can('panel_users.delete') and item.id != admin.id %}<form method="post" action="/admin-users/{{ item.id }}/delete" onsubmit="return confirm('Delete panel user {{ item.username }}?')"><button class="button ghost-danger small">Delete</button></form>{% endif %}</div></div>
     </article>
   {% else %}
     <div class="mobile-empty">No panel users found.</div>
@@ -47,4 +48,95 @@
   </div>
 
 </section>
+
+{% if is_super_admin %}
+<dialog id="sf-panel-vault-dialog" class="sf-panel-vault-dialog" aria-labelledby="sf-panel-vault-title">
+  <h2 id="sf-panel-vault-title">Show saved panel password</h2>
+  <p id="sf-panel-vault-target">Confirm your Super Admin password to reveal the saved credential.</p>
+  <label for="sf-panel-vault-reauth">Your Super Admin password</label>
+  <input id="sf-panel-vault-reauth" type="password" autocomplete="current-password" spellcheck="false" maxlength="1024">
+  <p id="sf-panel-vault-message" role="status" aria-live="polite"></p>
+  <div id="sf-panel-vault-result" hidden>
+    <label>Saved password (auto-hides after 10 seconds)</label>
+    <code id="sf-panel-vault-secret" class="sf-panel-vault-secret"></code>
+  </div>
+  <div class="form-actions">
+    <button type="button" class="button" id="sf-panel-vault-close">Close</button>
+    <button type="button" class="button primary" id="sf-panel-vault-reveal">Verify &amp; Show</button>
+  </div>
+</dialog>
+<style>
+.sf-panel-vault-dialog { width:min(480px,calc(100vw - 32px)); border:1px solid var(--border); border-radius:12px; padding:22px; color:var(--text); background:var(--panel); box-shadow:0 20px 70px #0006; }
+.sf-panel-vault-dialog::backdrop { background:rgba(0,0,0,.70); }
+.sf-panel-vault-dialog input { display:block; margin:8px 0 16px; width:100%; }
+.sf-panel-vault-secret { display:block; border:1px solid var(--border); padding:12px; margin:8px 0 16px; white-space:pre-wrap; word-break:break-all; }
+</style>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+  // STREAMFORGE_PANEL_PASSWORD_VAULT_LOGIN_GUARD_V1263: credentials are never
+  // present in document HTML until fresh super-admin reauthentication succeeds.
+  const panel = document.querySelector('[data-panel-vault-csrf]');
+  const dialog = document.getElementById('sf-panel-vault-dialog');
+  if (!panel || !dialog) return;
+  const input = document.getElementById('sf-panel-vault-reauth');
+  const secret = document.getElementById('sf-panel-vault-secret');
+  const result = document.getElementById('sf-panel-vault-result');
+  const message = document.getElementById('sf-panel-vault-message');
+  const reveal = document.getElementById('sf-panel-vault-reveal');
+  let target = null, expiry = null, pending = null;
+  const clear = () => {
+    if (expiry !== null) { clearTimeout(expiry); expiry = null; }
+    secret.textContent = '';
+    result.hidden = true;
+    input.value = '';
+  };
+  const close = () => { if (pending) pending.abort(); clear(); dialog.close(); };
+  document.getElementById('sf-panel-vault-close').addEventListener('click', close);
+  dialog.addEventListener('close', clear);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) clear(); });
+  document.querySelectorAll('[data-vault-user-id]').forEach(button => button.addEventListener('click', () => {
+    clear();
+    target = button.dataset.vaultUserId;
+    document.getElementById('sf-panel-vault-target').textContent = 'Confirm your password to reveal the saved credential for ' + button.dataset.vaultUserName + '.';
+    message.textContent = '';
+    dialog.showModal();
+    input.focus();
+  }));
+  reveal.addEventListener('click', async () => {
+    if (!target || !input.value || pending) return;
+    reveal.disabled = true;
+    message.textContent = 'Verifying…';
+    pending = new AbortController();
+    try {
+      const root = String(window.STREAMFORGE_APP_ROOT || '').replace(/\/+$/, '');
+      const response = await fetch(root + '/admin-users/' + encodeURIComponent(target) + '/password/reveal', {
+        method:'POST', credentials:'same-origin', cache:'no-store',
+        headers:{'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
+        body:JSON.stringify({current_password:input.value,csrf_token:panel.dataset.panelVaultCsrf}),
+        signal:pending.signal,
+      });
+      input.value = '';
+      const data = await response.json();
+      if (!response.ok || typeof data.password !== 'string') {
+        message.textContent = response.status === 409 ? 'No saved password. Reset this user password first.' :
+          response.status === 429 ? 'Too many attempts. Try again later.' : 'Could not reveal saved password.';
+        return;
+      }
+      secret.textContent = data.password;
+      result.hidden = false;
+      message.textContent = 'Verified. Password will be hidden automatically.';
+      expiry = setTimeout(() => { clear(); message.textContent = 'Password hidden.'; }, 10000);
+    } catch (_) {
+      message.textContent = 'Unable to verify at this time.';
+    } finally {
+      reveal.disabled = false;
+      pending = null;
+    }
+  });
+})();
+</script>
 {% endblock %}

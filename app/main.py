@@ -38,6 +38,8 @@ from sqlalchemy.orm import Session, object_session, selectinload
 from starlette.middleware.sessions import SessionMiddleware
 
 from .auth import current_admin, hash_password, verify_password
+from .panel_password_security import (encrypt_panel_password, decrypt_panel_password, VaultUnavailable,
+    login_allowed, record_login_failure, clear_login_failures, AuthGuardUnavailable)
 from .config import settings
 from .db import Base, SessionLocal, engine, ensure_runtime_schema, get_db
 from .ffmpeg import stream_manager
@@ -5582,6 +5584,52 @@ def login_page(request: Request, db: Session = Depends(get_db)):
     return render(request, "login.html", db, error=None)
 
 
+# STREAMFORGE_PANEL_PASSWORD_VAULT_LOGIN_GUARD_V1263:
+# Durable, bounded login attempts and a separate encrypted recoverable vault.
+_DUMMY_LOGIN_HASH = hash_password("unavailable-account-padding-" + secrets.token_urlsafe(18))
+
+
+def _trusted_login_guard_ip(request: Request) -> str:
+    # STREAMFORGE_PANEL_GUARD_PROXY_IP_V1263: Nginx sets X-Real-IP from
+    # $remote_addr. Never trust the leftmost user-supplied X-Forwarded-For.
+    peer = str(request.client.host if request.client else "unknown")
+    try:
+        peer_address = ipaddress.ip_address(peer)
+        if peer_address.is_loopback:
+            real = str(request.headers.get("x-real-ip") or "").strip()
+            return str(ipaddress.ip_address(real))
+        return str(peer_address)
+    except ValueError:
+        return peer[:80]
+
+
+def _guard_allowed(scope: str, ip: str, username: str) -> bool:
+    try:
+        return login_allowed(scope, ip, username)
+    except AuthGuardUnavailable as exc:
+        raise HTTPException(503, "Login protection is unavailable") from exc
+
+
+def _guard_failed(scope: str, ip: str, username: str) -> None:
+    try:
+        record_login_failure(scope, ip, username)
+    except AuthGuardUnavailable as exc:
+        raise HTTPException(503, "Login protection is unavailable") from exc
+
+
+def _guard_succeeded(scope: str, ip: str, username: str) -> None:
+    try:
+        clear_login_failures(scope, ip, username)
+    except AuthGuardUnavailable as exc:
+        raise HTTPException(503, "Login protection is unavailable") from exc
+
+
+def _update_panel_password(admin: AdminUser, new_password: str) -> None:
+    ciphertext = encrypt_panel_password(new_password, admin.id)
+    admin.password_hash = hash_password(new_password)
+    admin.password_vault_enc = ciphertext
+
+
 @app.post("/login", response_class=HTMLResponse)
 def login(
     request: Request,
@@ -5589,11 +5637,21 @@ def login(
     password: str = Form(...),
     db: Session = Depends(get_db),
 ):
-    admin = db.scalar(select(AdminUser).where(AdminUser.username == username.strip()))
-    if not admin or not admin.is_active or not admin.main_panel_access or not verify_password(password, admin.password_hash):
-        # STREAMFORGE_ACCESS_LOG_CLIENT_IP_V73: Access logs always retain the real browser/client IP.
-        log_event(f"Failed panel login for {username.strip() or 'unknown'}", scope="auth", level="warning", actor=username.strip() or None, details={"ip": client_ip(request)})
+    submitted = username.strip()[:80]
+    ip = _trusted_login_guard_ip(request)
+    if not _guard_allowed("main", ip, submitted):
+        response = render(request, "login.html", db, error="Too many login attempts. Try again later.")
+        response.status_code = 429
+        response.headers["Retry-After"] = "900"
+        return response
+    admin = db.scalar(select(AdminUser).where(AdminUser.username == submitted))
+    valid = verify_password(password, admin.password_hash if (admin and admin.is_active and admin.main_panel_access) else _DUMMY_LOGIN_HASH)
+    if not valid or not admin or not admin.is_active or not admin.main_panel_access:
+        _guard_failed("main", ip, submitted)
+        log_event("Failed panel login", scope="auth", level="warning", actor=submitted or None, details={"ip": ip})
         return render(request, "login.html", db, error="Invalid username or password")
+    _guard_succeeded("main", ip, submitted)
+    request.session.clear()
     request.session["admin_id"] = admin.id
     log_event("Panel login succeeded", scope="auth", actor=admin.username, details={"ip": client_ip(request)})
     return RedirectResponse(first_allowed_path(admin), status_code=303)
@@ -9477,6 +9535,10 @@ async def node_panel_live_auth(
     if action not in {"login", "session", "change_password"} or not username:
         raise HTTPException(400, "Invalid live-auth action")
 
+    node_scope = "node:" + node.slug
+    node_client = submitted_client_ip if submitted_client_ip else "unknown"
+    if action == "login" and not _guard_allowed(node_scope, node_client, username):
+        raise HTTPException(429, "Too many login attempts. Try again later")
     admin = db.scalar(
         select(AdminUser)
         .options(selectinload(AdminUser.role))
@@ -9488,6 +9550,7 @@ async def node_panel_live_auth(
     )
     if not admin:
         if action == "login":
+            _guard_failed(node_scope, node_client, username)
             log_event(
                 f"Failed live Node panel login for {username or 'unknown'} on {node.name}",
                 scope="auth", level="warning", node_id=node.id, actor=username or None, details={"ip": submitted_client_ip} if submitted_client_ip else None,
@@ -9498,11 +9561,13 @@ async def node_panel_live_auth(
     if action == "login":
         password = str(payload.get("password") or "")
         if not verify_password(password, admin.password_hash):
+            _guard_failed(node_scope, node_client, username)
             log_event(
                 f"Failed live Node panel login for {username or 'unknown'} on {node.name}",
                 scope="auth", level="warning", node_id=node.id, actor=username or None, details={"ip": submitted_client_ip} if submitted_client_ip else None,
             )
             raise HTTPException(401, "Invalid username or password")
+        _guard_succeeded(node_scope, node_client, username)
         log_event(
             f"Live Node panel login succeeded on {node.name}",
             scope="auth", node_id=node.id, actor=admin.username, details={"ip": submitted_client_ip} if submitted_client_ip else None,
@@ -9517,7 +9582,7 @@ async def node_panel_live_auth(
             raise HTTPException(400, "New password must contain at least 8 characters")
         if verify_password(new_password, admin.password_hash):
             raise HTTPException(400, "New password must be different from the current password")
-        admin.password_hash = hash_password(new_password)
+        _update_panel_password(admin, new_password)
         db.commit()
         db.refresh(admin)
         auth_version = _panel_admin_auth_version(admin)
@@ -12405,7 +12470,7 @@ def account_password_change(
     if error:
         return render(request, "account_password.html", db, message="", error=error)
 
-    admin.password_hash = hash_password(new_password)
+    _update_panel_password(admin, new_password)
     affected_node_ids = {item.id for item in admin.nodes}
     db.commit()
     sync_errors = sync_panel_users_for_node_ids(affected_node_ids, request, db)
@@ -12426,6 +12491,9 @@ def admin_users_page(
     db: Session = Depends(get_db),
 ):
     actor = enforce_permission(request, db, "panel_users.view")
+    # Per-session CSRF token for sensitive credential reveal POST only.
+    if not request.session.get("panel_vault_csrf"):
+        request.session["panel_vault_csrf"] = secrets.token_urlsafe(32)
     panel_users = db.scalars(select(AdminUser).order_by(AdminUser.username)).unique().all()
     if not admin_is_super_admin(actor):
         panel_users = [
@@ -12437,8 +12505,78 @@ def admin_users_page(
         "admin_users.html",
         db,
         panel_users=panel_users,
+        vault_csrf=request.session["panel_vault_csrf"],
         error=error,
         message=message,
+    )
+
+
+# STREAMFORGE_PANEL_PASSWORD_VAULT_LOGIN_GUARD_V1263:
+# POST-only, session-CSRF-bound, super-admin-only and reauthenticated every reveal.
+@app.post("/admin-users/{admin_user_id}/password/reveal", dependencies=[Depends(permission_required("panel_users.view"))])
+async def admin_user_reveal_saved_password(admin_user_id: int, request: Request, db: Session = Depends(get_db)):
+    actor = enforce_permission(request, db, "panel_users.view")
+    if not admin_is_super_admin(actor):
+        raise HTTPException(403, "Insufficient permissions")
+    # Only disclose recovered credentials over encrypted transport.
+    # Nginx sets the forwarded scheme on its trusted loopback connection.
+    peer = str(request.client.host if request.client else "")
+    proxy_tls = peer in {"127.0.0.1", "::1"} and (
+        request.headers.get("x-forwarded-proto", "").split(",", 1)[0].strip() == "https"
+    )
+    if request.url.scheme != "https" and not proxy_tls:
+        raise HTTPException(403, "Use HTTPS for this operation")
+    if request.headers.get("sec-fetch-site", "same-origin") not in {"same-origin", "none"}:
+        raise HTTPException(403, "Cross-site request blocked")
+    origin = request.headers.get("origin")
+    if origin:
+        parsed = urlsplit(origin)
+        if parsed.scheme not in {"http", "https"} or parsed.netloc.lower() != str(request.headers.get("host") or "").lower():
+            raise HTTPException(403, "Cross-origin request blocked")
+    raw = await request.body()
+    if len(raw) > 4096:
+        raise HTTPException(413, "Request too large")
+    try:
+        data = json.loads(raw)
+    except (ValueError, UnicodeError):
+        raise HTTPException(400, "Invalid request")
+    if not isinstance(data, dict):
+        raise HTTPException(400, "Invalid request")
+    token = str(data.get("csrf_token") or "")
+    expected_token = str(request.session.get("panel_vault_csrf") or "")
+    if not expected_token or not token or not hmac.compare_digest(token, expected_token):
+        raise HTTPException(403, "Invalid request token")
+    client = _trusted_login_guard_ip(request)
+    if not _guard_allowed("reveal", client, actor.username):
+        raise HTTPException(429, "Too many verification attempts")
+    verifier_password = data.get("current_password")
+    if not isinstance(verifier_password, str) or len(verifier_password) > 1024:
+        raise HTTPException(400, "Invalid request")
+    if not verify_password(verifier_password, actor.password_hash):
+        _guard_failed("reveal", client, actor.username)
+        log_event("Panel password reveal verification failed", scope="auth", level="warning",
+                  actor=actor.username, details={"ip":client, "target_id":admin_user_id})
+        raise HTTPException(401, "Verification failed")
+    _guard_succeeded("reveal", client, actor.username)
+    target = db.get(AdminUser, admin_user_id)
+    if not target:
+        raise HTTPException(404)
+    if not target.password_vault_enc:
+        raise HTTPException(409, "Saved password unavailable. Set a new password first.")
+    try:
+        password = decrypt_panel_password(target.password_vault_enc, target.id)
+    except VaultUnavailable as exc:
+        log_event("Panel password vault unavailable", scope="auth", level="error",
+                  actor=actor.username, details={"target_id":target.id})
+        raise HTTPException(503, "Password vault unavailable") from exc
+    if password is None:
+        raise HTTPException(409, "Saved password unavailable. Set a new password first.")
+    log_event("Panel password revealed", scope="auth", actor=actor.username,
+              details={"target_id": target.id, "ip":client})
+    return JSONResponse(
+        {"password":password},
+        headers={"Cache-Control":"no-store, private, max-age=0", "Pragma":"no-cache",
+                 "X-Content-Type-Options":"nosniff", "Referrer-Policy":"no-referrer"},
     )
 
 
@@ -12503,6 +12641,8 @@ def admin_user_create(
         nodes=selected_nodes,
     )
     db.add(panel_user)
+    db.flush()
+    panel_user.password_vault_enc = encrypt_panel_password(password, panel_user.id)
     db.commit()
     sync_errors = sync_panel_users_for_node_ids({item.id for item in selected_nodes}, request, db)
     return panel_admin_redirect(
@@ -12592,7 +12732,7 @@ def admin_user_update(
     panel_user.main_panel_access = new_main_access
     panel_user.nodes = selected_nodes
     if password:
-        panel_user.password_hash = hash_password(password)
+        _update_panel_password(panel_user, password)
     db.commit()
     affected_node_ids = old_node_ids | {item.id for item in selected_nodes}
     sync_errors = sync_panel_users_for_node_ids(affected_node_ids, request, db)

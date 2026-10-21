@@ -31,6 +31,10 @@ else:
             f"{updater.name} runs py_compile in SOURCE_DIR before staging and can create __pycache__"
         )
 
+    # STREAMFORGE_RELEASE_BOUNDED_PANEL_VAULT_V1263:
+    # Main security only: Node runtime must be byte-identical to v12.62.
+    bounded_panel_vault_v1263 = "STREAMFORGE_V1263_MAIN_SECURITY_NODE_RUNTIME_ALIGNMENT" in text
+
     # STREAMFORGE_RELEASE_BOUNDED_PANEL_PASSWORD_NAV_V1262:
     # v12.62 is limited to the Panel user templates plus version metadata.
     bounded_password_nav_v1262 = "STREAMFORGE_V1262_MAIN_UI_ONLY_NODE_VERSION_ALIGNMENT" in text
@@ -74,7 +78,32 @@ else:
         None,
     )
 
-    if bounded_password_nav_v1262:
+    if bounded_panel_vault_v1263:
+        if 'cp -a "$SOURCE_DIR/." "$STAGE/"' in text:
+            errors.append(f"{updater.name} v12.63 security updater copies full release tree")
+        for marker in (
+            'TARGET_VERSION="12.63"',
+            'NODE_TARGET_VERSION="12.63"',
+            '12.62|12.63',
+            'STREAMFORGE_PANEL_PASSWORD_VAULT_LOGIN_GUARD_V1263',
+            'STREAMFORGE_V1263_MAIN_SECURITY_NODE_RUNTIME_ALIGNMENT',
+            'STREAMFORGE_NODE_UPDATE_UI_SPACING_V1259',
+            'STREAMFORGE_NODE_UPDATE_CENTER_CLEANUP_V1258',
+            'test_v1263_security.py',
+            'app/panel_password_security.py',
+            'app/main.py',
+            'app/models.py',
+            'app/db.py',
+            'app/templates/admin_users.html',
+            'app/templates/admin_user_form.html',
+            'Node runtime payload differs for:',
+            'VAULT_KEY_PATH',
+            'runuser -u streamforge',
+            'atomic_copy',
+        ):
+            if marker not in text:
+                errors.append(f"{updater.name} v12.63 bounded security contract missing {marker}")
+    elif bounded_password_nav_v1262:
         if 'cp -a "$SOURCE_DIR/." "$STAGE/"' in text:
             errors.append(f"{updater.name} v12.62 bounded navigation fix copies full release tree")
         for marker in (
