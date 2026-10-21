@@ -6290,6 +6290,9 @@ class AgentManager:
         elif action == "change_password":
             payload["current_password"] = password
             payload["new_password"] = auth_version
+            # STREAMFORGE_V1266_NODE_VAULT_DISCLOSURE:
+            # This Node form now visibly discloses managed password retention.
+            payload["managed_password_notice"] = True
         else:
             payload["auth_version"] = auth_version
         url = (
@@ -10978,6 +10981,7 @@ def node_panel_account_password_page(request: Request, message: str = "", error:
         + '<div class="panel-head"><div><h2>Change password</h2><p>Update the password for '
         + html.escape(user.username)
         + '. The credential is changed on the Main Server and is immediately valid on this Node.</p></div></div>'
+        + '<p class="field-help" role="note"><strong>Managed password retention:</strong> Your new password will be encrypted and retained on the Main Server so authorized administrators can view it after reauthentication. No checkbox is required. If you do not want an administrator-recoverable password, contact your Panel administrator before continuing.</p>'
         + '<div class="form-grid">'
         + '<label>Current password<input type="password" name="current_password" autocomplete="current-password" required></label>'
         + '<label>New password<input type="password" name="new_password" minlength="8" autocomplete="new-password" required><small class="field-help">Minimum 8 characters.</small></label>'
