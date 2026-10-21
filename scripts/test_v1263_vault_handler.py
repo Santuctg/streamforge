@@ -41,7 +41,7 @@ class FakeRequest:
         self.base_url="https://example.test/"
 
 actor=SimpleNamespace(id=1,username="superadmin",password_hash="hashed_admin")
-target=SimpleNamespace(id=3,password_vault_enc="cipher")
+target=SimpleNamespace(id=3,password_vault_enc="cipher",password_hash="hashed_user")
 events=[]
 context={
     "JSONResponse":MockResponse, "HTTPException":MockError,
@@ -66,7 +66,7 @@ assert "synthetic-user-pass" not in str(events)
 assert call(request=FakeRequest("https://evil.example")).status==403
 assert call(request=FakeRequest(origin="")).status==403
 assert call(db=FakeDB(None)).status==404
-assert call(db=FakeDB(SimpleNamespace(id=3,password_vault_enc=None))).status==404
+assert call(db=FakeDB(SimpleNamespace(id=3,password_vault_enc=None,password_hash="hashed_user"))).status==404
 assert call("wrong-admin").status==403
 assert "synthetic-admin-pass" not in str(events)
 context["admin_is_super_admin"]=lambda actor:False
