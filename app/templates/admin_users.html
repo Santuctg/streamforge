@@ -47,12 +47,12 @@
   </div>
 
 
-{# STREAMFORGE_V1263_VAULT_LOCKED_USERS_WEB — visible only to unrestricted Super Admin. #}
+{# STREAMFORGE_V1263_PANEL_LOGIN_LOCKED_USERS_WEB — visible only to unrestricted Super Admin. #}
 {% if is_super_admin %}
 <section class="panel" data-vault-lock-console style="margin-top:20px" data-vault-lock-csrf="{{ vault_csrf_token }}">
   <div class="panel-head">
-    <div><h2>Security · Password Vault · Locked Users</h2>
-      <p>Saved-password reveal locks only. Main Panel and Node login remain unaffected.</p>
+    <div><h2>Security · Panel Login · Locked Users</h2>
+      <p>Five incorrect Panel login passwords within 15 minutes block new Main and Remote Node logins for 3 hours. Existing sessions stay active.</p>
     </div>
     <button type="button" class="button small" data-vault-lock-refresh>Refresh</button>
   </div>
@@ -64,7 +64,7 @@
   </div>
   <div class="sf-vault-overlay" data-vault-unlock-overlay hidden style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(4,11,27,.72);align-items:center;justify-content:center;padding:18px">
     <section class="sf-vault-dialog" role="dialog" aria-modal="true" aria-labelledby="vault-unlock-heading" style="background:var(--panel,#121a29);color:var(--text,inherit);padding:22px;border-radius:14px;width:min(520px,100%);border:1px solid var(--border)">
-      <h3 id="vault-unlock-heading">Manually unlock saved-password reveal</h3>
+      <h3 id="vault-unlock-heading">Manually unlock Panel login</h3>
       <p data-vault-unlock-label></p>
       <label for="vault-unlock-password">Your Super Admin password</label>
       <input id="vault-unlock-password" type="password" data-vault-unlock-password autocomplete="current-password" style="width:100%;box-sizing:border-box">
@@ -108,7 +108,7 @@
       const tr = document.createElement('tr');
       const cell = document.createElement('td');
       cell.colSpan = 5;
-      cell.textContent = 'No accounts currently blocked from saved-password reveal.';
+      cell.textContent = 'No accounts currently blocked from Panel login.';
       tr.appendChild(cell); tbody.appendChild(tr); return;
     }
     for (const item of deadlineRows) {
@@ -143,12 +143,12 @@
     if (document.hidden) return;
     try {
       status.textContent = 'Loading…';
-      const response = await fetch(root + '/admin-users/password-vault/locked-users',
+      const response = await fetch(root + '/admin-users/login-security/locked-users',
         {credentials:'same-origin', cache:'no-store', headers:{Accept:'application/json'}});
       const payload = await response.json();
       if (!response.ok || !Array.isArray(payload.locked_users)) throw Error(payload.error || 'Unable to load lockouts');
       deadlineRows = payload.locked_users;
-      status.textContent = String(deadlineRows.length) + ' active saved-password reveal lock(s)';
+      status.textContent = String(deadlineRows.length) + ' active Panel login lock(s)';
       render();
     } catch (err) {
       deadlineRows = []; tbody.replaceChildren();
@@ -174,7 +174,7 @@
     confirm.disabled = true;
     msg.hidden = true;
     try {
-      const response = await fetch(root + '/admin-users/password-vault/locked-users/' + target + '/unlock', {
+      const response = await fetch(root + '/admin-users/login-security/locked-users/' + target + '/unlock', {
         method:'POST', credentials:'same-origin', cache:'no-store',
         headers:{'Content-Type':'application/x-www-form-urlencoded', Accept:'application/json'}, body,
       });

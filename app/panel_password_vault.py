@@ -29,6 +29,7 @@ from .audit_log import log_event
 from .db import get_db
 from .models import AdminUser, PanelUserCredentialVault
 from .permissions import SUPERUSER_PERMISSION, role_permission_set, has_permission
+from .panel_login_guard import LoginGuardUnavailable, list_locked_logins, unlock_login_user
 
 router = APIRouter()
 CSRF_SESSION_KEY = "sf_panel_vault_csrf"
@@ -260,62 +261,20 @@ def _vault_super_admin(actor: AdminUser | None) -> bool:
                 and actor.role and SUPERUSER_PERMISSION in role_permission_set(actor.role))
 
 
-def _locked_rows(db: Session) -> list[dict]:
-    now = int(time.time())
-    try:
-        with closing(_guard_connection()) as conn:
-            records = conn.execute(
-                "SELECT actor_id, failures, blocked_until FROM reveal_failures "
-                "WHERE blocked_until > ? ORDER BY blocked_until DESC, actor_id", (now,),
-            ).fetchall()
-    except sqlite3.Error as exc:
-        raise VaultGuardUnavailable("Vault reveal guard unavailable") from exc
-    rows = []
-    for actor_id, failures, deadline in records:
-        user = db.get(AdminUser, int(actor_id))
-        rows.append({
-            "actor_id": int(actor_id),
-            "username": user.username if user else "Deleted account",
-            "failed_attempts": int(failures),
-            "blocked_until": int(deadline),
-            "remaining_seconds": max(0, int(deadline) - now),
-            "account_exists": user is not None,
-        })
-    return rows
-
-
-def _unlock_reveal_actor(actor_id: int) -> bool:
-    now = int(time.time())
-    conn = _guard_connection()
-    try:
-        conn.execute("BEGIN IMMEDIATE")
-        cursor = conn.execute(
-            "DELETE FROM reveal_failures WHERE actor_id = ? AND blocked_until > ?",
-            (int(actor_id), now),
-        )
-        conn.commit()
-        return cursor.rowcount == 1
-    except sqlite3.Error as exc:
-        conn.rollback()
-        raise VaultGuardUnavailable("Vault reveal guard unavailable") from exc
-    finally:
-        conn.close()
-
-
-@router.get("/admin-users/password-vault/locked-users")
-def list_vault_locked_users(request: Request, db: Session = Depends(get_db)):
+@router.get("/admin-users/login-security/locked-users")
+def list_panel_locked_logins(request: Request, db: Session = Depends(get_db)):
     actor = current_admin(request, db)
     if not _vault_super_admin(actor):
         return _secret_response({"error": "Super Admin access required"}, 403)
     try:
-        users = _locked_rows(db)
-    except VaultGuardUnavailable:
-        return _secret_response({"error": "Lockout information unavailable"}, 503)
+        users = list_locked_logins(db)
+    except LoginGuardUnavailable:
+        return _secret_response({"error": "Panel login lockout information unavailable"}, 503)
     return _secret_response({"locked_users": users, "count": len(users)})
 
 
-@router.post("/admin-users/password-vault/locked-users/{actor_id}/unlock")
-def unlock_vault_locked_user(
+@router.post("/admin-users/login-security/locked-users/{actor_id}/unlock")
+def unlock_panel_login_user(
     actor_id: int, request: Request,
     reauth_password: str = Form(...), csrf_token: str = Form(...),
     db: Session = Depends(get_db),
@@ -343,13 +302,17 @@ def unlock_vault_locked_user(
                       details={"target_user_id": actor_id})
             return _secret_response({"error": "Authentication failed"}, 403)
         _clear_failures(actor, purpose="unlock")
-        if not _unlock_reveal_actor(actor_id):
-            return _secret_response({"error": "No active reveal lock for this account"}, 409)
+        if not unlock_login_user(actor_id):
+            return _secret_response({"error": "No active Panel login lock for this account"}, 409)
+    except LoginGuardUnavailable:
+        log_event("Panel login manual unlock guard unavailable", scope="auth", level="error",
+                  actor=actor.username, details={"target_user_id": actor_id})
+        return _secret_response({"error": "Login unlock protection unavailable"}, 503)
     except VaultGuardUnavailable:
         log_event("Vault manual unlock guard unavailable", scope="auth", level="error",
                   actor=actor.username, details={"target_user_id": actor_id})
         return _secret_response({"error": "Unlock protection unavailable"}, 503)
-    log_event("Panel password reveal manually unlocked", scope="auth",
+    log_event("Panel login manually unlocked", scope="auth",
               actor=actor.username, details={"target_user_id": actor_id})
     return _secret_response({"ok": True, "unlocked_actor_id": actor_id})
 

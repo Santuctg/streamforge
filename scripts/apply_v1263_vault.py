@@ -33,6 +33,26 @@ def transform(source: str) -> str:
         "vault import",
     )
     source = replace_once(
+        source,
+        "from .secrets_store import encrypt_secret, decrypt_secret\n"
+        "# STREAMFORGE_PANEL_CREDENTIAL_VAULT_V1263: Main-only opt-in encrypted credentials.\n"
+        "from .panel_password_vault import (\n"
+        "    router as panel_vault_router, can_vault_reveal, can_vault_manage, vault_enabled, vault_csrf_token,\n"
+        "    vault_password_available, vault_store, vault_discard,\n"
+        ")",
+        "from .secrets_store import encrypt_secret, decrypt_secret\n"
+        "# STREAMFORGE_PANEL_CREDENTIAL_VAULT_V1263: Main-only opt-in encrypted credentials.\n"
+        "from .panel_password_vault import (\n"
+        "    router as panel_vault_router, can_vault_reveal, can_vault_manage, vault_enabled, vault_csrf_token,\n"
+        "    vault_password_available, vault_store, vault_discard,\n"
+        ")\n"
+        "# STREAMFORGE_V1263_PANEL_LOGIN_LOCK_GUARD: cross-Main/Node login failures.\n"
+        "from .panel_login_guard import (\n"
+        "    LoginGuardUnavailable, login_locked, record_login_failure, clear_login_failures,\n"
+        ")",
+        "panel login guard import",
+    )
+    source = replace_once(
         source, 'app = FastAPI(title="StreamForge", lifespan=lifespan)',
         'app = FastAPI(title="StreamForge", lifespan=lifespan)\n'
         'app.include_router(panel_vault_router)  # protected Main-only vault POST',
@@ -196,6 +216,10 @@ def transform(source: str) -> str:
         '    return panel_admin_redirect("/roles", message="Role updated")',
         "role update audit",
     )
+    # MAIN + live-auth Node panel logins share one persistent per-user lockout.
+    # Node sessions and streaming-account APIs do not use this login guard.
+    source = replace_once(source, "    admin = db.scalar(select(AdminUser).where(AdminUser.username == username.strip()))\n    if not admin or not admin.is_active or not admin.main_panel_access or not verify_password(password, admin.password_hash):\n        # STREAMFORGE_ACCESS_LOG_CLIENT_IP_V73: Access logs always retain the real browser/client IP.\n        log_event(f\"Failed panel login for {username.strip() or 'unknown'}\", scope=\"auth\", level=\"warning\", actor=username.strip() or None, details={\"ip\": client_ip(request)})\n        return render(request, \"login.html\", db, error=\"Invalid username or password\")\n    request.session[\"admin_id\"] = admin.id", "    admin = db.scalar(select(AdminUser).where(AdminUser.username == username.strip()))\n    allowed = bool(admin and admin.is_active and admin.main_panel_access)\n    try:\n        if allowed and login_locked(admin.id):\n            log_event(\"Panel login denied: account locked\", scope=\"auth\", level=\"warning\",\n                      actor=admin.username, details={\"ip\": client_ip(request)})\n            return render(request, \"login.html\", db, error=\"Invalid username or password\")\n        correct = bool(allowed and verify_password(password, admin.password_hash))\n        if not correct:\n            # Unknown/disabled accounts do not create persistent per-account rows.\n            if allowed and record_login_failure(admin.id):\n                log_event(\"Panel login blocked after failed passwords\", scope=\"auth\", level=\"warning\",\n                          actor=admin.username, details={\"ip\": client_ip(request)})\n            log_event(f\"Failed panel login for {username.strip() or 'unknown'}\", scope=\"auth\",\n                      level=\"warning\", actor=username.strip() or None, details={\"ip\": client_ip(request)})\n            return render(request, \"login.html\", db, error=\"Invalid username or password\")\n        # Recheck to block concurrent incorrect requests that activated a lock.\n        if login_locked(admin.id):\n            return render(request, \"login.html\", db, error=\"Invalid username or password\")\n        clear_login_failures(admin.id)\n    except LoginGuardUnavailable:\n        log_event(\"Panel login guard unavailable\", scope=\"auth\", level=\"error\",\n                  actor=username.strip() or None)\n        return render(request, \"login.html\", db, error=\"Login temporarily unavailable\")\n    request.session[\"admin_id\"] = admin.id", "Main login lockout")
+    source = replace_once(source, "    auth_version = _panel_admin_auth_version(admin)\n    if action == \"login\":\n        password = str(payload.get(\"password\") or \"\")\n        if not verify_password(password, admin.password_hash):\n            log_event(\n                f\"Failed live Node panel login for {username or 'unknown'} on {node.name}\",\n                scope=\"auth\", level=\"warning\", node_id=node.id, actor=username or None, details={\"ip\": submitted_client_ip} if submitted_client_ip else None,\n            )\n            raise HTTPException(401, \"Invalid username or password\")\n        log_event(\n            f\"Live Node panel login succeeded on {node.name}\",\n            scope=\"auth\", node_id=node.id, actor=admin.username, details={\"ip\": submitted_client_ip} if submitted_client_ip else None,\n        )", "    auth_version = _panel_admin_auth_version(admin)\n    if action == \"login\":\n        try:\n            if login_locked(admin.id):\n                log_event(\"Live Node Panel login denied: account locked\", scope=\"auth\",\n                          level=\"warning\", node_id=node.id, actor=admin.username)\n                raise HTTPException(401, \"Invalid username or password\")\n            password = str(payload.get(\"password\") or \"\")\n            if not verify_password(password, admin.password_hash):\n                if record_login_failure(admin.id):\n                    log_event(\"Panel login blocked after failed Node passwords\", scope=\"auth\",\n                              level=\"warning\", node_id=node.id, actor=admin.username)\n                log_event(\n                    f\"Failed live Node panel login for {username or 'unknown'} on {node.name}\",\n                    scope=\"auth\", level=\"warning\", node_id=node.id, actor=username or None, details={\"ip\": submitted_client_ip} if submitted_client_ip else None,\n                )\n                raise HTTPException(401, \"Invalid username or password\")\n            if login_locked(admin.id):\n                raise HTTPException(401, \"Invalid username or password\")\n            clear_login_failures(admin.id)\n        except LoginGuardUnavailable as exc:\n            log_event(\"Live Node Panel login guard unavailable\", scope=\"auth\", level=\"error\",\n                      node_id=node.id, actor=username or None)\n            raise HTTPException(503, \"Panel login temporarily unavailable\") from exc\n        log_event(\n            f\"Live Node panel login succeeded on {node.name}\",\n            scope=\"auth\", node_id=node.id, actor=admin.username, details={\"ip\": submitted_client_ip} if submitted_client_ip else None,\n        )", "Node live login lockout")
     compile(source, "app/main.py", "exec")
     return source
 
