@@ -31,6 +31,10 @@ else:
             f"{updater.name} runs py_compile in SOURCE_DIR before staging and can create __pycache__"
         )
 
+    # STREAMFORGE_RELEASE_BOUNDED_MANAGED_VAULT_V1266:
+    # Staged Main patches plus a single versioned Node Agent app.py change.
+    bounded_managed_v1266 = "STREAMFORGE_V1266_BOUNDED_AUTO_VAULT" in text
+
     # STREAMFORGE_RELEASE_BOUNDED_PANEL_IP_ORIGIN_V1265:
     # 12.65 adds server provenance with a bounded Main/Node login patch.
     bounded_ip_origin_v1265 = "STREAMFORGE_V1265_MAIN_ONLY_IP_BLOCK_ORIGIN_NODE_PARITY" in text
@@ -86,7 +90,29 @@ else:
         None,
     )
 
-    if bounded_ip_origin_v1265:
+    if bounded_managed_v1266:
+        if 'cp -a "$SRC/." "$STAGE/"' in text:
+            errors.append(f"{updater.name} v12.66 unexpectedly copies full release source")
+        for marker in (
+            'TARGET_VERSION="12.66"',
+            'NODE_TARGET_VERSION="12.66"',
+            '12.64|12.65|12.66',
+            'STREAMFORGE_V1266_BOUNDED_AUTO_VAULT',
+            'STREAMFORGE_V1266_NODE_SOURCE_PARITY',
+            'STREAMFORGE_V1266_AUTO_VAULT',
+            'STREAMFORGE_V1266_NODE_VAULT_DISCLOSURE',
+            'scripts/apply_v1264_ip_lock.py',
+            'scripts/apply_v1265_ip_origin.py',
+            'scripts/apply_v1266_auto_vault.py',
+            'node_agent/app.py',
+            'app/templates/admin_user_form.html',
+            'app/templates/account_password.html',
+            'Rolling back from',
+            'atomic_copy',
+        ):
+            if marker not in text:
+                errors.append(f"{updater.name} v12.66 managed vault contract missing {marker}")
+    elif bounded_ip_origin_v1265:
         if 'cp -a "$SRC/." "$STAGE/"' in text:
             errors.append(f"{updater.name} v12.65 source tracking copied full release tree")
         for marker in (

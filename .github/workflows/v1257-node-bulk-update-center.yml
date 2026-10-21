@@ -31,6 +31,12 @@ jobs:
         run: |
           set -euo pipefail
           changed="$(git diff --name-only v12.56 -- node_agent | grep -v '^node_agent/VERSION$' || true)"
+          if [[ "$(tr -d '[:space:]' < VERSION)" == "12.66" ]]; then
+            # Only the disclosed Node password form change is allowed.
+            changed="$(printf '%s\n' "$changed" | grep -v '^node_agent/app.py$' || true)"
+            grep -Fq 'STREAMFORGE_V1266_NODE_VAULT_DISCLOSURE' node_agent/app.py
+            grep -Fq 'STREAMFORGE_V1266_NODE_SOURCE_PARITY' scripts/force_update_v1266.sh
+          fi
           if [[ -n "$changed" ]]; then
             echo "Node runtime unexpectedly changed from proven v12.56 payload:" >&2
             echo "$changed" >&2

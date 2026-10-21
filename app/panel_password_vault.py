@@ -167,7 +167,7 @@ def vault_hash_fingerprint(encoded_hash: str) -> str:
 
 
 def vault_store(db: Session, user: AdminUser, password: str) -> bool:
-    """Store a new password only when explicit opt-in and key are present.
+    """Store an explicitly disclosed managed password when the key is present.
 
     Caller is responsible for transaction commit after changing the login hash.
     """
@@ -193,7 +193,7 @@ def vault_store(db: Session, user: AdminUser, password: str) -> bool:
 
 
 def vault_discard(db: Session, user_id: int) -> None:
-    """Remove stale stored passwords when a reset is not vault-opted-in."""
+    """Remove stale stored passwords for legacy Node updates or deleted users."""
     row = db.get(PanelUserCredentialVault, int(user_id))
     if row is not None:
         db.delete(row)
