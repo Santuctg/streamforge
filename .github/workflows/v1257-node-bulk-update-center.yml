@@ -30,7 +30,114 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          changed="$(git diff --name-only v12.56 -- node_agent | grep -v '^node_agent/VERSION$' || true)"
+          if [[ "$(tr -d '[:space:]' < VERSION)" == "12.66" ]]; then
+            # v12.66 intentionally changes only the disclosed Node password form
+            # and its authenticated Main live-auth request flag.
+            changed="$(git diff --name-only v12.56 -- node_agent | grep -vE '^node_agent/(VERSION|app.py)
+            echo "Node runtime unexpectedly changed from proven v12.56 payload:" >&2
+            echo "$changed" >&2
+            exit 1
+          fi
+      - name: Apply v12.57 source integration only on v12.57
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$(tr -d '[:space:]' < VERSION)" == "12.57" ]]; then
+            python3 scripts/apply_v1257_node_bulk_update_center.py
+          else
+            echo 'Historical v12.57 source transformation skipped for later release.'
+          fi
+      - name: Verify v12.57 Node Bulk Update Center carry-forward
+        run: python3 scripts/verify_node_bulk_update_center_v1257.py
+      - name: Verify v12.57 updater integration only on v12.57
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$(tr -d '[:space:]' < VERSION)" == "12.57" ]]; then
+            python3 scripts/test_v1257_updater_integration.py
+          else
+            echo 'Historical v12.57 updater integration skipped for later release.'
+          fi
+      - name: Verify current release updater staging contract
+        run: python3 scripts/verify_release_updater_staging.py
+      - name: Verify carry-forward guards
+        run: |
+          python3 scripts/verify_webplayer_hlsjs_first_v1256.py .
+          python3 scripts/verify_main_waiting_retry_v1253.py .
+          python3 scripts/verify_node_relay_probe_dedupe_v1251.py node_agent/app.py
+          grep -Fq 'STREAMFORGE_LOCAL_RELAY_DB_CLOSE_V1250' app/main.py
+      - name: Verify historical v12.57 updater does not restart supervisor or Nginx
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -Eq 'systemctl[[:space:]]+(restart|reload)[[:space:]]+streamforge-channel-supervisor' scripts/force_update_v1257.sh; then
+            echo 'v12.57 updater must not restart the Main channel supervisor' >&2
+            exit 1
+          fi
+          if grep -Eq 'systemctl[[:space:]]+(restart|reload)[[:space:]]+nginx' scripts/force_update_v1257.sh; then
+            echo 'v12.57 updater must not restart/reload Nginx' >&2
+            exit 1
+          fi
+      - name: Verify Python syntax
+        run: python3 -c "from pathlib import Path; compile(Path('app/main.py').read_text(), 'app/main.py', 'exec')"
+      - name: Verify historical updater shell syntax
+        run: bash -n scripts/force_update_v1257.sh
+ || true)"
+            grep -Fq 'STREAMFORGE_V1266_NODE_VAULT_DISCLOSURE' node_agent/app.py
+            grep -Fq 'OLD_NODE_GIT_BLOB_SHA="4683d9740def533a9d384b5a0115c61a94942d8d"' scripts/force_update_v1266.sh
+            grep -Fq 'STREAMFORGE_V1266_NODE_SOURCE_PARITY' scripts/force_update_v1266.sh
+          else
+            changed="$(git diff --name-only v12.56 -- node_agent | grep -v '^node_agent/VERSION
+            echo "Node runtime unexpectedly changed from proven v12.56 payload:" >&2
+            echo "$changed" >&2
+            exit 1
+          fi
+      - name: Apply v12.57 source integration only on v12.57
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$(tr -d '[:space:]' < VERSION)" == "12.57" ]]; then
+            python3 scripts/apply_v1257_node_bulk_update_center.py
+          else
+            echo 'Historical v12.57 source transformation skipped for later release.'
+          fi
+      - name: Verify v12.57 Node Bulk Update Center carry-forward
+        run: python3 scripts/verify_node_bulk_update_center_v1257.py
+      - name: Verify v12.57 updater integration only on v12.57
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$(tr -d '[:space:]' < VERSION)" == "12.57" ]]; then
+            python3 scripts/test_v1257_updater_integration.py
+          else
+            echo 'Historical v12.57 updater integration skipped for later release.'
+          fi
+      - name: Verify current release updater staging contract
+        run: python3 scripts/verify_release_updater_staging.py
+      - name: Verify carry-forward guards
+        run: |
+          python3 scripts/verify_webplayer_hlsjs_first_v1256.py .
+          python3 scripts/verify_main_waiting_retry_v1253.py .
+          python3 scripts/verify_node_relay_probe_dedupe_v1251.py node_agent/app.py
+          grep -Fq 'STREAMFORGE_LOCAL_RELAY_DB_CLOSE_V1250' app/main.py
+      - name: Verify historical v12.57 updater does not restart supervisor or Nginx
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -Eq 'systemctl[[:space:]]+(restart|reload)[[:space:]]+streamforge-channel-supervisor' scripts/force_update_v1257.sh; then
+            echo 'v12.57 updater must not restart the Main channel supervisor' >&2
+            exit 1
+          fi
+          if grep -Eq 'systemctl[[:space:]]+(restart|reload)[[:space:]]+nginx' scripts/force_update_v1257.sh; then
+            echo 'v12.57 updater must not restart/reload Nginx' >&2
+            exit 1
+          fi
+      - name: Verify Python syntax
+        run: python3 -c "from pathlib import Path; compile(Path('app/main.py').read_text(), 'app/main.py', 'exec')"
+      - name: Verify historical updater shell syntax
+        run: bash -n scripts/force_update_v1257.sh
+ || true)"
+          fi
           if [[ -n "$changed" ]]; then
             echo "Node runtime unexpectedly changed from proven v12.56 payload:" >&2
             echo "$changed" >&2
