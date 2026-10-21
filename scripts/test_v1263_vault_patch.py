@@ -18,7 +18,8 @@ compile(updated, "app/main.py", "exec")
 for marker in (
     "STREAMFORGE_PANEL_CREDENTIAL_VAULT_V1263",
     "app.include_router(panel_vault_router)",
-    "vault_active=is_vault_admin(actor)",
+    "vault_active=can_vault_reveal(actor)",
+    "vault_active=can_vault_manage(actor)",
     "vault_csrf_token=vault_csrf_token(request)",
     "vault_remember: Optional[str] = Form(None)",
     "vault_store(db, panel_user, password)",
@@ -26,11 +27,16 @@ for marker in (
     "vault_discard(db, admin.id)",
     "Node password changes revoke the saved secret",
     "vault_discard(db, panel_user.id)  # panel-user delete",
+    '"panel_users.password_vault_manage"',
+    '"panel_users.password_reveal"',
+    "Vault role permissions changed",
 ):
     assert marker in updated, marker
 assert source.count("admin.password_hash = hash_password(new_password)")>=1
 assert updated.count("if as_bool(vault_remember)")>=2
-assert updated.count("vault_active=is_vault_admin(actor)")>=3
+assert updated.count("vault_active=can_vault_reveal(actor)") == 1
+assert updated.count("vault_active=can_vault_manage(actor)") == 4
+assert "if key in ALL_PERMISSION_KEYS and key not in" in updated
 # All credential storage changes keep the current scrypt verifier.
 assert "password_hash = hash_password(password)" in updated
 with tempfile.TemporaryDirectory() as t:

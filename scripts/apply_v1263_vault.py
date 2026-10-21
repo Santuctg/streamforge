@@ -27,7 +27,7 @@ def transform(source: str) -> str:
         "from .secrets_store import encrypt_secret, decrypt_secret\n"
         "# STREAMFORGE_PANEL_CREDENTIAL_VAULT_V1263: Main-only opt-in encrypted credentials.\n"
         "from .panel_password_vault import (\n"
-        "    router as panel_vault_router, is_vault_admin, vault_enabled, vault_csrf_token,\n"
+        "    router as panel_vault_router, can_vault_reveal, can_vault_manage, vault_enabled, vault_csrf_token,\n"
         "    vault_password_available, vault_store, vault_discard,\n"
         ")",
         "vault import",
@@ -52,12 +52,12 @@ def transform(source: str) -> str:
     listing = replace_once(
         listing, '        panel_users=panel_users,\n        error=error,',
         '        panel_users=panel_users,\n'
-        '        vault_active=is_vault_admin(actor) and vault_enabled(),\n'
+        '        vault_active=can_vault_reveal(actor) and vault_enabled(),\n'
         '        vault_saved_ids=(\n'
         '            {item.id for item in panel_users if vault_password_available(db, item)}\n'
-        '            if is_vault_admin(actor) and vault_enabled() else set()\n'
+        '            if can_vault_reveal(actor) and vault_enabled() else set()\n'
         '        ),\n'
-        '        vault_csrf_token=vault_csrf_token(request) if is_vault_admin(actor) and vault_enabled() else "",\n'
+        '        vault_csrf_token=vault_csrf_token(request) if can_vault_reveal(actor) and vault_enabled() else "",\n'
         '        error=error,',
         "listing render",
     )
@@ -69,13 +69,13 @@ def transform(source: str) -> str:
         raise ValueError("expected two create/edit GET render calls")
     routes = routes.replace(
         'roles=roles, nodes=nodes, error=None)',
-        'roles=roles, nodes=nodes, error=None, vault_active=is_vault_admin(actor) and vault_enabled())',
+        'roles=roles, nodes=nodes, error=None, vault_active=can_vault_manage(actor) and vault_enabled())',
     )
     if routes.count('roles=roles, nodes=nodes, error=error)') != 2:
         raise ValueError("expected two create/edit error render calls")
     routes = routes.replace(
         'roles=roles, nodes=nodes, error=error)',
-        'roles=roles, nodes=nodes, error=error, vault_active=is_vault_admin(actor) and vault_enabled())',
+        'roles=roles, nodes=nodes, error=error, vault_active=can_vault_manage(actor) and vault_enabled())',
     )
     if routes.count('    node_ids: list[int] = Form(default=[]),\n    db: Session = Depends(get_db),') != 2:
         raise ValueError("expected two create/edit Form signatures")
@@ -91,7 +91,7 @@ def transform(source: str) -> str:
         '    elif password != password_confirm:\n        error = "Password confirmation does not match."',
         '    elif password != password_confirm:\n'
         '        error = "Password confirmation does not match."\n'
-        '    elif as_bool(vault_remember) and not (is_vault_admin(actor) and vault_enabled()):\n'
+        '    elif as_bool(vault_remember) and not (can_vault_manage(actor) and vault_enabled()):\n'
         '        error = "Vault is not configured or you are not permitted to save credentials."',
     )
     routes = replace_once(
@@ -145,6 +145,56 @@ def transform(source: str) -> str:
         '    db.delete(panel_user)\n'
         '    db.commit()',
         "panel-user deletion",
+    )
+    # Sensitive permissions may be assigned only by an unrestricted Super Admin,
+    # even when a delegated account itself holds reveal/management rights.
+    source = replace_once(
+        source,
+        '    return {\n'
+        '        key\n'
+        '        for key in role_permission_set(admin.role)\n'
+        '        if key in ALL_PERMISSION_KEYS\n'
+        '    }\n\n\ndef permission_groups_for_role_editor',
+        '    return {\n'
+        '        key\n'
+        '        for key in role_permission_set(admin.role)\n'
+        '        if key in ALL_PERMISSION_KEYS and key not in {\n'
+        '            "panel_users.password_reveal", "panel_users.password_vault_manage"\n'
+        '        }\n'
+        '    }\n\n\ndef permission_groups_for_role_editor',
+        "Super Admin-exclusive sensitive grant",
+    )
+    # Audit granting/revoking sensitive permissions, with no credential values.
+    source = replace_once(
+        source,
+        '    db.add(role)\n'
+        '    db.commit()\n'
+        '    return panel_admin_redirect("/roles", message="Role created")',
+        '    db.add(role)\n'
+        '    db.commit()\n'
+        '    sensitive = {"panel_users.password_reveal", "panel_users.password_vault_manage"}\n'
+        '    if sensitive & set(decode_permissions(role.permissions)):\n'
+        '        log_event("Vault permissions granted to role", scope="auth", actor=actor.username,\n'
+        '                  details={"role_id": role.id, "permissions": sorted(sensitive & set(decode_permissions(role.permissions)))})\n'
+        '    return panel_admin_redirect("/roles", message="Role created")',
+        "role creation audit",
+    )
+    source = replace_once(
+        source,
+        '    role.permissions = encode_permissions(submitted_permissions & allowed_permissions)\n'
+        '    db.commit()\n'
+        '    return panel_admin_redirect("/roles", message="Role updated")',
+        '    sensitive = {"panel_users.password_reveal", "panel_users.password_vault_manage"}\n'
+        '    old_sensitive = sensitive & set(decode_permissions(role.permissions))\n'
+        '    role.permissions = encode_permissions(submitted_permissions & allowed_permissions)\n'
+        '    db.commit()\n'
+        '    new_sensitive = sensitive & set(decode_permissions(role.permissions))\n'
+        '    if old_sensitive != new_sensitive:\n'
+        '        log_event("Vault role permissions changed", scope="auth", actor=actor.username,\n'
+        '                  details={"role_id": role.id, "granted": sorted(new_sensitive - old_sensitive),\n'
+        '                           "revoked": sorted(old_sensitive - new_sensitive)})\n'
+        '    return panel_admin_redirect("/roles", message="Role updated")',
+        "role update audit",
     )
     compile(source, "app/main.py", "exec")
     return source
