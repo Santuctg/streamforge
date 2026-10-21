@@ -15,8 +15,8 @@ _PURPOSE = b"streamforge:panel-users:password-vault:v1:"
 
 def _vault_fernet() -> Fernet:
     secret = settings.secret_key
-    if not isinstance(secret, str) or len(secret) < 16:
-        raise RuntimeError("A stable Main Panel secret key is required for password vault")
+    if not isinstance(secret, str) or len(secret) < 32 or secret == "dev-change-me-now":
+        raise RuntimeError("Set a stable 32+ character STREAMFORGE_SECRET_KEY before enabling recoverable passwords")
     digest = hashlib.sha256(_PURPOSE + secret.encode("utf-8")).digest()
     return Fernet(base64.urlsafe_b64encode(digest))
 
