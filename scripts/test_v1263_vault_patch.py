@@ -9,7 +9,10 @@ namespace=runpy.run_path(str(root/"scripts/apply_v1263_vault.py"))
 transform=namespace["transform"]
 source=(root/"app/main.py").read_text(encoding="utf-8")
 updated=transform(source)
-assert updated != source, "fixture should start without v12.63 integration"
+if "STREAMFORGE_PANEL_CREDENTIAL_VAULT_V1263" in source:
+    assert updated == source, "integrated release source must stay unchanged"
+else:
+    assert updated != source, "pre-release source must receive the patch"
 assert transform(updated)==updated, "patch must be idempotent"
 compile(updated, "app/main.py", "exec")
 for marker in (
