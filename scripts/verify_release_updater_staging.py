@@ -84,7 +84,7 @@ else:
         for marker in (
             'TARGET_VERSION="12.63"',
             'NODE_TARGET_VERSION="12.63"',
-            '12.62|12.63',
+            '12.61|12.62|12.63',
             'STREAMFORGE_PANEL_USER_SAVED_PASSWORD_V1263',
             'STREAMFORGE_V1263_MAIN_UI_ONLY_NODE_VERSION_ALIGNMENT',
             'STREAMFORGE_NODE_UPDATE_UI_SPACING_V1259',
