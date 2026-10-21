@@ -10,7 +10,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 UPDATER = ROOT / "scripts/force_update_v1263.sh"
-FILES = ("VERSION", "node_agent/VERSION", "app/main.py", "app/models.py",
+FILES = ("VERSION", "node_agent/VERSION", "app/main.py", "app/models.py", "app/permissions.py",
          "app/templates/admin_users.html", "app/templates/admin_user_form.html")
 MODULE = "app/panel_password_vault.py"
 
@@ -28,6 +28,7 @@ def prepare(base: Path) -> tuple[Path, Path]:
     (app/"node_agent/VERSION").write_text("12.62\n", encoding="utf-8")
     shutil.copy2(ROOT/"app/main.py", app/"app/main.py")
     (app/"app/models.py").write_text("PREVIOUS_MODELS\n",encoding="utf-8")
+    (app/"app/permissions.py").write_text("PREVIOUS_PERMISSIONS\n",encoding="utf-8")
     (app/"app/templates/admin_users.html").write_text("OLD_LISTING\n",encoding="utf-8")
     (app/"app/templates/admin_user_form.html").write_text("OLD_FORM\n",encoding="utf-8")
     return app,backup
