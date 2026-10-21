@@ -93,6 +93,48 @@ assert client.get(endpoint).status_code==405
 client.get(f"/test/login/{person_id}")
 assert client.post(endpoint,headers=ORIGIN,data={"csrf_token":csrf,"reauth_password":"ViewerPass!A"}).status_code==403
 
+# Delegated reveal without edit: a Super Admin can grant reveal to a custom role,
+# but permission never overrides target hierarchy or account status.
+with Session() as db:
+    delegated_role = Role(
+        name="Credential Auditor",
+        permissions=json.dumps(["panel_users.view", "panel_users.password_reveal"]),
+    )
+    low_role = Role(name="Read Only", permissions=json.dumps(["panel_users.view"]))
+    db.add_all((delegated_role, low_role))
+    db.flush()
+    delegated = AdminUser(username="vaultauditor", password_hash=hash_password("AuditorSecret!1"),
+                          role=delegated_role, is_active=True, main_panel_access=True)
+    low = AdminUser(username="readonlytarget", password_hash=hash_password("LowSecret!2"),
+                    role=low_role, is_active=True, main_panel_access=True)
+    db.add_all((delegated, low))
+    db.flush()
+    assert vault_store(db, low, "LowSecret!2")
+    db.commit()
+    delegate_id, low_id, delegated_role_id = delegated.id, low.id, delegated_role.id
+
+delegate_csrf = client.get(f"/test/login/{delegate_id}").json()["csrf"]
+low_endpoint = f"/admin-users/{low_id}/password/reveal"
+delegated_payload = {"csrf_token": delegate_csrf, "reauth_password": "AuditorSecret!1"}
+response = client.post(low_endpoint, headers=ORIGIN, data=delegated_payload)
+assert response.status_code == 200, response.text
+assert response.json()["password"] == "LowSecret!2"
+assert client.post(endpoint, headers=ORIGIN, data=delegated_payload).status_code == 403
+assert client.post(f"/admin-users/{owner_id}/password/reveal", headers=ORIGIN,
+                   data=delegated_payload).status_code == 403
+with Session() as db:
+    delegated_role = db.get(Role, delegated_role_id)
+    delegated_role.permissions = json.dumps(["panel_users.view"])
+    db.commit()
+assert client.post(low_endpoint, headers=ORIGIN, data=delegated_payload).status_code == 403
+with Session() as db:
+    delegated_role = db.get(Role, delegated_role_id)
+    delegated_role.permissions = json.dumps(["panel_users.view", "panel_users.password_reveal"])
+    delegated = db.get(AdminUser, delegate_id)
+    delegated.main_panel_access = False
+    db.commit()
+assert client.post(low_endpoint, headers=ORIGIN, data=delegated_payload).status_code == 403
+
 # Five incorrect attempts persist across fresh DB connections (and workers).
 client.get(f"/test/login/{owner_id}")
 # One failed attempt was already recorded in the earlier reauthentication test.
@@ -109,4 +151,4 @@ with Session() as db:
     db.commit()
     assert db.get(PanelUserCredentialVault,person_id) is None
 GUARD_TEMP.cleanup()
-print("PASS: vault encryption, disabled key, origin/CSRF, shared rate-limit, hash drift and discard")
+print("PASS: vault encryption, origin/CSRF, RBAC delegation/revocation, hierarchy, cross-worker throttle and discard")

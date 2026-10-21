@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """v12.63 Main integration regression without overwriting in-repo Main source."""
 from pathlib import Path
+import ast
+import json
 import runpy
 import tempfile
 
@@ -45,4 +47,32 @@ with tempfile.TemporaryDirectory() as t:
     namespace["main"]() if False else None
     path.write_text(transform(path.read_text()),encoding="utf-8")
     assert path.read_text()==updated
-print("PASS: v12.63 scoped Main patch compiles, is idempotent, and preserves auth")
+# Compile/execute only the transformed role-grant function, not the full service.
+# This checks that delegated roles cannot turn their own reveal permission into
+# grant authority, while the unrestricted Super Admin can grant both permissions.
+from app.models import Role, AdminUser
+from app.permissions import role_permission_set, ALL_PERMISSION_KEYS, SUPERUSER_PERMISSION
+from types import SimpleNamespace
+updated_ast = ast.parse(updated)
+grant_function = next(
+    node for node in updated_ast.body
+    if isinstance(node, ast.FunctionDef) and node.name == "role_assignable_permissions_for_admin"
+)
+grant_ns = {
+    "AdminUser": AdminUser,
+    "ALL_PERMISSION_KEYS": ALL_PERMISSION_KEYS,
+    "role_permission_set": role_permission_set,
+    "admin_is_super_admin": lambda actor: SUPERUSER_PERMISSION in role_permission_set(actor.role),
+}
+exec(compile(ast.Module(body=[grant_function], type_ignores=[]), "<rbac-grant>", "exec"), grant_ns)
+grant = grant_ns["role_assignable_permissions_for_admin"]
+super_actor = SimpleNamespace(role=Role(name="Super Admin", permissions=json.dumps(["*"])))
+delegated_actor = SimpleNamespace(role=Role(
+    name="Auditor/Role Editor",
+    permissions=json.dumps(["panel_users.view", "panel_users.password_reveal",
+                            "panel_users.password_vault_manage", "roles.create", "roles.edit"]),
+))
+assert {"panel_users.password_reveal", "panel_users.password_vault_manage"}.issubset(grant(super_actor))
+assert not ({"panel_users.password_reveal", "panel_users.password_vault_manage"} & grant(delegated_actor))
+assert {"roles.create", "roles.edit"}.issubset(grant(delegated_actor))
+print("PASS: v12.63 scoped Main patch, privilege grant ceiling, and preserved auth")
