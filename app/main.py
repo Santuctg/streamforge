@@ -62,6 +62,15 @@ from .ssh_installer import SSHInstallError, install_node_over_ssh, uninstall_nod
 from .viewer_tracking import viewer_tracker
 from .redis_state import redis_state
 from .secrets_store import encrypt_secret, decrypt_secret
+# STREAMFORGE_PANEL_CREDENTIAL_VAULT_V1263: Main-only opt-in encrypted credentials.
+from .panel_password_vault import (
+    router as panel_vault_router, can_vault_reveal, can_vault_manage, vault_enabled, vault_csrf_token,
+    vault_password_available, vault_store, vault_discard,
+)
+# STREAMFORGE_V1263_PANEL_LOGIN_LOCK_GUARD: cross-Main/Node login failures.
+from .panel_login_guard import (
+    LoginGuardUnavailable, login_locked, record_login_failure, clear_login_failures,
+)
 from .audit_log import log_event, clear_logs, prune_logs
 from .access_control import evaluate_access, normalize_ip_rules, normalize_asn_rules, ip_matches, client_ip, asn_database_status, geo_details, clear_geo_cache
 from .playback_keys import issue_playback_key, issue_playback_keys, verify_playback_key
@@ -5205,6 +5214,7 @@ class RestoredAssetStaticFiles(StaticFiles):
 
 
 app = FastAPI(title="StreamForge", lifespan=lifespan)
+app.include_router(panel_vault_router)  # protected Main-only vault POST
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -5590,10 +5600,29 @@ def login(
     db: Session = Depends(get_db),
 ):
     admin = db.scalar(select(AdminUser).where(AdminUser.username == username.strip()))
-    if not admin or not admin.is_active or not admin.main_panel_access or not verify_password(password, admin.password_hash):
-        # STREAMFORGE_ACCESS_LOG_CLIENT_IP_V73: Access logs always retain the real browser/client IP.
-        log_event(f"Failed panel login for {username.strip() or 'unknown'}", scope="auth", level="warning", actor=username.strip() or None, details={"ip": client_ip(request)})
-        return render(request, "login.html", db, error="Invalid username or password")
+    allowed = bool(admin and admin.is_active and admin.main_panel_access)
+    try:
+        if allowed and login_locked(admin.id):
+            log_event("Panel login denied: account locked", scope="auth", level="warning",
+                      actor=admin.username, details={"ip": client_ip(request)})
+            return render(request, "login.html", db, error="Invalid username or password")
+        correct = bool(allowed and verify_password(password, admin.password_hash))
+        if not correct:
+            # Unknown/disabled accounts do not create persistent per-account rows.
+            if allowed and record_login_failure(admin.id):
+                log_event("Panel login blocked after failed passwords", scope="auth", level="warning",
+                          actor=admin.username, details={"ip": client_ip(request)})
+            log_event(f"Failed panel login for {username.strip() or 'unknown'}", scope="auth",
+                      level="warning", actor=username.strip() or None, details={"ip": client_ip(request)})
+            return render(request, "login.html", db, error="Invalid username or password")
+        # Recheck to block concurrent incorrect requests that activated a lock.
+        if login_locked(admin.id):
+            return render(request, "login.html", db, error="Invalid username or password")
+        clear_login_failures(admin.id)
+    except LoginGuardUnavailable:
+        log_event("Panel login guard unavailable", scope="auth", level="error",
+                  actor=username.strip() or None)
+        return render(request, "login.html", db, error="Login temporarily unavailable")
     request.session["admin_id"] = admin.id
     log_event("Panel login succeeded", scope="auth", actor=admin.username, details={"ip": client_ip(request)})
     return RedirectResponse(first_allowed_path(admin), status_code=303)
@@ -9496,13 +9525,28 @@ async def node_panel_live_auth(
 
     auth_version = _panel_admin_auth_version(admin)
     if action == "login":
-        password = str(payload.get("password") or "")
-        if not verify_password(password, admin.password_hash):
-            log_event(
-                f"Failed live Node panel login for {username or 'unknown'} on {node.name}",
-                scope="auth", level="warning", node_id=node.id, actor=username or None, details={"ip": submitted_client_ip} if submitted_client_ip else None,
-            )
-            raise HTTPException(401, "Invalid username or password")
+        try:
+            if login_locked(admin.id):
+                log_event("Live Node Panel login denied: account locked", scope="auth",
+                          level="warning", node_id=node.id, actor=admin.username)
+                raise HTTPException(401, "Invalid username or password")
+            password = str(payload.get("password") or "")
+            if not verify_password(password, admin.password_hash):
+                if record_login_failure(admin.id):
+                    log_event("Panel login blocked after failed Node passwords", scope="auth",
+                              level="warning", node_id=node.id, actor=admin.username)
+                log_event(
+                    f"Failed live Node panel login for {username or 'unknown'} on {node.name}",
+                    scope="auth", level="warning", node_id=node.id, actor=username or None, details={"ip": submitted_client_ip} if submitted_client_ip else None,
+                )
+                raise HTTPException(401, "Invalid username or password")
+            if login_locked(admin.id):
+                raise HTTPException(401, "Invalid username or password")
+            clear_login_failures(admin.id)
+        except LoginGuardUnavailable as exc:
+            log_event("Live Node Panel login guard unavailable", scope="auth", level="error",
+                      node_id=node.id, actor=username or None)
+            raise HTTPException(503, "Panel login temporarily unavailable") from exc
         log_event(
             f"Live Node panel login succeeded on {node.name}",
             scope="auth", node_id=node.id, actor=admin.username, details={"ip": submitted_client_ip} if submitted_client_ip else None,
@@ -9518,6 +9562,7 @@ async def node_panel_live_auth(
         if verify_password(new_password, admin.password_hash):
             raise HTTPException(400, "New password must be different from the current password")
         admin.password_hash = hash_password(new_password)
+        vault_discard(db, admin.id)  # Node password changes revoke the saved secret
         db.commit()
         db.refresh(admin)
         auth_version = _panel_admin_auth_version(admin)
@@ -12322,7 +12367,9 @@ def role_assignable_permissions_for_admin(admin: AdminUser | None) -> set[str]:
     return {
         key
         for key in role_permission_set(admin.role)
-        if key in ALL_PERMISSION_KEYS
+        if key in ALL_PERMISSION_KEYS and key not in {
+            "panel_users.password_reveal", "panel_users.password_vault_manage"
+        }
     }
 
 
@@ -12406,6 +12453,7 @@ def account_password_change(
         return render(request, "account_password.html", db, message="", error=error)
 
     admin.password_hash = hash_password(new_password)
+    vault_discard(db, admin.id)  # self-service changes invalidate old vault value
     affected_node_ids = {item.id for item in admin.nodes}
     db.commit()
     sync_errors = sync_panel_users_for_node_ids(affected_node_ids, request, db)
@@ -12437,6 +12485,12 @@ def admin_users_page(
         "admin_users.html",
         db,
         panel_users=panel_users,
+        vault_active=can_vault_reveal(actor) and vault_enabled(),
+        vault_saved_ids=(
+            {item.id for item in panel_users if vault_password_available(db, item)}
+            if can_vault_reveal(actor) and vault_enabled() else set()
+        ),
+        vault_csrf_token=(vault_csrf_token(request) if admin_is_super_admin(actor) or (can_vault_reveal(actor) and vault_enabled()) else ""),
         error=error,
         message=message,
     )
@@ -12447,7 +12501,7 @@ def admin_user_new_page(request: Request, db: Session = Depends(get_db)):
     actor = enforce_permission(request, db, "panel_users.create")
     roles = visible_panel_roles(db, actor)
     nodes = db.scalars(select(Node).where(Node.node_type == "remote", Node.enabled.is_(True)).order_by(Node.name)).all()
-    return render(request, "admin_user_form.html", db, panel_user=None, roles=roles, nodes=nodes, error=None)
+    return render(request, "admin_user_form.html", db, panel_user=None, roles=roles, nodes=nodes, error=None, vault_active=can_vault_manage(actor) and vault_enabled())
 
 
 @app.post("/admin-users/new", dependencies=[Depends(permission_required("panel_users.create"))])
@@ -12460,6 +12514,7 @@ def admin_user_create(
     is_active: Optional[str] = Form(None),
     main_panel_access: Optional[str] = Form(None),
     node_ids: list[int] = Form(default=[]),
+    vault_remember: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
     actor = enforce_permission(request, db, "panel_users.create")
@@ -12481,6 +12536,8 @@ def admin_user_create(
         error = "Password must contain at least 8 characters."
     elif password != password_confirm:
         error = "Password confirmation does not match."
+    elif as_bool(vault_remember) and not (can_vault_manage(actor) and vault_enabled()):
+        error = "Vault is not configured or you are not permitted to save credentials."
     elif not as_bool(main_panel_access) and not selected_nodes:
         error = "Select Main Panel access or at least one remote node."
     if error:
@@ -12492,7 +12549,7 @@ def admin_user_create(
             "nodes": selected_nodes,
             "id": None,
         })()
-        return render(request, "admin_user_form.html", db, panel_user=draft, roles=roles, nodes=nodes, error=error)
+        return render(request, "admin_user_form.html", db, panel_user=draft, roles=roles, nodes=nodes, error=error, vault_active=can_vault_manage(actor) and vault_enabled())
 
     panel_user = AdminUser(
         username=cleaned_username,
@@ -12503,6 +12560,10 @@ def admin_user_create(
         nodes=selected_nodes,
     )
     db.add(panel_user)
+    db.flush()
+    if as_bool(vault_remember):
+        if not vault_store(db, panel_user, password):
+            raise HTTPException(503, "Credential vault is not configured")
     db.commit()
     sync_errors = sync_panel_users_for_node_ids({item.id for item in selected_nodes}, request, db)
     return panel_admin_redirect(
@@ -12522,7 +12583,7 @@ def admin_user_edit_page(admin_user_id: int, request: Request, db: Session = Dep
         raise HTTPException(404)
     roles = visible_panel_roles(db, actor)
     nodes = db.scalars(select(Node).where(Node.node_type == "remote", Node.enabled.is_(True)).order_by(Node.name)).all()
-    return render(request, "admin_user_form.html", db, panel_user=panel_user, roles=roles, nodes=nodes, error=None)
+    return render(request, "admin_user_form.html", db, panel_user=panel_user, roles=roles, nodes=nodes, error=None, vault_active=can_vault_manage(actor) and vault_enabled())
 
 
 @app.post("/admin-users/{admin_user_id}/edit", dependencies=[Depends(permission_required("panel_users.edit"))])
@@ -12536,6 +12597,7 @@ def admin_user_update(
     is_active: Optional[str] = Form(None),
     main_panel_access: Optional[str] = Form(None),
     node_ids: list[int] = Form(default=[]),
+    vault_remember: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
     actor = enforce_permission(request, db, "panel_users.edit")
@@ -12571,6 +12633,8 @@ def admin_user_update(
         error = "Password must contain at least 8 characters."
     elif password != password_confirm:
         error = "Password confirmation does not match."
+    elif as_bool(vault_remember) and not (can_vault_manage(actor) and vault_enabled()):
+        error = "Vault is not configured or you are not permitted to save credentials."
     elif not new_main_access and not selected_nodes:
         error = "Select Main Panel access or at least one remote node."
     elif panel_user.id == actor.id and not new_active:
@@ -12584,7 +12648,7 @@ def admin_user_update(
     if error:
         panel_user.main_panel_access = new_main_access
         panel_user.nodes = selected_nodes
-        return render(request, "admin_user_form.html", db, panel_user=panel_user, roles=roles, nodes=nodes, error=error)
+        return render(request, "admin_user_form.html", db, panel_user=panel_user, roles=roles, nodes=nodes, error=error, vault_active=can_vault_manage(actor) and vault_enabled())
 
     panel_user.username = cleaned_username
     panel_user.role = role
@@ -12593,6 +12657,11 @@ def admin_user_update(
     panel_user.nodes = selected_nodes
     if password:
         panel_user.password_hash = hash_password(password)
+        if as_bool(vault_remember):
+            if not vault_store(db, panel_user, password):
+                raise HTTPException(503, "Credential vault is not configured")
+        else:
+            vault_discard(db, panel_user.id)  # never show stale saved passwords
     db.commit()
     affected_node_ids = old_node_ids | {item.id for item in selected_nodes}
     sync_errors = sync_panel_users_for_node_ids(affected_node_ids, request, db)
@@ -12617,6 +12686,7 @@ def admin_user_delete(admin_user_id: int, request: Request, db: Session = Depend
     if panel_user.is_active and role_is_unrestricted(panel_user.role) and len(active_unrestricted_admins(db)) <= 1:
         return panel_admin_redirect("/admin-users", error="At least one active Super Admin account must remain.")
     old_node_ids = {item.id for item in panel_user.nodes}
+    vault_discard(db, panel_user.id)  # panel-user delete
     db.delete(panel_user)
     db.commit()
     sync_errors = sync_panel_users_for_node_ids(old_node_ids, request, db)
@@ -12707,6 +12777,10 @@ def role_create(
     )
     db.add(role)
     db.commit()
+    sensitive = {"panel_users.password_reveal", "panel_users.password_vault_manage"}
+    if sensitive & set(decode_permissions(role.permissions)):
+        log_event("Vault permissions granted to role", scope="auth", actor=actor.username,
+                  details={"role_id": role.id, "permissions": sorted(sensitive & set(decode_permissions(role.permissions)))})
     return panel_admin_redirect("/roles", message="Role created")
 
 
@@ -12783,8 +12857,15 @@ def role_update(
         )
     role.name = cleaned_name
     role.description = description.strip() or None
+    sensitive = {"panel_users.password_reveal", "panel_users.password_vault_manage"}
+    old_sensitive = sensitive & set(decode_permissions(role.permissions))
     role.permissions = encode_permissions(submitted_permissions & allowed_permissions)
     db.commit()
+    new_sensitive = sensitive & set(decode_permissions(role.permissions))
+    if old_sensitive != new_sensitive:
+        log_event("Vault role permissions changed", scope="auth", actor=actor.username,
+                  details={"role_id": role.id, "granted": sorted(new_sensitive - old_sensitive),
+                           "revoked": sorted(old_sensitive - new_sensitive)})
     return panel_admin_redirect("/roles", message="Role updated")
 
 
