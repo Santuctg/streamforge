@@ -62,6 +62,7 @@ from .ssh_installer import SSHInstallError, install_node_over_ssh, uninstall_nod
 from .viewer_tracking import viewer_tracker
 from .redis_state import redis_state
 from .secrets_store import encrypt_secret, decrypt_secret
+from .panel_password_vault import encrypt_panel_password, decrypt_panel_password
 from .audit_log import log_event, clear_logs, prune_logs
 from .access_control import evaluate_access, normalize_ip_rules, normalize_asn_rules, ip_matches, client_ip, asn_database_status, geo_details, clear_geo_cache
 from .playback_keys import issue_playback_key, issue_playback_keys, verify_playback_key
@@ -12406,6 +12407,8 @@ def account_password_change(
         return render(request, "account_password.html", db, message="", error=error)
 
     admin.password_hash = hash_password(new_password)
+    # STREAMFORGE_PANEL_USER_SAVED_PASSWORD_V1263: only new/reset passwords can be escrowed.
+    admin.password_vault_enc = encrypt_panel_password(new_password)
     affected_node_ids = {item.id for item in admin.nodes}
     db.commit()
     sync_errors = sync_panel_users_for_node_ids(affected_node_ids, request, db)
@@ -12440,6 +12443,69 @@ def admin_users_page(
         error=error,
         message=message,
     )
+
+
+# STREAMFORGE_PANEL_USER_SAVED_PASSWORD_V1263:
+# Only Super Admin can reveal a password escrowed after v12.63 installation.
+# Each request requires the Super Admin's current password, is uncached,
+# and is audited without logging the revealed credential.
+_VAULT_ATTEMPT_LOCK = threading.RLock()
+_VAULT_FAILED_ATTEMPTS: dict[int, list[float]] = {}
+
+@app.post("/admin-users/{admin_user_id}/saved-password", dependencies=[Depends(permission_required("panel_users.view"))])
+def panel_user_reveal_password(
+    admin_user_id: int,
+    request: Request,
+    admin_password: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    def reply(status: int, message: str, password: str | None = None):
+        data: dict[str, object] = {"ok": status == 200, "message": message}
+        if password is not None:
+            data["password"] = password
+        return JSONResponse(data, status_code=status, headers={
+            "Cache-Control": "no-store, private, max-age=0",
+            "Pragma": "no-cache",
+            "X-Content-Type-Options": "nosniff",
+            "Referrer-Policy": "no-referrer",
+        })
+
+    actor = enforce_permission(request, db, "panel_users.view")
+    if not admin_is_super_admin(actor):
+        raise HTTPException(status_code=404)
+    # Same-origin POST only: do not let a cross-site form cause a password
+    # disclosure. API clients with absent Origin/Referer are rejected too.
+    origin = request.headers.get("origin", "")
+    target_origin = str(request.base_url).rstrip("/")
+    # Behind TLS reverse proxies request.base_url may be http. Prefer
+    # the origin and Host equality with explicit trusted proxy scheme.
+    from urllib.parse import urlsplit as _split
+    parsed_origin = _split(origin)
+    host = request.headers.get("host", "").lower()
+    if not parsed_origin.scheme in ("http", "https") or parsed_origin.netloc.lower() != host:
+        return reply(403, "Origin validation failed.")
+    now = time.monotonic()
+    with _VAULT_ATTEMPT_LOCK:
+        attempts = [t for t in _VAULT_FAILED_ATTEMPTS.get(actor.id, ()) if now - t < 300]
+        _VAULT_FAILED_ATTEMPTS[actor.id] = attempts
+        if len(attempts) >= 5:
+            log_event("Panel User password reveal rate limited", scope="auth", actor=actor.username, details={"user_id":admin_user_id})
+            return reply(429, "Too many attempts; try later.")
+
+    user = db.get(AdminUser, admin_user_id)
+    if not user or not user.password_vault_enc:
+        return reply(404, "No saved password. Reset this user's password first.")
+    if not admin_password or not verify_password(admin_password, actor.password_hash):
+        with _VAULT_ATTEMPT_LOCK:
+            _VAULT_FAILED_ATTEMPTS.setdefault(actor.id, []).append(now)
+        log_event("Panel User saved-password reveal denied", scope="auth", actor=actor.username, details={"user_id":admin_user_id})
+        return reply(403, "Incorrect administrator password.")
+    password = decrypt_panel_password(user.password_vault_enc)
+    if not password or not verify_password(password, user.password_hash):
+        log_event("Panel User password vault unavailable", scope="auth", actor=actor.username, details={"user_id":admin_user_id})
+        return reply(409, "Saved password unavailable. Reset this user's password.")
+    log_event("Panel User saved password revealed", scope="auth", actor=actor.username, details={"user_id":admin_user_id})
+    return reply(200, "Visible for 10 seconds.", password)
 
 
 @app.get("/admin-users/new", response_class=HTMLResponse, dependencies=[Depends(permission_required("panel_users.create"))])
@@ -12497,6 +12563,7 @@ def admin_user_create(
     panel_user = AdminUser(
         username=cleaned_username,
         password_hash=hash_password(password),
+        password_vault_enc=encrypt_panel_password(password),
         is_active=as_bool(is_active),
         main_panel_access=as_bool(main_panel_access),
         role=role,
@@ -12593,6 +12660,7 @@ def admin_user_update(
     panel_user.nodes = selected_nodes
     if password:
         panel_user.password_hash = hash_password(password)
+        panel_user.password_vault_enc = encrypt_panel_password(password)
     db.commit()
     affected_node_ids = old_node_ids | {item.id for item in selected_nodes}
     sync_errors = sync_panel_users_for_node_ids(affected_node_ids, request, db)
