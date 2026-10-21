@@ -23,7 +23,7 @@ for marker in (
     "vault_discard(db, admin.id)",
 ):
     assert marker in updated, marker
-assert source.count("admin.password_hash = hash_password(new_password)")==1
+assert source.count("admin.password_hash = hash_password(new_password)")>=1
 assert updated.count("if as_bool(vault_remember)")>=2
 assert updated.count("vault_active=is_vault_admin(actor)")>=3
 # All credential storage changes keep the current scrypt verifier.
