@@ -67,6 +67,14 @@
     padding: 12px !important;
   }
 }
+
+/* STREAMFORGE_PANEL_USER_PASSWORD_VISIBILITY_V1261: show typed passwords only after explicit user click. */
+.panel-user-password-field { min-width:0; }
+.panel-user-password-field > label { display:block; margin-bottom:7px; }
+.panel-user-password-input { display:flex; align-items:center; gap:8px; min-width:0; }
+.panel-user-password-input input { flex:1 1 auto; width:100%; min-width:0; }
+.panel-user-password-input .button { flex:0 0 auto; white-space:nowrap; min-width:58px; }
+.panel-user-password-field .field-help { display:block; margin-top:6px; }
 </style>
 
 <form class="form-layout" method="post" action="{{ '/admin-users/' ~ panel_user.id ~ '/edit' if panel_user and panel_user.id else '/admin-users/new' }}">
@@ -76,8 +84,22 @@
     <div class="form-grid">
       <label>Username<input name="username" minlength="3" maxlength="80" pattern="[A-Za-z0-9_.-]+" value="{{ panel_user.username if panel_user else '' }}" required><small class="field-help">Letters, numbers, dot, underscore and dash only.</small></label>
       <label>Role<select name="role_id" required><option value="">Select role</option>{% for role in roles %}<option value="{{ role.id }}" {% if panel_user and panel_user.role_id == role.id %}selected{% endif %}>{{ role.name }}{% if role.is_system %} — unrestricted{% endif %}</option>{% endfor %}</select><small class="field-help">Only Super Admin accounts can assign the built-in Super Admin role. <a class="inline-link" href="/roles" target="_blank">Manage roles and permissions</a></small></label>
-      <label>Password<input type="password" name="password" minlength="8" {% if not panel_user or not panel_user.id %}required{% endif %} autocomplete="new-password" placeholder="{{ 'Leave blank to keep current password' if panel_user and panel_user.id else 'Minimum 8 characters' }}"></label>
-      <label>Confirm password<input type="password" name="password_confirm" minlength="8" {% if not panel_user or not panel_user.id %}required{% endif %} autocomplete="new-password"></label>
+      {# STREAMFORGE_PANEL_USER_PASSWORD_VISIBILITY_V1261: only passwords typed into this form can be revealed; stored hashes are never returned. #}
+      <div class="panel-user-password-field">
+        <label for="panel-user-password">Password</label>
+        <div class="panel-user-password-input" data-panel-password-group>
+          <input id="panel-user-password" data-panel-user-password-focus data-panel-password-field type="password" name="password" minlength="8" {% if not panel_user or not panel_user.id %}required{% endif %} autocomplete="new-password" placeholder="{{ 'Leave blank to keep current password' if panel_user and panel_user.id else 'Minimum 8 characters' }}">
+          <button type="button" class="button small" data-panel-password-toggle aria-label="Show new password" aria-pressed="false">Show</button>
+        </div>
+        {% if panel_user and panel_user.id %}<small class="field-help">Leave blank to keep the current password. Existing passwords cannot be displayed.</small>{% endif %}
+      </div>
+      <div class="panel-user-password-field">
+        <label for="panel-user-password-confirm">Confirm password</label>
+        <div class="panel-user-password-input" data-panel-password-group>
+          <input id="panel-user-password-confirm" data-panel-password-field type="password" name="password_confirm" minlength="8" {% if not panel_user or not panel_user.id %}required{% endif %} autocomplete="new-password">
+          <button type="button" class="button small" data-panel-password-toggle aria-label="Show confirmation" aria-pressed="false">Show</button>
+        </div>
+      </div>
       <label class="check"><input type="checkbox" name="is_active" {% if not panel_user or panel_user.is_active %}checked{% endif %}><span>Active account</span></label>
       <label class="check"><input type="checkbox" name="main_panel_access" {% if not panel_user or panel_user.main_panel_access %}checked{% endif %}><span>Main Panel access</span></label>
     </div>
@@ -90,4 +112,26 @@
   </section>
   <div class="form-actions"><a class="button" href="/admin-users">Cancel</a><button class="button primary">Save panel user</button></div>
 </form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+  document.querySelectorAll('[data-panel-password-group]').forEach(group => {
+    const input = group.querySelector('[data-panel-password-field]');
+    const button = group.querySelector('[data-panel-password-toggle]');
+    if (!input || !button) return;
+    button.addEventListener('click', () => {
+      const visible = input.type === 'text';
+      input.type = visible ? 'password' : 'text';
+      button.textContent = visible ? 'Show' : 'Hide';
+      button.setAttribute('aria-pressed', String(!visible));
+      button.setAttribute('aria-label', (visible ? 'Show ' : 'Hide ') + (input.name === 'password_confirm' ? 'confirmation' : 'new password'));
+    });
+  });
+  if (window.location.hash === '#panel-user-password') {
+    document.querySelector('[data-panel-password-field][name="password"]')?.focus({preventScroll:false});
+  }
+})();
+</script>
 {% endblock %}
