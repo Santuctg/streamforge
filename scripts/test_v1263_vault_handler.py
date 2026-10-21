@@ -64,6 +64,7 @@ assert r.status==200 and r.data["password"]=="synthetic-user-pass"
 assert r.headers["Cache-Control"].startswith("no-store")
 assert "synthetic-user-pass" not in str(events)
 assert call(request=FakeRequest("https://evil.example")).status==403
+assert call(request=FakeRequest("http://example.test")).status==403
 assert call(request=FakeRequest(origin="")).status==403
 assert call(db=FakeDB(None)).status==404
 assert call(db=FakeDB(SimpleNamespace(id=3,password_vault_enc=None,password_hash="hashed_user"))).status==404
