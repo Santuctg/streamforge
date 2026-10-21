@@ -33,11 +33,6 @@ with tempfile.TemporaryDirectory(prefix="sf-login-guard-test-") as tmp:
             ).fetchone()
             assert row == (5, now + 10800)
         assert stat.S_IMODE(os.stat(os.environ["STREAMFORGE_PANEL_LOGIN_GUARD_DB"]).st_mode) == 0o600
-        # One API should show only active locks, and never expose a password.
-        from unittest.mock import patch as mock_patch
-        with mock_patch("app.models.AdminUser", SimpleNamespace):
-            pass
-
     with patch.object(guard.time, "time", return_value=now + 10799):
         assert guard.login_locked(actor)
         assert guard.record_login_failure(actor) is True
@@ -49,11 +44,11 @@ with tempfile.TemporaryDirectory(prefix="sf-login-guard-test-") as tmp:
         assert not guard.login_locked(actor)
         assert guard.unlock_login_user(actor) is False
     with patch.object(guard.time, "time", return_value=now + 10801):
-        assert not guard.record_login_failure(actor)
-        assert not guard.record_login_failure(actor)
-        assert not guard.record_login_failure(actor)
-        assert not guard.record_login_failure(actor)
-        assert guard.record_login_failure(actor) is True
+        # The previous test recorded one failure immediately after lock expiry.
+        assert not guard.record_login_failure(actor)  # second
+        assert not guard.record_login_failure(actor)  # third
+        assert not guard.record_login_failure(actor)  # fourth
+        assert guard.record_login_failure(actor) is True  # fifth
         assert guard.unlock_login_user(actor) is True
         assert not guard.login_locked(actor)
         assert not guard.unlock_login_user(actor)
