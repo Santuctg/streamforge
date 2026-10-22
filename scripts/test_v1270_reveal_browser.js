@@ -67,7 +67,7 @@ vm.runInContext(source,ctx,{timeout:1000});
   elements["[data-vault-reauth]"].value="AdminLoginTest";
   await elements["[data-vault-confirm]"].listeners.click();
   assert.equal(elements["[data-vault-reauth]"].value,"","Super Admin field must wipe");
-  assert.equal(elements["[data-vault-reauth-step]"].hidden,true,"Super Admin field must hide");
+  assert.equal(elements["[data-vault-reauth-step]"].hidden,true,"Super Admin field must hide. Status="+JSON.stringify({overlayHidden:overlay.hidden,resultHidden:elements["[data-vault-result]"].hidden,error:elements["[data-vault-error]"].textContent,disabled:elements["[data-vault-confirm]"].disabled}));
   assert.equal(elements["[data-vault-confirm]"].hidden,true,"Reauth action must hide");
   assert.equal(elements["[data-vault-result]"].hidden,false);
   assert.equal(elements["[data-vault-secret-value]"].value,"vault-secret-test");

@@ -38,7 +38,7 @@ oldfiles,newfiles=listing(inst),listing(src)
 if oldfiles!=newfiles:
     bad=sorted(k for k in set(oldfiles)|set(newfiles) if oldfiles.get(k)!=newfiles.get(k))
     raise SystemExit("Unchanged Node runtime payload differs: "+",".join(bad[:12]))
-print("STREAMFORGE_V1269_NODE_FORM_ONLY_PARITY: unrelated Node files unchanged")
+print("STREAMFORGE_V1270_NODE_FORM_ONLY_PARITY: unrelated Node files unchanged")
 PYNODE
 python3 - "$SRC/node_agent/app.py" "$SRC/app/templates/admin_users.html" <<'PYCHECK'
 from pathlib import Path
@@ -90,7 +90,7 @@ atomic_copy "$SRC/node_agent/app.py" "$ROOT/node_agent/app.py"
 atomic_copy "$SRC/app/templates/admin_users.html" "$ROOT/app/templates/admin_users.html"
 printf '%s\n' "$TARGET" > "$ROOT/VERSION"
 printf '%s\n' "$TARGET" > "$ROOT/node_agent/VERSION"
-if [[ "${STREAMFORGE_V1269_TEST_FAIL_AFTER_WRITE:-0}" == 1 ]]; then
+if [[ "${STREAMFORGE_V1270_TEST_FAIL_AFTER_WRITE:-0}" == 1 ]]; then
     log "Controlled failure after write"
     rollback 1
 fi
