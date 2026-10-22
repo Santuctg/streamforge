@@ -15,8 +15,8 @@ auth=contents("app/auth.py")
 errors=[]
 def need(ok,message):
     if not ok:errors.append(message)
-need(contents("VERSION").strip()=="12.71","Main VERSION 12.71")
-need(contents("node_agent/VERSION").strip()=="12.71","bundled Node VERSION 12.71")
+need(contents("VERSION").strip()=="12.72","Main VERSION 12.72")
+need(contents("node_agent/VERSION").strip()=="12.72","bundled Node VERSION 12.72")
 need("STREAMFORGE_PANEL_CREDENTIAL_VAULT_V1263" in vault,"module marker")
 need("STREAMFORGE_PANEL_CREDENTIAL_VAULT_V1263" in contents("scripts/apply_v1263_vault.py"),"Main integration patch marker")
 need('STREAMFORGE_PANEL_PASSWORD_VAULT_KEY' in vault,"dedicated external Fernet key")
@@ -78,9 +78,11 @@ need('ip_block_origins' in login_guard and 'blocked_by_server' in login_guard,
 need('Triggered by server' in listing, "trigger server UI heading")
 need('STREAMFORGE_V1265_BLOCK_TRIGGER_SERVER' in contents("scripts/apply_v1265_ip_origin.py"),
      "Main and Node origin patcher")
+need('STREAMFORGE_V1272_NODE_LOGIN_DARK_RESPONSIVE' in contents("node_agent/app.py"),
+     "Node login dark responsive design")
 need('STREAMFORGE_V1271_LOGIN_AUTOFILL_DARK' in contents("app/templates/login.html"),
      "dark login autofill")
 need('STREAMFORGE_V1271_BLOCKED_IP_STANDALONE_CARD' in listing
      and 'sf-guard-policy' in listing, "separate IP security card")
-if errors: raise SystemExit("FAIL v12.71: "+", ".join(errors))
-print("PASS: v12.71 Main autofill, independent Blocked IP card and preserved credential security")
+if errors: raise SystemExit("FAIL v12.72: "+", ".join(errors))
+print("PASS: v12.72 Node login responsive dark theme plus preserved Main login/vault/IP security")

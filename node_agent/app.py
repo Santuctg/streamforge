@@ -10919,22 +10919,41 @@ def node_panel_login_page(request: Request, error: str = ""):
         "window.STREAMFORGE_FIXED_PANEL_ADDRESS_BAR=true;"
         "if(location.pathname!==p||location.search||location.hash)history.replaceState(history.state,'',p)})();</script>"
     )
+    # STREAMFORGE_V1272_NODE_LOGIN_DARK_RESPONSIVE: presentation-only, keep live Main auth.
     return HTMLResponse(
         '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
         + _node_favicon_link(access_prefix)
         + '<title>' + html.escape(manager.node_name or "Node") + '</title><style>'
-        + 'body{margin:0;background:#0b0f14;color:#edf4fb;font:14px system-ui;display:grid;place-items:center;min-height:100vh}'
-        + 'form{width:min(360px,90vw);background:#111821;border:1px solid #263243;border-radius:12px;padding:24px;display:grid;gap:12px}'
-        + '.login-brand{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;margin:0 0 6px}'
-        + '.login-brand-logo,.login-brand-mark{width:72px;height:72px;border-radius:16px;background:#0b1118;border:1px solid #304156;object-fit:contain}'
-        + '.login-brand-logo{padding:8px}.login-brand-mark{display:grid;place-items:center;font-size:20px;font-weight:800}'
-        + '.login-brand h2{margin:0;font-size:24px;line-height:1.12}.login-brand p{margin:0;color:#8da0b5}'
-        + 'input,button{padding:11px;border-radius:7px;border:1px solid #304156;background:#0b1118;color:#fff}'
-        + 'button{background:#1d806a;cursor:pointer}.error{color:#ff9aa4}</style></head><body>'
-        + '<form method="post" action="' + html.escape(login_path, quote=True) + '"><div class="login-brand">'
-        + logo_html + '<h2>' + html.escape(manager.node_name or "Node") + '</h2></div>'
+        + ':root{color-scheme:dark;--login-bg:#0b0f14;--login-panel:#111821;--login-line:#304156;--login-text:#edf4fb;--login-muted:#94a9be;--login-accent:#2a9d82}'
+        + '*{box-sizing:border-box}'
+        + 'html{min-height:100%;background:var(--login-bg);color-scheme:dark}'
+        + 'body{margin:0;min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:24px 16px;background:radial-gradient(circle at 50% 18%,#142636 0,#0b111a 43%,#0b0f14 78%);color:var(--login-text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;font-size:14px}'
+        + '.login-card{width:min(440px,100%);border:1px solid #2c3a4c;border-radius:18px;background:linear-gradient(180deg,#151f2b,#101821);box-shadow:0 20px 65px #0008,0 2px 12px #0004;overflow:hidden}'
+        + '.login-card form{display:flex;flex-direction:column;gap:0;margin:0;padding:32px}'
+        + '.login-brand{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding-bottom:26px}'
+        + '.login-brand-logo,.login-brand-mark{height:76px;width:76px;padding:9px;object-fit:contain;border-radius:17px;border:1px solid #304156;background:#0b1118;box-shadow:0 2px 18px #0005}'
+        + '.login-brand-mark{display:grid;place-items:center;color:#dffcf4;font-weight:800;font-size:21px}'
+        + '.login-brand h1{font-size:25px;line-height:1.2;margin:3px 0 0;font-weight:750;letter-spacing:-.02em}'
+        + '.login-brand p{font-size:13px;line-height:1.35;color:var(--login-muted);margin:0}'
+        + '.login-card label{display:block;color:#c5d5e4;font-size:13px;font-weight:650;margin:0 0 8px}'
+        + '.login-card input{display:block;width:100%;height:46px;min-height:46px;margin:0 0 18px;padding:0 13px;border:1px solid #34495d;border-radius:9px;background:#0b141e!important;color:var(--login-text)!important;font:inherit;outline:none;box-shadow:none;transition:border-color .15s,box-shadow .15s;color-scheme:dark;-webkit-text-fill-color:var(--login-text)}'
+        + '.login-card input::placeholder{color:#8095a8;opacity:1}'
+        + '.login-card input:focus-visible{border-color:#37c7a2;box-shadow:0 0 0 3px #37c7a226}'
+        + '.login-card input:-webkit-autofill,.login-card input:-webkit-autofill:hover,.login-card input:-webkit-autofill:focus,.login-card input:autofill{box-shadow:0 0 0 1000px #0b141e inset!important;-webkit-box-shadow:0 0 0 1000px #0b141e inset!important;-webkit-text-fill-color:var(--login-text)!important;caret-color:var(--login-text)!important;border-color:#34495d!important;color-scheme:dark}'
+        + '.login-card button{margin-top:4px;height:46px;min-height:46px;width:100%;border-radius:9px;border:1px solid #41c6a8;background:#248e77;color:white;font:inherit;font-weight:750;cursor:pointer;transition:background .15s,transform .15s}'
+        + '.login-card button:hover{background:#2aa58b}'
+        + '.login-card button:focus-visible{outline:3px solid #4bd6b5;outline-offset:3px}'
+        + '.login-card button:active{transform:translateY(1px)}'
+        + '.login-card .error{padding:10px 12px;margin:-2px 0 18px;border:1px solid #954453;border-radius:9px;background:#3b1b26;color:#ffd0d3;font-size:13px;line-height:1.45}'
+        + '@media(max-width:480px){body{padding:16px 12px}.login-card{border-radius:14px}.login-card form{padding:24px 20px}.login-brand{padding-bottom:23px}.login-brand-logo,.login-brand-mark{width:68px;height:68px}}'
+        + '@media(prefers-reduced-motion:reduce){.login-card input,.login-card button{transition:none}}'
+        + '</style></head><body>'
+        + '<main class="login-card"><form method="post" action="' + html.escape(login_path, quote=True) + '" autocomplete="on">'
+        + '<div class="login-brand">' + logo_html + '<h1>' + html.escape(manager.node_name or "Node") + '</h1><p>Sign in to the Node Panel</p></div>'
         + error_html
-        + '<input name="username" placeholder="Username" required><input type="password" name="password" placeholder="Password" required><button>Sign in</button></form>'
+        + '<label for="node-login-user">Username</label><input id="node-login-user" type="text" name="username" autocomplete="username" autocapitalize="off" spellcheck="false" maxlength="80" required>'
+        + '<label for="node-login-password">Password</label><input id="node-login-password" type="password" name="password" autocomplete="current-password" required>'
+        + '<button type="submit">Sign in</button></form></main>'
         + canonical_script + '</body></html>'
     )
 

@@ -31,6 +31,9 @@ else:
             f"{updater.name} runs py_compile in SOURCE_DIR before staging and can create __pycache__"
         )
 
+    # STREAMFORGE_RELEASE_NODE_LOGIN_DARK_RESPONSIVE_V1272:
+    bounded_node_login_v1272 = "STREAMFORGE_V1272_NODE_LOGIN_DARK_UI_UPDATER" in text
+
     # STREAMFORGE_RELEASE_MAIN_LOGIN_AUTOFILL_BLOCKED_IP_CARD_V1271:
     bounded_ui_v1271 = "STREAMFORGE_V1271_LOGIN_AUTOFILL_BLOCKED_IP_CARD" in text
 
@@ -105,7 +108,22 @@ else:
         None,
     )
 
-    if bounded_ui_v1271:
+    if bounded_node_login_v1272:
+        if 'cp -a "$SRC/." "$STAGE/"' in text:
+            errors.append(f"{updater.name} v12.72 must not copy the entire tree")
+        for marker in (
+            'STREAMFORGE_V1272_NODE_LOGIN_DARK_UI_UPDATER',
+            '12.70|12.71|12.72',
+            'STREAMFORGE_V1272_NODE_LOGIN_ONLY_PARITY',
+            'OLD_NODE_BLOB="b023c2fd96c46bbeec1c16aa42c786bcf7a5544e"',
+            'STREAMFORGE_V1272_NODE_LOGIN_DARK_RESPONSIVE',
+            'node_agent/app.py',
+            'test_v1272_node_login.py',
+            'Rolling back from',
+        ):
+            if marker not in text:
+                errors.append(f"{updater.name} v12.72 Node login design contract missing {marker}")
+    elif bounded_ui_v1271:
         if 'cp -a "$SRC/." "$STAGE/"' in text:
             errors.append(f"{updater.name} v12.71 unexpectedly copied full release tree")
         for marker in (

@@ -23,8 +23,14 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check scoped Main UI and browser JS
         run: python3 scripts/test_v1271_login_blocked_ui.py
-      - name: Test bounded updater and rollback
-        run: python3 scripts/test_v1271_updater.py
+      - name: Test historical v12.71 updater only on v12.71
+        shell: bash
+        run: |
+          if [[ "$(cat VERSION)" == "12.71" ]]; then
+            python3 scripts/test_v1271_updater.py
+          else
+            echo 'v12.71 updater test skipped for newer release.'
+          fi
       - name: Check retained password-vault and IP guard contracts
         run: python3 scripts/verify_panel_credential_vault_v1263.py
       - name: Check release staging and safety boundaries
@@ -34,7 +40,9 @@ jobs:
           python3 scripts/verify_release_updater_staging.py
           bash -n scripts/force_update_v1271.sh
           bash -n scripts/update.sh
-          grep -Fq 'force_update_v1271.sh' scripts/update.sh
+          if [[ "$(cat VERSION)" == "12.71" ]]; then
+            grep -Fq 'force_update_v1271.sh' scripts/update.sh
+          fi
           grep -Fq 'STREAMFORGE_V1271_MAIN_ONLY_NODE_PARITY' scripts/force_update_v1271.sh
           if grep -Eq 'systemctl[[:space:]]+(restart|reload)[[:space:]]+streamforge-channel-supervisor' scripts/force_update_v1271.sh; then exit 1; fi
           if grep -Eq 'systemctl[[:space:]]+(restart|reload)[[:space:]]+nginx' scripts/force_update_v1271.sh; then exit 1; fi
@@ -42,8 +50,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(cat VERSION)" = '12.71'
-          test "$(cat node_agent/VERSION)" = '12.71'
+          if [[ "$(cat VERSION)" == "12.71" ]]; then
+            test "$(cat node_agent/VERSION)" = '12.71'
+          else
+            echo 'Historical v12.71 version check skipped.'
+          fi
           grep -Fq 'autofill' release-notes/v12.71.md
           grep -Fq 'Blocked IPs' release-notes/v12.71.md
           grep -Fq 'streamforge-update --force /root/streamforge-12.71.zip' release-notes/v12.71.md
