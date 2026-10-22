@@ -449,10 +449,12 @@
     toggle.textContent = isVisible ? 'Show' : 'Hide';
   });
   confirm.addEventListener('click', async () => {
+    // Preserve the submitted reauth value before wiping the visible input.
+    const submittedReauth = reauth.value;
     wipe();
     error.hidden = true;
     error.textContent = '';
-    if (!Number.isSafeInteger(selectedId) || selectedId < 1 || !reauth.value) {
+    if (!Number.isSafeInteger(selectedId) || selectedId < 1 || !submittedReauth) {
       error.textContent = 'Enter your Super Admin password.';
       error.hidden = false;
       return;
@@ -461,7 +463,7 @@
     confirm.disabled = true;
     try {
       const body = new URLSearchParams({
-        reauth_password: reauth.value, csrf_token: csrf.value,
+        reauth_password: submittedReauth, csrf_token: csrf.value,
       });
       reauth.value = '';
       const response = await fetch(root + '/admin-users/' + selectedId + '/password/reveal', {
