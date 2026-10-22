@@ -1,6 +1,35 @@
 {% extends "base.html" %}
 {% block title %}Login · {{ branding.name }}{% endblock %}
 {% block guest %}
+{# STREAMFORGE_V1271_LOGIN_AUTOFILL_DARK: Chrome/password-manager autofill must match dark login theme. #}
+<style>
+.login-card input[name="username"],
+.login-card input[name="password"] {
+  width:100%;min-width:0;box-sizing:border-box;
+  background-color:#0b1118 !important;color:#edf4fb !important;
+  border:1px solid #304156;border-radius:7px;caret-color:#edf4fb;
+  color-scheme:dark;
+}
+.login-card input[name="username"]:focus,
+.login-card input[name="password"]:focus{
+  outline:none;border-color:var(--accent,#37c7a2);
+  box-shadow:0 0 0 2px rgba(55,199,162,.17);
+}
+.login-card input:is(:-webkit-autofill,:-webkit-autofill:hover,:-webkit-autofill:focus),
+.login-card input:autofill{
+  -webkit-box-shadow:0 0 0 1000px #0b1118 inset !important;
+  box-shadow:0 0 0 1000px #0b1118 inset !important;
+  -webkit-text-fill-color:#edf4fb !important;
+  caret-color:#edf4fb !important;
+  border-color:#304156 !important;
+  color-scheme:dark;
+}
+.login-card input:-webkit-autofill:focus{
+  border-color:var(--accent,#37c7a2) !important;
+  -webkit-box-shadow:0 0 0 1000px #0b1118 inset,0 0 0 2px rgba(55,199,162,.17) !important;
+  box-shadow:0 0 0 1000px #0b1118 inset,0 0 0 2px rgba(55,199,162,.17) !important;
+}
+</style>
 <div class="login-wrap">
   <form class="login-card" method="post" action="/login">
     <div class="brand login-brand">{% if branding.logo_url %}<img class="brand-logo" src="{{ branding.logo_url|versioned_asset }}" alt="{{ branding.name }} logo">{% else %}<span class="brand-mark">{{ branding.name[:2]|upper }}</span>{% endif %}<div class="brand-copy"><b>{{ branding.name }}</b><small>{{ branding.subtitle }}</small></div></div>

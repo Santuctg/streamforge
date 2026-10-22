@@ -47,19 +47,58 @@
   </div>
 
 
+</section>
+{# STREAMFORGE_V1271_BLOCKED_IP_STANDALONE_CARD: separate top-level card from Login Accounts. #}
+<style>
+.sf-login-guard-card{margin-top:20px;overflow:hidden}
+.sf-login-guard-card .sf-guard-intro{font-size:13px;line-height:1.55;color:var(--muted,#8da0b5);max-width:76ch}
+.sf-login-guard-card .sf-guard-policy{padding:15px 18px;display:grid;gap:10px;grid-template-columns:repeat(4,minmax(0,1fr));border-bottom:1px solid var(--line,#243142)}
+.sf-login-guard-card .sf-guard-policy-item{min-width:0;padding:11px 13px;border:1px solid var(--line,#243142);border-radius:9px;background:var(--panel2,#151e29)}
+.sf-login-guard-card .sf-guard-policy-label{display:block;font-size:11px;color:var(--muted,#8da0b5);margin-bottom:5px}
+.sf-login-guard-card .sf-guard-policy-value{display:block;font-weight:650;color:var(--text,#edf4fb);font-size:14px}
+.sf-login-guard-card .sf-guard-hint{padding:11px 18px;margin:0;border-bottom:1px solid var(--line,#243142);font-size:12px;line-height:1.55;color:var(--muted,#8da0b5)}
+.sf-login-guard-card [data-vault-lock-status]{display:block;margin:0;padding:11px 18px;border-bottom:1px solid var(--line,#243142);font-size:12px;font-weight:600;color:var(--text,#edf4fb)}
+/* Override global mobile table-as-cards rules: keep six security columns
+   in a native horizontally scrollable table on narrower screens. */
+section.panel.sf-login-guard-card .table-wrap{overflow-x:auto !important;overflow-y:hidden}
+section.panel.sf-login-guard-card .table-wrap table{display:table !important;width:100%;min-width:780px !important}
+section.panel.sf-login-guard-card .table-wrap table thead{display:table-header-group !important}
+section.panel.sf-login-guard-card .table-wrap table tbody{display:table-row-group !important}
+section.panel.sf-login-guard-card .table-wrap table tbody tr{
+  display:table-row !important;margin:0 !important;padding:0 !important;
+  border:0 !important;background:transparent !important
+}
+section.panel.sf-login-guard-card .table-wrap table tbody tr td{
+  display:table-cell !important;min-width:0;padding:12px 14px;vertical-align:middle;
+  border-bottom:1px solid var(--line,#243142);overflow-wrap:normal
+}
+section.panel.sf-login-guard-card .table-wrap table tbody tr td::before{display:none !important}
+.sf-login-guard-card th{white-space:nowrap}
+.sf-login-guard-card .sf-guard-empty{color:var(--muted,#8da0b5);padding:19px 18px;text-align:center}
+@media(max-width:850px){.sf-login-guard-card .sf-guard-policy{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.sf-login-guard-card .sf-guard-policy{grid-template-columns:1fr 1fr;padding:12px;gap:8px}.sf-login-guard-card .sf-guard-policy-item{padding:9px}.sf-login-guard-card .sf-guard-policy-value{font-size:12px}.sf-login-guard-card .panel-head{gap:12px}}
+</style>
 {# STREAMFORGE_V1265_BLOCK_SERVER_UI: 5th failed request origin. #}
 {% if is_super_admin %}
-<section class="panel" data-vault-lock-console style="margin-top:20px" data-vault-lock-csrf="{{ vault_csrf_token }}">
+<section class="panel sf-login-guard-card" data-vault-lock-console data-vault-lock-csrf="{{ vault_csrf_token }}" aria-labelledby="sf-login-guard-title">
   <div class="panel-head">
-    <div><h2>Security · Panel Login · Blocked IPs</h2>
-      <p>Five incorrect Panel login passwords from the same IP within 15 minutes block new Main and Remote Node Panel logins from that IP for 3 hours. Triggered by shows which server handled the fifth failure; older blocks may show Unknown. Accounts are not blocked.</p>
+    <div>
+      <h2 id="sf-login-guard-title">Security · Panel Login · Blocked IPs</h2>
+      <p class="sf-guard-intro">Review temporarily blocked login IPs across Main Server and Remote Nodes. You can unblock an IP after reauthenticating as Super Admin.</p>
     </div>
     <button type="button" class="button small" data-vault-lock-refresh>Refresh</button>
   </div>
-  <p class="field-help" data-vault-lock-status role="status">Loading blocked IPs…</p>
+  <div class="sf-guard-policy" aria-label="Panel login protection policy">
+    <div class="sf-guard-policy-item"><span class="sf-guard-policy-label">Failed attempts</span><strong class="sf-guard-policy-value">5 incorrect logins</strong></div>
+    <div class="sf-guard-policy-item"><span class="sf-guard-policy-label">Counting window</span><strong class="sf-guard-policy-value">15 minutes</strong></div>
+    <div class="sf-guard-policy-item"><span class="sf-guard-policy-label">Automatic unblock</span><strong class="sf-guard-policy-value">After 3 hours</strong></div>
+    <div class="sf-guard-policy-item"><span class="sf-guard-policy-label">Applies to</span><strong class="sf-guard-policy-value">Main + Remote Nodes</strong></div>
+  </div>
+  <p class="sf-guard-hint">Only the source IP is blocked, not the user account. “Triggered by server” identifies the fifth failed login; older blocks may show “Unknown”. Users sharing a NAT/public IP can be affected together.</p>
+  <p data-vault-lock-status role="status" aria-live="polite">Loading blocked IPs…</p>
   <div class="table-wrap">
     <table><thead><tr><th>IP address</th><th>Triggered by server</th><th>Failed attempts</th><th>Blocked until</th><th>Remaining</th><th>Action</th></tr></thead>
-      <tbody data-vault-lock-rows><tr><td colspan="6">Loading…</td></tr></tbody>
+      <tbody data-vault-lock-rows><tr><td colspan="6" class="sf-guard-empty">Loading blocked IPs…</td></tr></tbody>
     </table>
   </div>
   <div class="sf-vault-overlay" data-vault-unlock-overlay hidden style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(4,11,27,.72);align-items:center;justify-content:center;padding:18px">
@@ -108,7 +147,8 @@
       const tr = document.createElement('tr');
       const cell = document.createElement('td');
       cell.colSpan = 6;
-      cell.textContent = 'No IP addresses currently blocked from Panel login.';
+      cell.className = 'sf-guard-empty';
+      cell.textContent = 'No IP addresses are currently blocked.';
       tr.appendChild(cell); tbody.appendChild(tr); return;
     }
     for (const item of deadlineRows) {
@@ -508,5 +548,4 @@
 </script>
 {% endif %}
 
-</section>
 {% endblock %}

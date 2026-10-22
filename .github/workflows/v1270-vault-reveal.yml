@@ -30,8 +30,14 @@ jobs:
           PYTHONPATH=. python3 scripts/test_v1263_vault_security.py
       - name: Existing password reset modal regression
         run: PYTHONPATH=. python3 scripts/test_v1268_password_modal.py
-      - name: Test scoped upgrade, reapply and controlled rollback
-        run: python3 scripts/test_v1270_updater.py
+      - name: Test historical v12.70 upgrader only on v12.70
+        shell: bash
+        run: |
+          if [[ "$(cat VERSION)" == "12.70" ]]; then
+            python3 scripts/test_v1270_updater.py
+          else
+            echo 'v12.70 updater test skipped for newer release; current updater is tested separately.'
+          fi
       - name: Verify safe packaging/service boundaries
         shell: bash
         run: |
@@ -39,7 +45,9 @@ jobs:
           python3 scripts/verify_release_updater_staging.py
           bash -n scripts/force_update_v1270.sh
           bash -n scripts/update.sh
-          grep -Fq 'force_update_v1270.sh' scripts/update.sh
+          if [[ "$(cat VERSION)" == "12.70" ]]; then
+            grep -Fq 'force_update_v1270.sh' scripts/update.sh
+          fi
           grep -Fq 'STREAMFORGE_V1270_NODE_FORM_ONLY_PARITY' scripts/force_update_v1270.sh
           if grep -Eq 'systemctl[[:space:]]+(restart|reload)[[:space:]]+(nginx|streamforge-channel-supervisor)' scripts/force_update_v1270.sh; then exit 1; fi
           git diff --check

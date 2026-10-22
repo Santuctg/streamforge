@@ -31,6 +31,9 @@ else:
             f"{updater.name} runs py_compile in SOURCE_DIR before staging and can create __pycache__"
         )
 
+    # STREAMFORGE_RELEASE_MAIN_LOGIN_AUTOFILL_BLOCKED_IP_CARD_V1271:
+    bounded_ui_v1271 = "STREAMFORGE_V1271_LOGIN_AUTOFILL_BLOCKED_IP_CARD" in text
+
     # STREAMFORGE_RELEASE_VAULT_UI_TIMEOUT_NODE_COPY_V1270:
     bounded_reveal_ui_v1270 = "STREAMFORGE_V1270_REVEAL_TIMEOUT_AND_NODE_COPY" in text
 
@@ -102,7 +105,22 @@ else:
         None,
     )
 
-    if bounded_reveal_ui_v1270:
+    if bounded_ui_v1271:
+        if 'cp -a "$SRC/." "$STAGE/"' in text:
+            errors.append(f"{updater.name} v12.71 unexpectedly copied full release tree")
+        for marker in (
+            'STREAMFORGE_V1271_LOGIN_AUTOFILL_BLOCKED_IP_CARD',
+            '12.70|12.71',
+            'STREAMFORGE_V1271_MAIN_ONLY_NODE_PARITY',
+            'app/templates/login.html',
+            'app/templates/admin_users.html',
+            'test_v1271_login_blocked_ui.py',
+            'Rolling back from',
+            'atomic_copy',
+        ):
+            if marker not in text:
+                errors.append(f"{updater.name} v12.71 scope contract missing {marker}")
+    elif bounded_reveal_ui_v1270:
         if 'cp -a "$SRC/." "$STAGE/"' in text:
             errors.append(f"{updater.name} v12.70 unexpectedly copied full release")
         for marker in (
