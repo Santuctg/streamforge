@@ -58,10 +58,22 @@
 .sf-login-guard-card .sf-guard-policy-value{display:block;font-weight:650;color:var(--text,#edf4fb);font-size:14px}
 .sf-login-guard-card .sf-guard-hint{padding:11px 18px;margin:0;border-bottom:1px solid var(--line,#243142);font-size:12px;line-height:1.55;color:var(--muted,#8da0b5)}
 .sf-login-guard-card [data-vault-lock-status]{display:block;margin:0;padding:11px 18px;border-bottom:1px solid var(--line,#243142);font-size:12px;font-weight:600;color:var(--text,#edf4fb)}
-.sf-login-guard-card .table-wrap{overflow-x:auto}
-.sf-login-guard-card table{width:100%;min-width:780px}
+/* Override global mobile table-as-cards rules: keep six security columns
+   in a native horizontally scrollable table on narrower screens. */
+section.panel.sf-login-guard-card .table-wrap{overflow-x:auto !important;overflow-y:hidden}
+section.panel.sf-login-guard-card .table-wrap table{display:table !important;width:100%;min-width:780px !important}
+section.panel.sf-login-guard-card .table-wrap table thead{display:table-header-group !important}
+section.panel.sf-login-guard-card .table-wrap table tbody{display:table-row-group !important}
+section.panel.sf-login-guard-card .table-wrap table tbody tr{
+  display:table-row !important;margin:0 !important;padding:0 !important;
+  border:0 !important;background:transparent !important
+}
+section.panel.sf-login-guard-card .table-wrap table tbody tr td{
+  display:table-cell !important;min-width:0;padding:12px 14px;vertical-align:middle;
+  border-bottom:1px solid var(--line,#243142);overflow-wrap:normal
+}
+section.panel.sf-login-guard-card .table-wrap table tbody tr td::before{display:none !important}
 .sf-login-guard-card th{white-space:nowrap}
-.sf-login-guard-card td{vertical-align:middle}
 .sf-login-guard-card .sf-guard-empty{color:var(--muted,#8da0b5);padding:19px 18px;text-align:center}
 @media(max-width:850px){.sf-login-guard-card .sf-guard-policy{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:480px){.sf-login-guard-card .sf-guard-policy{grid-template-columns:1fr 1fr;padding:12px;gap:8px}.sf-login-guard-card .sf-guard-policy-item{padding:9px}.sf-login-guard-card .sf-guard-policy-value{font-size:12px}.sf-login-guard-card .panel-head{gap:12px}}

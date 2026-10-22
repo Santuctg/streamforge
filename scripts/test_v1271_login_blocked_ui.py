@@ -36,6 +36,10 @@ assert "data-vault-unlock-confirm" in users
 assert "IP addresses are currently blocked" in users
 assert "sf-guard-empty" in users
 assert "@media(max-width:850px)" in users
+assert "section.panel.sf-login-guard-card .table-wrap table tbody tr td" in users
+assert "display:table-cell !important" in users
+assert "overflow-x:auto !important" in users
+assert "min-width:780px !important" in users
 
 class Sections(HTMLParser):
     def __init__(self):
