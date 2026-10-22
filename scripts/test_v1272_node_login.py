@@ -13,6 +13,7 @@ compile(source,"node_agent/app.py","exec")
 tree=ast.parse(source)
 func=next(x for x in tree.body if isinstance(x,ast.FunctionDef) and x.name=="node_panel_login_page")
 assert "STREAMFORGE_V1272_NODE_LOGIN_DARK_RESPONSIVE" in ast.get_source_segment(source,func)
+func.decorator_list = []  # Test the route body without registering a server endpoint.
 assert 'manager.live_panel_authorize(\n        username, action="login", password=password, client_ip=browser_ip' in source
 assert 'Invalid username or password' in source
 def render(prefix="/tslive",name="TS Live",error=""):
