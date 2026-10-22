@@ -1,0 +1,49 @@
+name: v12.71 Login Autofill and Blocked IP Card
+on:
+  push:
+    branches:
+      - feature/v12.71-login-autofill-blocked-ip-card
+  pull_request:
+    paths:
+      - VERSION
+      - node_agent/VERSION
+      - app/templates/login.html
+      - app/templates/admin_users.html
+      - scripts/force_update_v1271.sh
+      - scripts/test_v1271_login_blocked_ui.py
+      - scripts/test_v1271_updater.py
+      - scripts/verify_release_updater_staging.py
+      - scripts/verify_panel_credential_vault_v1263.py
+      - scripts/update.sh
+      - .github/workflows/v1271-ui-polish.yml
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check scoped Main UI and browser JS
+        run: python3 scripts/test_v1271_login_blocked_ui.py
+      - name: Test bounded updater and rollback
+        run: python3 scripts/test_v1271_updater.py
+      - name: Check retained password-vault and IP guard contracts
+        run: python3 scripts/verify_panel_credential_vault_v1263.py
+      - name: Check release staging and safety boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/verify_release_updater_staging.py
+          bash -n scripts/force_update_v1271.sh
+          bash -n scripts/update.sh
+          grep -Fq 'force_update_v1271.sh' scripts/update.sh
+          grep -Fq 'STREAMFORGE_V1271_MAIN_ONLY_NODE_PARITY' scripts/force_update_v1271.sh
+          if grep -Eq 'systemctl[[:space:]]+(restart|reload)[[:space:]]+streamforge-channel-supervisor' scripts/force_update_v1271.sh; then exit 1; fi
+          if grep -Eq 'systemctl[[:space:]]+(restart|reload)[[:space:]]+nginx' scripts/force_update_v1271.sh; then exit 1; fi
+      - name: Check release notes and version
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(cat VERSION)" = '12.71'
+          test "$(cat node_agent/VERSION)" = '12.71'
+          grep -Fq 'autofill' release-notes/v12.71.md
+          grep -Fq 'Blocked IPs' release-notes/v12.71.md
+          grep -Fq 'streamforge-update --force /root/streamforge-12.71.zip' release-notes/v12.71.md
