@@ -359,14 +359,18 @@
 .sf-vault-dialog .vault-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
 .sf-vault-error{color:#f99;margin:10px 0}
 .sf-vault-note{color:var(--muted,#a7b0c2);font-size:.87rem}
+/* STREAMFORGE_V1270_REVEAL_AUTH_STEP: hide verified reauth fields and result after expiry. */
+.sf-vault-dialog [hidden]{display:none !important}
 </style>
 <div class="sf-vault-overlay" data-vault-overlay hidden>
   <section class="sf-vault-dialog" role="dialog" aria-modal="true" aria-labelledby="sf-vault-title">
     <h3 id="sf-vault-title">Show saved password</h3>
-    <p class="sf-vault-note">Re-enter your own Super Admin password. The saved credential appears for 10 seconds only; nobody's existing one-way hash is recoverable.</p>
     <p data-vault-user-label></p>
-    <label for="sf-vault-reauth">Your Super Admin password</label>
-    <input id="sf-vault-reauth" type="password" data-vault-reauth autocomplete="current-password" aria-label="Re-authenticate Super Admin">
+    <div data-vault-reauth-step>
+      <p class="sf-vault-note">Enter your own Super Admin password to authorize a 10-second reveal.</p>
+      <label for="sf-vault-reauth">Your Super Admin password</label>
+      <input id="sf-vault-reauth" type="password" data-vault-reauth autocomplete="current-password" aria-label="Re-authenticate Super Admin">
+    </div>
     <input type="hidden" data-vault-csrf value="{{ vault_csrf_token }}">
     <p role="alert" class="sf-vault-error" data-vault-error hidden></p>
     <div data-vault-result hidden>
@@ -387,6 +391,7 @@
   const overlay = document.querySelector('[data-vault-overlay]');
   if (!overlay) return;
   const reauth = overlay.querySelector('[data-vault-reauth]');
+  const authStep = overlay.querySelector('[data-vault-reauth-step]');
   const result = overlay.querySelector('[data-vault-result]');
   const secretValue = overlay.querySelector('[data-vault-secret-value]');
   const error = overlay.querySelector('[data-vault-error]');
@@ -404,6 +409,10 @@
     clearInterval(countdownTimer);
     hideTimer = null;
     countdownTimer = null;
+    // Never keep either credential in hidden inputs after expiry/close/blur.
+    reauth.value = '';
+    authStep.hidden = false;
+    confirm.hidden = false;
     secretValue.value = '';
     secretValue.type = 'password';
     toggle.textContent = 'Show';
@@ -471,13 +480,18 @@
       }
       // Set values, not HTML; no logs, clipboard, URL or localStorage.
       secretValue.value = payload.password;
+      // Reauthentication is complete: show ONLY the saved credential.
+      authStep.hidden = true;
+      confirm.hidden = true;
       result.hidden = false;
-      let remaining = 15;
-      count.textContent = 'Hides in 10 seconds';
-      countdownTimer = setInterval(() => {
-        remaining--;
-        count.textContent = 'Hides in ' + remaining + ' seconds';
-      }, 1000);
+      const expiresAt = performance.now() + 10000;
+      const updateCount = () => {
+        const seconds = Math.max(0, Math.ceil((expiresAt - performance.now()) / 1000));
+        if (seconds === 0) { wipe(); return; }
+        count.textContent = 'Hides in ' + seconds + (seconds === 1 ? ' second' : ' seconds');
+      };
+      updateCount();
+      countdownTimer = setInterval(updateCount, 200);
       hideTimer = setTimeout(wipe, 10000);
     } catch (_) {
       if (seq === requestSeq) {
