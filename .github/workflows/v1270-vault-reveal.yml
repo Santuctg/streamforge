@@ -1,0 +1,49 @@
+name: v12.70 Vault Reveal 10s and Node Password Copy
+on:
+  push:
+    branches: [fix/v12.70-vault-reveal-timeout-node-copy]
+  pull_request:
+    paths:
+      - VERSION
+      - node_agent/VERSION
+      - node_agent/app.py
+      - app/templates/admin_users.html
+      - scripts/force_update_v1270.sh
+      - scripts/test_v1270_reveal_ui.py
+      - scripts/test_v1270_reveal_browser.js
+      - scripts/test_v1270_updater.py
+      - scripts/verify_panel_credential_vault_v1263.py
+      - scripts/verify_release_updater_staging.py
+      - .github/workflows/v1270-vault-reveal.yml
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check vault, IP policy and managed Node authentication
+        run: python3 scripts/verify_panel_credential_vault_v1263.py
+      - name: Verify actual reveal JavaScript timeline and Node form UI
+        run: python3 scripts/test_v1270_reveal_ui.py
+      - name: Existing password vault security regression
+        run: |
+          python3 -m pip install fastapi sqlalchemy cryptography python-multipart httpx itsdangerous
+          PYTHONPATH=. python3 scripts/test_v1263_vault_security.py
+      - name: Existing password reset modal regression
+        run: PYTHONPATH=. python3 scripts/test_v1268_password_modal.py
+      - name: Test scoped upgrade, reapply and controlled rollback
+        run: python3 scripts/test_v1270_updater.py
+      - name: Verify safe packaging/service boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/verify_release_updater_staging.py
+          bash -n scripts/force_update_v1270.sh
+          bash -n scripts/update.sh
+          grep -Fq 'force_update_v1270.sh' scripts/update.sh
+          grep -Fq 'STREAMFORGE_V1270_NODE_FORM_ONLY_PARITY' scripts/force_update_v1270.sh
+          if grep -Eq 'systemctl[[:space:]]+(restart|reload)[[:space:]]+(nginx|streamforge-channel-supervisor)' scripts/force_update_v1270.sh; then exit 1; fi
+          git diff --check
+      - name: Release notes
+        run: |
+          test -s release-notes/v12.70.md
+          grep -Fq 'streamforge-update --force /root/streamforge-12.70.zip' release-notes/v12.70.md

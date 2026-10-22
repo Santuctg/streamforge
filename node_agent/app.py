@@ -10971,7 +10971,7 @@ async def node_panel_login(request: Request):
 
 @app.get("/panel/account/password", response_class=HTMLResponse)
 def node_panel_account_password_page(request: Request, message: str = "", error: str = ""):
-    # STREAMFORGE_V1269_COMPACT_NODE_PASSWORD_NOTICE: concise visible disclosure + aligned form.
+    # STREAMFORGE_V1270_NODE_PASSWORD_FORM_CLEANUP: no extra paragraph; concise in heading.
     user = require_node_panel_user(request, "")
     alerts = ""
     if message:
@@ -10984,12 +10984,12 @@ def node_panel_account_password_page(request: Request, message: str = "", error:
         + '<section class="panel form-section">'
         + '<div class="panel-head"><div><h2>Change password</h2><p>Update the password for '
         + html.escape(user.username)
-        + '. The credential is changed on the Main Server and is immediately valid on this Node.</p></div></div>'
+        + '. The credential is changed on the Main Server and is immediately valid on this Node. As a managed account, authorized administrators can recover changed passwords.</p></div></div>'
         + '<div class="form-grid">'
         + '<label>Current password<input type="password" name="current_password" autocomplete="current-password" required></label>'
         + '<label>New password<input type="password" name="new_password" minlength="8" autocomplete="new-password" required><small class="field-help">Minimum 8 characters.</small></label>'
         + '<label style="grid-column:1 / -1">Confirm new password<input type="password" name="new_password_confirm" minlength="8" autocomplete="new-password" required></label>'
-        + '</div><p class="field-help" role="note">New passwords are encrypted on Main and can be viewed by authorized administrators.</p></section>'
+        + '</div></section>'
         + '<div class="form-actions"><button class="btn primary" type="submit">Change password</button></div>'
         + '</form>'
     )
