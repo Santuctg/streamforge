@@ -18,8 +18,14 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Test staged Main hotfix update and rollback
-        run: python3 scripts/test_v1273_updater.py
+      - name: Test historical v12.73 updater only on v12.73
+        shell: bash
+        run: |
+          if [[ "$(cat VERSION)" == "12.73" ]]; then
+            python3 scripts/test_v1273_updater.py
+          else
+            echo 'v12.73 updater test skipped for newer release.'
+          fi
       - name: Verify release staging and safe restart scope
         shell: bash
         run: |
@@ -27,14 +33,19 @@ jobs:
           python3 scripts/verify_release_updater_staging.py
           bash -n scripts/force_update_v1273.sh
           bash -n scripts/update.sh
-          grep -Fq 'force_update_v1273.sh' scripts/update.sh
+          if [[ "$(cat VERSION)" == "12.73" ]]; then
+            grep -Fq 'force_update_v1273.sh' scripts/update.sh
+          fi
           grep -Fq 'STREAMFORGE_V1273_MAIN_ONLY_NODE_PARITY' scripts/force_update_v1273.sh
           if grep -Eq 'systemctl[[:space:]]+(restart|reload)[[:space:]]+(nginx|streamforge-channel-supervisor)' scripts/force_update_v1273.sh; then exit 1; fi
           git diff --check
       - name: Verify version and notes
         shell: bash
         run: |
-          test "$(cat VERSION)" = "12.73"
-          test "$(cat node_agent/VERSION)" = "12.73"
+          if [[ "$(cat VERSION)" == "12.73" ]]; then
+            test "$(cat node_agent/VERSION)" = "12.73"
+          else
+            echo 'Historical v12.73 version check skipped.'
+          fi
           grep -Fq 'shutil' release-notes/v12.73.md
           grep -Fq 'streamforge-update --force /root/streamforge-12.73.zip' release-notes/v12.73.md
