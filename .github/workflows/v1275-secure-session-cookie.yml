@@ -21,7 +21,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Install Main runtime dependencies
-        run: python3 -m pip install -q -r requirements.txt
+        run: python3 -m pip install -q -r requirements.txt httpx
       - name: Session cookie is Secure on HTTPS only
         run: python3 scripts/test_v1275_secure_cookie.py
       - name: Verify integrated Main, vault and IP guard contracts

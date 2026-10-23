@@ -21,7 +21,7 @@ def get_(request: Request): return {"admin_id": request.session.get("admin_id")}
 @t.get("/clear")
 def clear_(request: Request): request.session.clear(); return {"ok": True}
 @t.get("/other")
-def other(): 
+def other():
     from fastapi.responses import JSONResponse
     r = JSONResponse({}); r.set_cookie("sessionx", "1"); r.set_cookie("other", "1"); return r
 t.add_middleware(SessionMiddleware, secret_key="x"*64, same_site="lax", https_only=False, max_age=60)
