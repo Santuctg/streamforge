@@ -14,6 +14,7 @@ import urllib.request
 import urllib.parse
 from urllib.parse import quote_plus, urlencode, urlsplit
 import secrets
+import shutil
 import subprocess
 import threading
 import tarfile
@@ -5693,7 +5694,7 @@ def system_branding_save(
     submitted_subtitle = str(brand_subtitle or "")
     cleaned_subtitle = " ".join(submitted_subtitle.split())[:120] if submitted_subtitle.strip() else ""
     if not cleaned_name:
-        return render(request, "system_branding.html", db, saved=False, message="", backup_targets=load_backup_targets(), backup_rclone=backup_rclone_status(), error="Brand name is required", main_total_max_connections=max(0, min(1000000, int(total_max_connections or 0))), metrics_retention_days=max(1, min(3650, int(metrics_retention_days or 30))), log_retention_days=max(1, min(3650, int(log_retention_days or 30))), available_network_interfaces=available_network_interfaces(), selected_network_interfaces=selected_network_interfaces(db))
+        return render(request, "system_branding.html", db, saved=False, message="", error="Brand name is required", main_total_max_connections=max(0, min(1000000, int(total_max_connections or 0))), metrics_retention_days=max(1, min(3650, int(metrics_retention_days or 30))), log_retention_days=max(1, min(3650, int(log_retention_days or 30))), available_network_interfaces=available_network_interfaces(), selected_network_interfaces=selected_network_interfaces(db))
     branding = branding_settings(db)
     old_logo_url = branding["logo_url"]
     old_favicon_url = branding["favicon_url"]
@@ -5714,7 +5715,7 @@ def system_branding_save(
             remove_youtube_cookies()
         save_youtube_cookies(youtube_cookies_file)
     except ValueError as exc:
-        return render(request, "system_branding.html", db, saved=False, message="", backup_targets=load_backup_targets(), backup_rclone=backup_rclone_status(), error=str(exc), main_total_max_connections=max(0, min(1000000, int(total_max_connections or 0))), metrics_retention_days=max(1, min(3650, int(metrics_retention_days or 30))), log_retention_days=max(1, min(3650, int(log_retention_days or 30))), available_network_interfaces=available_network_interfaces(), selected_network_interfaces=selected_network_interfaces(db))
+        return render(request, "system_branding.html", db, saved=False, message="", error=str(exc), main_total_max_connections=max(0, min(1000000, int(total_max_connections or 0))), metrics_retention_days=max(1, min(3650, int(metrics_retention_days or 30))), log_retention_days=max(1, min(3650, int(log_retention_days or 30))), available_network_interfaces=available_network_interfaces(), selected_network_interfaces=selected_network_interfaces(db))
     save_app_setting(db, BRANDING_NAME_KEY, cleaned_name)
     save_app_setting(db, BRANDING_SUBTITLE_KEY, cleaned_subtitle)
     # Flush immediately so an explicitly blank subtitle is guaranteed to become
