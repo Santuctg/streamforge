@@ -5221,6 +5221,46 @@ class RestoredAssetStaticFiles(StaticFiles):
         return response
 
 
+class SecureSessionCookieMiddleware:
+    """Mark the Panel session cookie Secure when the request arrived over HTTPS.
+
+    STREAMFORGE_MAIN_SESSION_COOKIE_SECURE_ON_HTTPS: one Main can serve an
+    HTTPS domain and plain-HTTP IP access, so SessionMiddleware's fixed
+    https_only flag would break HTTP logins. Decide per request, like the Node
+    panel cookie does, from the X-Forwarded-Proto the managed Nginx sets.
+    """
+
+    def __init__(self, app, cookie_name: str = "session") -> None:
+        self.app = app
+        self.cookie_prefix = f"{cookie_name}=".encode("latin-1")
+
+    @staticmethod
+    def _is_https(scope) -> bool:
+        forwarded = ""
+        for name, value in scope.get("headers") or []:
+            if name == b"x-forwarded-proto":
+                forwarded = value.decode("latin-1").split(",", 1)[0].strip().lower()
+                break
+        return forwarded == "https" or (not forwarded and str(scope.get("scheme") or "").lower() == "https")
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] != "http" or not self._is_https(scope):
+            await self.app(scope, receive, send)
+            return
+
+        async def send_with_secure_cookie(message) -> None:
+            if message["type"] == "http.response.start":
+                headers = []
+                for name, value in message.get("headers") or []:
+                    if name.lower() == b"set-cookie" and value.startswith(self.cookie_prefix) and b"; secure" not in value.lower():
+                        value = value + b"; secure"
+                    headers.append((name, value))
+                message = {**message, "headers": headers}
+            await send(message)
+
+        await self.app(scope, receive, send_with_secure_cookie)
+
+
 app = FastAPI(title="StreamForge", lifespan=lifespan)
 app.include_router(panel_vault_router)  # protected Main-only vault POST
 app.add_middleware(
@@ -5237,6 +5277,8 @@ app.add_middleware(
     https_only=False,
     max_age=60 * 60 * 12,
 )
+# Added after SessionMiddleware so it wraps it and sees the session Set-Cookie.
+app.add_middleware(SecureSessionCookieMiddleware)
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 app.mount("/channel-logos", RestoredAssetStaticFiles(directory=str(settings.logo_root), check_dir=False), name="channel-logos")
 app.mount("/node-logos", RestoredAssetStaticFiles(directory=str(settings.node_logo_root), check_dir=False), name="node-logos")

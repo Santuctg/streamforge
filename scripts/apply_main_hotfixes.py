@@ -14,6 +14,8 @@ repo carries:
    deliberately deleted admin no longer returns (with the env/default
    password, as Super Admin) after every update or restart. Locked-out
    installs recover with scripts/reset_admin.py.
+4. The Panel session cookie is marked Secure on HTTPS requests (decided per
+   request from X-Forwarded-Proto, so plain-HTTP access keeps working).
 
 Each fix is skipped when already present, so re-running is safe:
 
@@ -27,6 +29,7 @@ import sys
 from pathlib import Path
 
 ADMIN_SEED_MARKER = "STREAMFORGE_ADMIN_SEED_FRESH_INSTALL_ONLY"
+SECURE_COOKIE_MARKER = "STREAMFORGE_MAIN_SESSION_COOKIE_SECURE_ON_HTTPS"
 
 BRANDING_ERROR_CONTEXT = " backup_targets=load_backup_targets(), backup_rclone=backup_rclone_status(),"
 
@@ -60,6 +63,59 @@ ADMIN_SEED_UPDATED = """        existing = db.scalar(select(AdminUser).where(Adm
         elif existing.role_id is None:
 """
 
+SECURE_COOKIE_CLASS_ANCHOR = '\n\n\napp = FastAPI(title="StreamForge", lifespan=lifespan)\n'
+
+SECURE_COOKIE_CLASS = '''class SecureSessionCookieMiddleware:
+    """Mark the Panel session cookie Secure when the request arrived over HTTPS.
+
+    STREAMFORGE_MAIN_SESSION_COOKIE_SECURE_ON_HTTPS: one Main can serve an
+    HTTPS domain and plain-HTTP IP access, so SessionMiddleware's fixed
+    https_only flag would break HTTP logins. Decide per request, like the Node
+    panel cookie does, from the X-Forwarded-Proto the managed Nginx sets.
+    """
+
+    def __init__(self, app, cookie_name: str = "session") -> None:
+        self.app = app
+        self.cookie_prefix = f"{cookie_name}=".encode("latin-1")
+
+    @staticmethod
+    def _is_https(scope) -> bool:
+        forwarded = ""
+        for name, value in scope.get("headers") or []:
+            if name == b"x-forwarded-proto":
+                forwarded = value.decode("latin-1").split(",", 1)[0].strip().lower()
+                break
+        return forwarded == "https" or (not forwarded and str(scope.get("scheme") or "").lower() == "https")
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] != "http" or not self._is_https(scope):
+            await self.app(scope, receive, send)
+            return
+
+        async def send_with_secure_cookie(message) -> None:
+            if message["type"] == "http.response.start":
+                headers = []
+                for name, value in message.get("headers") or []:
+                    if name.lower() == b"set-cookie" and value.startswith(self.cookie_prefix) and b"; secure" not in value.lower():
+                        value = value + b"; secure"
+                    headers.append((name, value))
+                message = {**message, "headers": headers}
+            await send(message)
+
+        await self.app(scope, receive, send_with_secure_cookie)'''
+
+SECURE_COOKIE_MIDDLEWARE_ORIGINAL = """    https_only=False,
+    max_age=60 * 60 * 12,
+)
+"""
+
+SECURE_COOKIE_MIDDLEWARE_UPDATED = """    https_only=False,
+    max_age=60 * 60 * 12,
+)
+# Added after SessionMiddleware so it wraps it and sees the session Set-Cookie.
+app.add_middleware(SecureSessionCookieMiddleware)
+"""
+
 
 def _replace_once(source: str, original: str, updated: str, label: str) -> str:
     matches = source.count(original)
@@ -78,6 +134,16 @@ def transform(source: str) -> str:
         source = source.replace(BRANDING_ERROR_CONTEXT, "")
     if ADMIN_SEED_MARKER not in source:
         source = _replace_once(source, ADMIN_SEED_ORIGINAL, ADMIN_SEED_UPDATED, "Admin seed block")
+    if SECURE_COOKIE_MARKER not in source:
+        source = _replace_once(
+            source, SECURE_COOKIE_CLASS_ANCHOR,
+            "\n\n\n" + SECURE_COOKIE_CLASS + SECURE_COOKIE_CLASS_ANCHOR,
+            "Secure session cookie class",
+        )
+        source = _replace_once(
+            source, SECURE_COOKIE_MIDDLEWARE_ORIGINAL, SECURE_COOKIE_MIDDLEWARE_UPDATED,
+            "Secure session cookie middleware",
+        )
     compile(source, "app/main.py", "exec")
     return source
 
