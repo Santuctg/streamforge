@@ -31,6 +31,9 @@ else:
             f"{updater.name} runs py_compile in SOURCE_DIR before staging and can create __pycache__"
         )
 
+    # STREAMFORGE_RELEASE_SECURE_SESSION_COOKIE_V1275:
+    secure_cookie_v1275 = "STREAMFORGE_V1275_SECURE_SESSION_COOKIE_UPDATER" in text
+
     # STREAMFORGE_RELEASE_INTEGRATED_MAIN_SOURCE_V1274:
     integrated_main_v1274 = "STREAMFORGE_V1274_INTEGRATED_MAIN_SOURCE_UPDATER" in text
 
@@ -114,7 +117,22 @@ else:
         None,
     )
 
-    if integrated_main_v1274:
+    if secure_cookie_v1275:
+        if 'cp -a "$SRC/." "$STAGE/"' in text:
+            errors.append(f"{updater.name} v12.75 must not copy the entire tree")
+        for marker in (
+            'STREAMFORGE_V1275_SECURE_SESSION_COOKIE_UPDATER',
+            '12.74|12.75',
+            'STREAMFORGE_V1275_MAIN_ONLY_NODE_PARITY',
+            'scripts/apply_main_hotfixes.py',
+            'STREAMFORGE_MAIN_SESSION_COOKIE_SECURE_ON_HTTPS',
+            'app/main.py',
+            'Rolling back from',
+            'atomic_copy',
+        ):
+            if marker not in text:
+                errors.append(f"{updater.name} v12.75 Secure-cookie contract missing {marker}")
+    elif integrated_main_v1274:
         if 'cp -a "$SRC/." "$STAGE/"' in text:
             errors.append(f"{updater.name} v12.74 must not copy the entire tree")
         if 'atomic_copy' in text or '/app/main.py" "$ROOT' in text:

@@ -15,8 +15,8 @@ auth=contents("app/auth.py")
 errors=[]
 def need(ok,message):
     if not ok:errors.append(message)
-need(contents("VERSION").strip()=="12.74","Main VERSION 12.74")
-need(contents("node_agent/VERSION").strip()=="12.74","bundled Node VERSION 12.74")
+need(contents("VERSION").strip()=="12.75","Main VERSION 12.75")
+need(contents("node_agent/VERSION").strip()=="12.75","bundled Node VERSION 12.75")
 need("STREAMFORGE_PANEL_CREDENTIAL_VAULT_V1263" in vault,"module marker")
 need("STREAMFORGE_PANEL_CREDENTIAL_VAULT_V1263" in contents("scripts/apply_v1263_vault.py"),"Main integration patch marker")
 need('STREAMFORGE_PANEL_PASSWORD_VAULT_KEY' in vault,"dedicated external Fernet key")
@@ -90,5 +90,8 @@ for marker in ("STREAMFORGE_V1264_IP_GUARD","STREAMFORGE_V1265_BLOCK_TRIGGER_SER
                "STREAMFORGE_V1266_AUTO_VAULT","STREAMFORGE_V1268_PW_MODAL_CSRF"):
     need(marker in contents("app/main.py"), "integrated Main source "+marker)
 need("login_locked" not in contents("app/main.py"), "no removed v12.63 login-guard imports")
-if errors: raise SystemExit("FAIL v12.74: "+", ".join(errors))
-print("PASS: v12.74 integrated Main source plus preserved Main login/vault/IP security")
+need("STREAMFORGE_MAIN_SESSION_COOKIE_SECURE_ON_HTTPS" in contents("app/main.py")
+     and "app.add_middleware(SecureSessionCookieMiddleware)" in contents("app/main.py"),
+     "Secure session cookie on HTTPS")
+if errors: raise SystemExit("FAIL v12.75: "+", ".join(errors))
+print("PASS: v12.75 Secure HTTPS session cookie plus preserved Main login/vault/IP security")
