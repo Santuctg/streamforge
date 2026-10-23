@@ -1,0 +1,51 @@
+name: v12.74 Integrated Main Source
+on:
+  pull_request:
+    paths:
+      - VERSION
+      - node_agent/VERSION
+      - app/main.py
+      - scripts/force_update_v1274.sh
+      - scripts/test_v1274_updater.py
+      - scripts/update.sh
+      - scripts/verify_release_updater_staging.py
+      - scripts/verify_panel_credential_vault_v1263.py
+      - .github/workflows/v1274-integrated-main.yml
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install Main runtime dependencies
+        run: python3 -m pip install -q -r requirements.txt
+      - name: Fresh-install Main source imports
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          STREAMFORGE_DATABASE_URL="sqlite:///$tmp/t.db" STREAMFORGE_HLS_ROOT="$tmp/h" \
+          STREAMFORGE_LOGO_ROOT="$tmp/l" STREAMFORGE_NODE_LOGO_ROOT="$tmp/n" \
+            python3 -B -c "import app.main; print('PASS: app.main imports')"
+      - name: Verify integrated Main, vault and IP guard contracts
+        run: python3 scripts/verify_panel_credential_vault_v1263.py
+      - name: Test metadata-only update and rollback
+        run: python3 scripts/test_v1274_updater.py
+      - name: Verify release staging and safe restart scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/verify_release_updater_staging.py
+          bash -n scripts/force_update_v1274.sh
+          bash -n scripts/update.sh
+          grep -Fq 'force_update_v1274.sh' scripts/update.sh
+          if grep -Eq 'systemctl[[:space:]]+(restart|reload)[[:space:]]+(nginx|streamforge-channel-supervisor)' scripts/force_update_v1274.sh; then exit 1; fi
+          git diff --check
+      - name: Verify version and notes
+        shell: bash
+        run: |
+          test "$(cat VERSION)" = "12.74"
+          test "$(cat node_agent/VERSION)" = "12.74"
+          grep -Fq 'Fresh installs' release-notes/v12.74.md
+          grep -Fq 'streamforge-update --force /root/streamforge-12.74.zip' release-notes/v12.74.md

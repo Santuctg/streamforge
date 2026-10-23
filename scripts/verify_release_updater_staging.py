@@ -31,6 +31,9 @@ else:
             f"{updater.name} runs py_compile in SOURCE_DIR before staging and can create __pycache__"
         )
 
+    # STREAMFORGE_RELEASE_INTEGRATED_MAIN_SOURCE_V1274:
+    integrated_main_v1274 = "STREAMFORGE_V1274_INTEGRATED_MAIN_SOURCE_UPDATER" in text
+
     # STREAMFORGE_RELEASE_MAIN_HOTFIXES_V1273:
     bounded_main_hotfixes_v1273 = "STREAMFORGE_V1273_MAIN_HOTFIXES_UPDATER" in text
 
@@ -111,7 +114,22 @@ else:
         None,
     )
 
-    if bounded_main_hotfixes_v1273:
+    if integrated_main_v1274:
+        if 'cp -a "$SRC/." "$STAGE/"' in text:
+            errors.append(f"{updater.name} v12.74 must not copy the entire tree")
+        if 'atomic_copy' in text or '/app/main.py" "$ROOT' in text:
+            errors.append(f"{updater.name} v12.74 must not replace installed Main source")
+        for marker in (
+            'STREAMFORGE_V1274_INTEGRATED_MAIN_SOURCE_UPDATER',
+            '12.73|12.74',
+            'STREAMFORGE_V1274_MAIN_ONLY_NODE_PARITY',
+            'STREAMFORGE_V1274_INSTALLED_MAIN_VERIFIED',
+            'STREAMFORGE_ADMIN_SEED_FRESH_INSTALL_ONLY',
+            'Rolling back from',
+        ):
+            if marker not in text:
+                errors.append(f"{updater.name} v12.74 metadata-only contract missing {marker}")
+    elif bounded_main_hotfixes_v1273:
         if 'cp -a "$SRC/." "$STAGE/"' in text:
             errors.append(f"{updater.name} v12.73 must not copy the entire tree")
         for marker in (

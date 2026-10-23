@@ -15,8 +15,8 @@ auth=contents("app/auth.py")
 errors=[]
 def need(ok,message):
     if not ok:errors.append(message)
-need(contents("VERSION").strip()=="12.73","Main VERSION 12.73")
-need(contents("node_agent/VERSION").strip()=="12.73","bundled Node VERSION 12.73")
+need(contents("VERSION").strip()=="12.74","Main VERSION 12.74")
+need(contents("node_agent/VERSION").strip()=="12.74","bundled Node VERSION 12.74")
 need("STREAMFORGE_PANEL_CREDENTIAL_VAULT_V1263" in vault,"module marker")
 need("STREAMFORGE_PANEL_CREDENTIAL_VAULT_V1263" in contents("scripts/apply_v1263_vault.py"),"Main integration patch marker")
 need('STREAMFORGE_PANEL_PASSWORD_VAULT_KEY' in vault,"dedicated external Fernet key")
@@ -86,5 +86,9 @@ need('STREAMFORGE_V1271_BLOCKED_IP_STANDALONE_CARD' in listing
      and 'sf-guard-policy' in listing, "separate IP security card")
 need('STREAMFORGE_ADMIN_SEED_FRESH_INSTALL_ONLY' in contents("app/main.py"),
      "admin seeded on fresh install only")
-if errors: raise SystemExit("FAIL v12.73: "+", ".join(errors))
-print("PASS: v12.73 Main hotfixes plus preserved Main login/vault/IP security")
+for marker in ("STREAMFORGE_V1264_IP_GUARD","STREAMFORGE_V1265_BLOCK_TRIGGER_SERVER",
+               "STREAMFORGE_V1266_AUTO_VAULT","STREAMFORGE_V1268_PW_MODAL_CSRF"):
+    need(marker in contents("app/main.py"), "integrated Main source "+marker)
+need("login_locked" not in contents("app/main.py"), "no removed v12.63 login-guard imports")
+if errors: raise SystemExit("FAIL v12.74: "+", ".join(errors))
+print("PASS: v12.74 integrated Main source plus preserved Main login/vault/IP security")

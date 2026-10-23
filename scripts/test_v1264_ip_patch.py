@@ -8,6 +8,12 @@ root = Path(__file__).resolve().parents[1]
 apply = runpy.run_path(str(root/"scripts/apply_v1264_ip_lock.py"))["transform"]
 source = (root/"app/main.py").read_text(encoding="utf-8")
 result = apply(source)
+# Later releases integrate this patch and the v12.64-v12.68 patches into app/main.py;
+# the pre-integration transform is covered by this test in its own release ZIP.
+if "STREAMFORGE_V1265_BLOCK_TRIGGER_SERVER" in source:
+    assert result == source, "integrated release source must stay unchanged"
+    print("PASS: v12.64 IP patch is a no-op on integrated Main source")
+    raise SystemExit(0)
 assert result != source or "STREAMFORGE_V1264_IP_GUARD" in source
 assert apply(result) == result, "idempotence"
 compile(result, "app/main.py", "exec")
