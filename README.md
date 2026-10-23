@@ -1,13 +1,66 @@
-# StreamForge v12.13
+# StreamForge
 
-## Node playback-start latency hardening
+StreamForge is a self-hosted live-TV encoding and distribution panel. A **Main
+Server** ingests channel sources (HTTP/HLS, MPEG-TS, YouTube Live), runs FFmpeg
+to produce HLS output, and serves playlists, an Xtream-compatible API and a Web
+Player to viewers. **Remote Nodes** pull channels from the Main Server and
+serve viewers closer to them, so playback load is spread across servers.
 
-v12.10 removes two synchronous operations from the Remote Node public playback hot path that could make an otherwise healthy channel take several seconds to start.
+Current release: see [`VERSION`](VERSION) and the
+[GitHub Releases](https://github.com/Santuctg/streamforge/releases) page.
 
-- Public Gunicorn workers on port 8821 no longer send their own synchronous Main Server heartbeat while authenticating playlist/Xtream/WebPlayer playback. The single Node control worker owns the heartbeat and publishes a small atomic shared connectivity snapshot for all public workers.
-- The shared Main-connectivity snapshot is fail-closed when missing/stale and is primed immediately after the control worker finishes loading Node state.
-- Direct `/live/<user>/<pass>/<stream>` and legacy `/<user>/<pass>/<stream>` requests no longer build an online catalogue by querying runtime status for every assigned channel before matching one stream ID.
-- Direct playback resolves assignment in memory, then validates only the selected channel using its fresh local HLS playlist/segment. It does not wait on a channel-supervisor RPC.
-- Existing v12.9 Playlist User expiry editing, v12.8 Web Player Brand HTTP root routing, v12.7 public Xtream routing, v12.5/v12.7 Node-local user ownership, v12.3 playback reservation recovery, and prior rollback/data-preservation behavior remain intact.
+## Architecture
 
-Expected effect on a healthy local-HLS channel: the backend portion of a direct channel start should normally fall into the sub-second range instead of randomly blocking for 5–15 seconds because of Main heartbeat or supervisor status calls.
+```
+               sources (HTTP/HLS, MPEG-TS, YouTube Live)
+                                │
+                                ▼
+┌──────────────────────── Main Server ────────────────────────┐
+│ Nginx :80/:443                                               │
+│  ├─ streamforge            Panel/API (gunicorn, 127.0.0.1:8800)│
+│  ├─ streamforge-public     playback workers (127.0.0.1:8811)  │
+│  └─ /relay/…               HLS relay for Remote Nodes         │
+│ streamforge-channel-supervisor   owns the FFmpeg processes    │
+│ SQLite /var/lib/streamforge/streamforge.db · Redis (optional) │
+└──────────────────────────────┬───────────────────────────────┘
+                               │ /relay/<relay-key>/<channel>/index.m3u8
+                               ▼
+┌──────────────────────── Remote Node ────────────────────────┐
+│ streamforge-node          control API + Node Panel           │
+│ streamforge-node-public   playback workers (127.0.0.1:8821)  │
+│ authenticated by the Node token; Panel logins verified live  │
+│ against Main                                                 │
+└──────────────────────────────────────────────────────────────┘
+```
+
+| Path | Contents |
+| --- | --- |
+| `app/` | Main Server (FastAPI): `main.py` routes, `ffmpeg.py` stream manager, `node_manager.py` Node control, templates and static assets |
+| `node_agent/` | Remote Node agent (`app.py`), bundled with Main and deployed to Nodes |
+| `deploy/` | Main systemd units and the Nginx site template |
+| `scripts/` | installer, updater (`streamforge-update`, `force_update_v*.sh`), recovery CLI (`streamforge`), patchers and regression tests |
+| `release-notes/` | per-release notes used for the GitHub Release body |
+
+## Quick start
+
+Fresh install on Debian/Ubuntu, as root, from an extracted release ZIP:
+
+```bash
+sudo bash scripts/install.sh
+```
+
+Then open `http://SERVER_IP`, sign in as `admin` / `ChangeMe123!` and **change
+that password immediately** (Panel Users).
+
+Update an existing server with the release ZIP for the next version:
+
+```bash
+sudo streamforge-update --force /root/streamforge-X.YY.zip
+```
+
+## Documentation
+
+- [Operations guide](docs/operations.md): install, update, Remote Nodes,
+  backup/restore, recovery commands, security notes, troubleshooting.
+- [Release process](docs/release-process.md): how a release is built, tested
+  and published (for maintainers).
