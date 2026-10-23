@@ -11,6 +11,12 @@ namespace=runpy.run_path(str(root/"scripts/apply_v1263_vault.py"))
 transform=namespace["transform"]
 source=(root/"app/main.py").read_text(encoding="utf-8")
 updated=transform(source)
+# Later releases integrate this patch and the v12.64-v12.68 patches into app/main.py;
+# the pre-integration transform is covered by this test in its own release ZIP.
+if "STREAMFORGE_V1264_IP_GUARD" in source:
+    assert updated == source, "integrated release source must stay unchanged"
+    print("PASS: v12.63 vault patch is a no-op on integrated Main source")
+    raise SystemExit(0)
 if "STREAMFORGE_PANEL_CREDENTIAL_VAULT_V1263" in source:
     assert updated == source, "integrated release source must stay unchanged"
 else:

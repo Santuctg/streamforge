@@ -70,7 +70,8 @@ from .panel_password_vault import (
 )
 # STREAMFORGE_V1263_PANEL_LOGIN_LOCK_GUARD: cross-Main/Node login failures.
 from .panel_login_guard import (
-    LoginGuardUnavailable, login_locked, record_login_failure, clear_login_failures,
+    LoginGuardUnavailable, main_panel_client_ip, normalize_client_ip,
+    ip_locked, record_ip_failure, clear_ip_failures,
 )
 from .audit_log import log_event, clear_logs, prune_logs
 from .access_control import evaluate_access, normalize_ip_rules, normalize_asn_rules, ip_matches, client_ip, asn_database_status, geo_details, clear_geo_cache
@@ -5606,28 +5607,28 @@ def login(
     password: str = Form(...),
     db: Session = Depends(get_db),
 ):
-    admin = db.scalar(select(AdminUser).where(AdminUser.username == username.strip()))
-    allowed = bool(admin and admin.is_active and admin.main_panel_access)
+    source_ip = None
     try:
-        if allowed and login_locked(admin.id):
-            log_event("Panel login denied: account locked", scope="auth", level="warning",
-                      actor=admin.username, details={"ip": client_ip(request)})
+        source_ip = main_panel_client_ip(request)
+        if ip_locked(source_ip):
+            log_event("Panel login denied: source IP blocked", scope="auth", level="warning",
+                      actor=username.strip() or None, details={"ip": source_ip})
             return render(request, "login.html", db, error="Invalid username or password")
-        correct = bool(allowed and verify_password(password, admin.password_hash))
-        if not correct:
-            # Unknown/disabled accounts do not create persistent per-account rows.
-            if allowed and record_login_failure(admin.id):
-                log_event("Panel login blocked after failed passwords", scope="auth", level="warning",
-                          actor=admin.username, details={"ip": client_ip(request)})
+        admin = db.scalar(select(AdminUser).where(AdminUser.username == username.strip()))
+        allowed = bool(admin and admin.is_active and admin.main_panel_access)
+        if not allowed or not verify_password(password, admin.password_hash):
+            # STREAMFORGE_V1265_BLOCK_TRIGGER_SERVER
+            if record_ip_failure(source_ip, origin="main"):
+                log_event("Panel login IP blocked after failed passwords", scope="auth",
+                          level="warning", actor=username.strip() or None, details={"ip": source_ip})
             log_event(f"Failed panel login for {username.strip() or 'unknown'}", scope="auth",
-                      level="warning", actor=username.strip() or None, details={"ip": client_ip(request)})
+                      level="warning", actor=username.strip() or None, details={"ip": source_ip})
             return render(request, "login.html", db, error="Invalid username or password")
-        # Recheck to block concurrent incorrect requests that activated a lock.
-        if login_locked(admin.id):
+        if ip_locked(source_ip):
             return render(request, "login.html", db, error="Invalid username or password")
-        clear_login_failures(admin.id)
+        clear_ip_failures(source_ip)
     except LoginGuardUnavailable:
-        log_event("Panel login guard unavailable", scope="auth", level="error",
+        log_event("Panel login IP guard unavailable", scope="auth", level="error",
                   actor=username.strip() or None)
         return render(request, "login.html", db, error="Login temporarily unavailable")
     request.session["admin_id"] = admin.id
@@ -9513,6 +9514,19 @@ async def node_panel_live_auth(
     if action not in {"login", "session", "change_password"} or not username:
         raise HTTPException(400, "Invalid live-auth action")
 
+    # STREAMFORGE_V1264_IP_GUARD: encrypted Node payload identifies browser IP,
+    # never the Main-to-Node transport address or a browser-forged HTTP header.
+    if action == "login":
+        try:
+            source_ip = normalize_client_ip(submitted_client_ip)
+            if ip_locked(source_ip):
+                log_event("Live Node Panel login denied: source IP blocked", scope="auth",
+                          level="warning", node_id=node.id, actor=username or None,
+                          details={"ip": source_ip})
+                raise HTTPException(401, "Invalid username or password")
+        except LoginGuardUnavailable as exc:
+            raise HTTPException(503, "Panel login IP guard unavailable") from exc
+
     admin = db.scalar(
         select(AdminUser)
         .options(selectinload(AdminUser.role))
@@ -9524,39 +9538,46 @@ async def node_panel_live_auth(
     )
     if not admin:
         if action == "login":
+            try:
+                if record_ip_failure(source_ip, origin="node", node_id=node.id, node_name=node.name):
+                    log_event("Panel login IP blocked after failed Node passwords",
+                              scope="auth", level="warning", node_id=node.id,
+                              actor=username or None, details={"ip": source_ip})
+            except LoginGuardUnavailable as exc:
+                raise HTTPException(503, "Panel login IP guard unavailable") from exc
             log_event(
                 f"Failed live Node panel login for {username or 'unknown'} on {node.name}",
-                scope="auth", level="warning", node_id=node.id, actor=username or None, details={"ip": submitted_client_ip} if submitted_client_ip else None,
+                scope="auth", level="warning", node_id=node.id, actor=username or None,
+                details={"ip": source_ip},
             )
         raise HTTPException(401, "Invalid username or password")
 
     auth_version = _panel_admin_auth_version(admin)
     if action == "login":
         try:
-            if login_locked(admin.id):
-                log_event("Live Node Panel login denied: account locked", scope="auth",
-                          level="warning", node_id=node.id, actor=admin.username)
-                raise HTTPException(401, "Invalid username or password")
             password = str(payload.get("password") or "")
             if not verify_password(password, admin.password_hash):
-                if record_login_failure(admin.id):
-                    log_event("Panel login blocked after failed Node passwords", scope="auth",
-                              level="warning", node_id=node.id, actor=admin.username)
+                if record_ip_failure(source_ip, origin="node", node_id=node.id, node_name=node.name):
+                    log_event("Panel login IP blocked after failed Node passwords", scope="auth",
+                              level="warning", node_id=node.id, actor=admin.username,
+                              details={"ip": source_ip})
                 log_event(
                     f"Failed live Node panel login for {username or 'unknown'} on {node.name}",
-                    scope="auth", level="warning", node_id=node.id, actor=username or None, details={"ip": submitted_client_ip} if submitted_client_ip else None,
+                    scope="auth", level="warning", node_id=node.id, actor=username or None,
+                    details={"ip": source_ip},
                 )
                 raise HTTPException(401, "Invalid username or password")
-            if login_locked(admin.id):
+            if ip_locked(source_ip):
                 raise HTTPException(401, "Invalid username or password")
-            clear_login_failures(admin.id)
+            clear_ip_failures(source_ip)
         except LoginGuardUnavailable as exc:
-            log_event("Live Node Panel login guard unavailable", scope="auth", level="error",
-                      node_id=node.id, actor=username or None)
+            log_event("Live Node Panel login IP guard unavailable", scope="auth",
+                      level="error", node_id=node.id, actor=username or None)
             raise HTTPException(503, "Panel login temporarily unavailable") from exc
         log_event(
             f"Live Node panel login succeeded on {node.name}",
-            scope="auth", node_id=node.id, actor=admin.username, details={"ip": submitted_client_ip} if submitted_client_ip else None,
+            scope="auth", node_id=node.id, actor=admin.username,
+            details={"ip": source_ip},
         )
     elif action == "change_password":
         # STREAMFORGE_NODE_PANEL_SELF_PASSWORD_V2255:
@@ -9569,7 +9590,13 @@ async def node_panel_live_auth(
         if verify_password(new_password, admin.password_hash):
             raise HTTPException(400, "New password must be different from the current password")
         admin.password_hash = hash_password(new_password)
-        vault_discard(db, admin.id)  # Node password changes revoke the saved secret
+        if payload.get("managed_password_notice") is True:
+            # The updated Node displayed the managed-credential notice.
+            if not vault_store(db, admin, new_password):
+                raise HTTPException(503, "Encrypted password vault unavailable; password unchanged")
+        else:
+            # Legacy Node versions did not display the notice. Do not silently escrow.
+            vault_discard(db, admin.id)
         db.commit()
         db.refresh(admin)
         auth_version = _panel_admin_auth_version(admin)
@@ -12459,8 +12486,11 @@ def account_password_change(
     if error:
         return render(request, "account_password.html", db, message="", error=error)
 
+    if not vault_enabled():
+        return render(request, "account_password.html", db, message="", error="Managed password storage is unavailable; password not changed.")
     admin.password_hash = hash_password(new_password)
-    vault_discard(db, admin.id)  # self-service changes invalidate old vault value
+    if not vault_store(db, admin, new_password):
+        raise HTTPException(503, "Encrypted password vault unavailable; password unchanged")
     affected_node_ids = {item.id for item in admin.nodes}
     db.commit()
     sync_errors = sync_panel_users_for_node_ids(affected_node_ids, request, db)
@@ -12497,7 +12527,7 @@ def admin_users_page(
             {item.id for item in panel_users if vault_password_available(db, item)}
             if can_vault_reveal(actor) and vault_enabled() else set()
         ),
-        vault_csrf_token=(vault_csrf_token(request) if admin_is_super_admin(actor) or (can_vault_reveal(actor) and vault_enabled()) else ""),
+        vault_csrf_token=(vault_csrf_token(request) if admin_is_super_admin(actor) or has_permission(actor, "panel_users.edit") or (can_vault_reveal(actor) and vault_enabled()) else ""),  # STREAMFORGE_V1268_PW_MODAL_CSRF
         error=error,
         message=message,
     )
@@ -12521,7 +12551,6 @@ def admin_user_create(
     is_active: Optional[str] = Form(None),
     main_panel_access: Optional[str] = Form(None),
     node_ids: list[int] = Form(default=[]),
-    vault_remember: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
     actor = enforce_permission(request, db, "panel_users.create")
@@ -12543,8 +12572,6 @@ def admin_user_create(
         error = "Password must contain at least 8 characters."
     elif password != password_confirm:
         error = "Password confirmation does not match."
-    elif as_bool(vault_remember) and not (can_vault_manage(actor) and vault_enabled()):
-        error = "Vault is not configured or you are not permitted to save credentials."
     elif not as_bool(main_panel_access) and not selected_nodes:
         error = "Select Main Panel access or at least one remote node."
     if error:
@@ -12568,9 +12595,9 @@ def admin_user_create(
     )
     db.add(panel_user)
     db.flush()
-    if as_bool(vault_remember):
-        if not vault_store(db, panel_user, password):
-            raise HTTPException(503, "Credential vault is not configured")
+    # STREAMFORGE_V1266_AUTO_VAULT: the managed-password policy is automatic.
+    if not vault_store(db, panel_user, password):
+        raise HTTPException(503, "Encrypted password vault unavailable; account not created")
     db.commit()
     sync_errors = sync_panel_users_for_node_ids({item.id for item in selected_nodes}, request, db)
     return panel_admin_redirect(
@@ -12604,7 +12631,6 @@ def admin_user_update(
     is_active: Optional[str] = Form(None),
     main_panel_access: Optional[str] = Form(None),
     node_ids: list[int] = Form(default=[]),
-    vault_remember: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
     actor = enforce_permission(request, db, "panel_users.edit")
@@ -12640,8 +12666,6 @@ def admin_user_update(
         error = "Password must contain at least 8 characters."
     elif password != password_confirm:
         error = "Password confirmation does not match."
-    elif as_bool(vault_remember) and not (can_vault_manage(actor) and vault_enabled()):
-        error = "Vault is not configured or you are not permitted to save credentials."
     elif not new_main_access and not selected_nodes:
         error = "Select Main Panel access or at least one remote node."
     elif panel_user.id == actor.id and not new_active:
@@ -12664,11 +12688,8 @@ def admin_user_update(
     panel_user.nodes = selected_nodes
     if password:
         panel_user.password_hash = hash_password(password)
-        if as_bool(vault_remember):
-            if not vault_store(db, panel_user, password):
-                raise HTTPException(503, "Credential vault is not configured")
-        else:
-            vault_discard(db, panel_user.id)  # never show stale saved passwords
+        if not vault_store(db, panel_user, password):
+            raise HTTPException(503, "Encrypted password vault unavailable; password unchanged")
     db.commit()
     affected_node_ids = old_node_ids | {item.id for item in selected_nodes}
     sync_errors = sync_panel_users_for_node_ids(affected_node_ids, request, db)

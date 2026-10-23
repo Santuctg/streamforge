@@ -9,6 +9,12 @@ to64 = runpy.run_path(str(root / "scripts/apply_v1264_ip_lock.py"))["transform"]
 to65 = runpy.run_path(str(root / "scripts/apply_v1265_ip_origin.py"))["transform"]
 source = to64(base)
 updated = to65(source)
+# Later releases integrate this patch and the v12.64-v12.68 patches into app/main.py;
+# the pre-integration transform is covered by this test in its own release ZIP.
+if "STREAMFORGE_V1265_BLOCK_TRIGGER_SERVER" in base:
+    assert source == base and updated == base, "integrated release source must stay unchanged"
+    print("PASS: v12.65 origin patch is a no-op on integrated Main source")
+    raise SystemExit(0)
 assert updated != source
 assert to65(updated) == updated
 compile(updated, "app/main.py", "exec")
