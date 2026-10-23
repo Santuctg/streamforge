@@ -1,0 +1,47 @@
+name: v12.75 Secure Session Cookie
+on:
+  pull_request:
+    paths:
+      - VERSION
+      - node_agent/VERSION
+      - app/main.py
+      - scripts/apply_main_hotfixes.py
+      - scripts/force_update_v1275.sh
+      - scripts/test_v1275_updater.py
+      - scripts/test_v1275_secure_cookie.py
+      - scripts/update.sh
+      - scripts/verify_release_updater_staging.py
+      - scripts/verify_panel_credential_vault_v1263.py
+      - .github/workflows/v1275-secure-session-cookie.yml
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install Main runtime dependencies
+        run: python3 -m pip install -q -r requirements.txt httpx
+      - name: Session cookie is Secure on HTTPS only
+        run: python3 scripts/test_v1275_secure_cookie.py
+      - name: Verify integrated Main, vault and IP guard contracts
+        run: python3 scripts/verify_panel_credential_vault_v1263.py
+      - name: Test staged Main update and rollback
+        run: python3 scripts/test_v1275_updater.py
+      - name: Verify release staging and safe restart scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/verify_release_updater_staging.py
+          bash -n scripts/force_update_v1275.sh
+          bash -n scripts/update.sh
+          grep -Fq 'force_update_v1275.sh' scripts/update.sh
+          if grep -Eq 'systemctl[[:space:]]+(restart|reload)[[:space:]]+(nginx|streamforge-channel-supervisor)' scripts/force_update_v1275.sh; then exit 1; fi
+          git diff --check
+      - name: Verify version and notes
+        shell: bash
+        run: |
+          test "$(cat VERSION)" = "12.75"
+          test "$(cat node_agent/VERSION)" = "12.75"
+          grep -Fq 'Secure' release-notes/v12.75.md
+          grep -Fq 'streamforge-update --force /root/streamforge-12.75.zip' release-notes/v12.75.md
