@@ -15,8 +15,8 @@ auth=contents("app/auth.py")
 errors=[]
 def need(ok,message):
     if not ok:errors.append(message)
-need(contents("VERSION").strip()=="12.72","Main VERSION 12.72")
-need(contents("node_agent/VERSION").strip()=="12.72","bundled Node VERSION 12.72")
+need(contents("VERSION").strip()=="12.73","Main VERSION 12.73")
+need(contents("node_agent/VERSION").strip()=="12.73","bundled Node VERSION 12.73")
 need("STREAMFORGE_PANEL_CREDENTIAL_VAULT_V1263" in vault,"module marker")
 need("STREAMFORGE_PANEL_CREDENTIAL_VAULT_V1263" in contents("scripts/apply_v1263_vault.py"),"Main integration patch marker")
 need('STREAMFORGE_PANEL_PASSWORD_VAULT_KEY' in vault,"dedicated external Fernet key")
@@ -84,5 +84,7 @@ need('STREAMFORGE_V1271_LOGIN_AUTOFILL_DARK' in contents("app/templates/login.ht
      "dark login autofill")
 need('STREAMFORGE_V1271_BLOCKED_IP_STANDALONE_CARD' in listing
      and 'sf-guard-policy' in listing, "separate IP security card")
-if errors: raise SystemExit("FAIL v12.72: "+", ".join(errors))
-print("PASS: v12.72 Node login responsive dark theme plus preserved Main login/vault/IP security")
+need('STREAMFORGE_ADMIN_SEED_FRESH_INSTALL_ONLY' in contents("app/main.py"),
+     "admin seeded on fresh install only")
+if errors: raise SystemExit("FAIL v12.73: "+", ".join(errors))
+print("PASS: v12.73 Main hotfixes plus preserved Main login/vault/IP security")
