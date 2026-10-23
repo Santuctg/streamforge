@@ -1,10 +1,12 @@
-# StreamForge release process
+# 📦 Publishing releases
 
-How a StreamForge release is built, tested and published. Read
-[operations.md](operations.md) first for how servers are installed and
-updated.
+How a StreamForge release is built, tested and published — for maintainers.
+Read [Installation & upgrades](INSTALLATION.md) and
+[Architecture & security](ARCHITECTURE.md) first.
 
-## How publishing works
+---
+
+## ⚙️ How publishing works
 
 `.github/workflows/publish-release.yml` runs on every push to `main` that
 touches `VERSION`, `CHANGELOG.md`, `release-notes/**` or the workflow itself.
@@ -13,14 +15,19 @@ body is `release-notes/v<VERSION>.md`, and uploads
 `streamforge-<VERSION>.zip` built with `git archive` from that tag. If the
 release already exists it only re-uploads the ZIP.
 
-Consequences:
+| Change touches | Result on merge to `main` |
+| --- | --- |
+| `VERSION`, `CHANGELOG.md`, `release-notes/**`, `publish-release.yml` | Tag, GitHub Release and ZIP are published |
+| Anything else (code, docs, workflows) | Nothing is published |
 
 - **Merging a PR that bumps `VERSION` publishes a release.** Merge only when
   the release is ready.
 - Documentation-only or code-only changes that do not touch those paths do
   not publish anything.
 
-## Installed sources are patched in place
+---
+
+## 🧱 Installed sources are patched in place
 
 Existing servers are never re-imaged from the repository. Each updater
 changes a bounded set of installed files, most often by applying a patcher
@@ -38,7 +45,9 @@ Therefore:
 3. Templates and other files that are copied wholesale are listed explicitly
    in the updater and copied atomically.
 
-## Checklist for a new release `X.YY`
+---
+
+## ✅ Checklist for a new release `X.YY`
 
 1. **Code change** with its patcher fix (see above) and a focused test.
 2. **Versions**: set `VERSION` and `node_agent/VERSION` to `X.YY`; Main and
@@ -82,7 +91,9 @@ Therefore:
     *Publish StreamForge Release* run succeeded, download the ZIP, and run the
     new updater test from inside the extracted ZIP.
 
-## Running checks locally
+---
+
+## 🧪 Running checks locally
 
 ```bash
 python3 -m pip install -r requirements.txt httpx
@@ -97,7 +108,7 @@ Older `scripts/test_v12*_updater.py` scripts are tied to their own release
 version and fail on newer `VERSION` values; CI only runs them on their own
 version.
 
-> Some workflows contain steps guarded by
+> ⚠️ Some workflows contain steps guarded by
 > `if: github.event_name == 'push' && github.ref == ...` that commit and push
 > (for example in `v1253-main-waiting-retry.yml`). Never run those steps
 > locally.
