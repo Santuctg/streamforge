@@ -5157,14 +5157,20 @@ async def lifespan(_app: FastAPI):
     with SessionLocal() as db:
         super_role = ensure_default_roles(db)
         existing = db.scalar(select(AdminUser).where(AdminUser.username == settings.admin_user))
+        # STREAMFORGE_ADMIN_SEED_FRESH_INSTALL_ONLY:
+        # Seed the env-configured admin only on a fresh install. Re-creating it
+        # whenever that username is missing would resurrect a deliberately
+        # deleted account (with the env/default password) on every restart.
+        # Locked-out installs recover with scripts/reset_admin.py.
         if not existing:
-            db.add(
-                AdminUser(
-                    username=settings.admin_user,
-                    password_hash=hash_password(settings.admin_password),
-                    role=super_role,
+            if not db.scalar(select(func.count()).select_from(AdminUser)):
+                db.add(
+                    AdminUser(
+                        username=settings.admin_user,
+                        password_hash=hash_password(settings.admin_password),
+                        role=super_role,
+                    )
                 )
-            )
         elif existing.role_id is None:
             existing.role = super_role
         connection_tracker.set_total_limit(app_setting_int(db, MAIN_TOTAL_CONNECTIONS_KEY, 0))
