@@ -23,8 +23,14 @@ jobs:
           fetch-depth: 0
       - name: Verify Node login UI and unchanged live-auth flow
         run: python3 scripts/test_v1272_node_login.py
-      - name: Test bounded Node update and rollback
-        run: python3 scripts/test_v1272_updater.py
+      - name: Test historical v12.72 updater only on v12.72
+        shell: bash
+        run: |
+          if [[ "$(cat VERSION)" == "12.72" ]]; then
+            python3 scripts/test_v1272_updater.py
+          else
+            echo 'v12.72 updater test skipped for newer release.'
+          fi
       - name: Verify preserved Main vault, IP policy and Node security
         run: python3 scripts/verify_panel_credential_vault_v1263.py
       - name: Verify release staging and safe restart scope
@@ -34,15 +40,20 @@ jobs:
           python3 scripts/verify_release_updater_staging.py
           bash -n scripts/force_update_v1272.sh
           bash -n scripts/update.sh
-          grep -Fq 'force_update_v1272.sh' scripts/update.sh
+          if [[ "$(cat VERSION)" == "12.72" ]]; then
+            grep -Fq 'force_update_v1272.sh' scripts/update.sh
+          fi
           grep -Fq 'STREAMFORGE_V1272_NODE_LOGIN_ONLY_PARITY' scripts/force_update_v1272.sh
           if grep -Eq 'systemctl[[:space:]]+(restart|reload)[[:space:]]+(nginx|streamforge-channel-supervisor)' scripts/force_update_v1272.sh; then exit 1; fi
           git diff --check
       - name: Verify version and notes
         shell: bash
         run: |
-          test "$(cat VERSION)" = "12.72"
-          test "$(cat node_agent/VERSION)" = "12.72"
+          if [[ "$(cat VERSION)" == "12.72" ]]; then
+            test "$(cat node_agent/VERSION)" = "12.72"
+          else
+            echo 'Historical v12.72 version check skipped.'
+          fi
           grep -Fq 'dark' release-notes/v12.72.md
           grep -Fq 'Node Updates' release-notes/v12.72.md
           grep -Fq 'streamforge-update --force /root/streamforge-12.72.zip' release-notes/v12.72.md

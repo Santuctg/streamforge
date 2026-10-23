@@ -1,0 +1,40 @@
+name: v12.73 Main Hotfixes
+on:
+  pull_request:
+    paths:
+      - VERSION
+      - node_agent/VERSION
+      - app/main.py
+      - scripts/apply_main_hotfixes.py
+      - scripts/force_update_v1273.sh
+      - scripts/test_v1273_updater.py
+      - scripts/update.sh
+      - scripts/verify_release_updater_staging.py
+      - .github/workflows/v1273-main-hotfixes.yml
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Test staged Main hotfix update and rollback
+        run: python3 scripts/test_v1273_updater.py
+      - name: Verify release staging and safe restart scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/verify_release_updater_staging.py
+          bash -n scripts/force_update_v1273.sh
+          bash -n scripts/update.sh
+          grep -Fq 'force_update_v1273.sh' scripts/update.sh
+          grep -Fq 'STREAMFORGE_V1273_MAIN_ONLY_NODE_PARITY' scripts/force_update_v1273.sh
+          if grep -Eq 'systemctl[[:space:]]+(restart|reload)[[:space:]]+(nginx|streamforge-channel-supervisor)' scripts/force_update_v1273.sh; then exit 1; fi
+          git diff --check
+      - name: Verify version and notes
+        shell: bash
+        run: |
+          test "$(cat VERSION)" = "12.73"
+          test "$(cat node_agent/VERSION)" = "12.73"
+          grep -Fq 'shutil' release-notes/v12.73.md
+          grep -Fq 'streamforge-update --force /root/streamforge-12.73.zip' release-notes/v12.73.md
