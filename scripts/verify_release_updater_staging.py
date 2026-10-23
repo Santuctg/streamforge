@@ -31,6 +31,9 @@ else:
             f"{updater.name} runs py_compile in SOURCE_DIR before staging and can create __pycache__"
         )
 
+    # STREAMFORGE_RELEASE_MAIN_HOTFIXES_V1273:
+    bounded_main_hotfixes_v1273 = "STREAMFORGE_V1273_MAIN_HOTFIXES_UPDATER" in text
+
     # STREAMFORGE_RELEASE_NODE_LOGIN_DARK_RESPONSIVE_V1272:
     bounded_node_login_v1272 = "STREAMFORGE_V1272_NODE_LOGIN_DARK_UI_UPDATER" in text
 
@@ -108,7 +111,22 @@ else:
         None,
     )
 
-    if bounded_node_login_v1272:
+    if bounded_main_hotfixes_v1273:
+        if 'cp -a "$SRC/." "$STAGE/"' in text:
+            errors.append(f"{updater.name} v12.73 must not copy the entire tree")
+        for marker in (
+            'STREAMFORGE_V1273_MAIN_HOTFIXES_UPDATER',
+            '12.72|12.73',
+            'STREAMFORGE_V1273_MAIN_ONLY_NODE_PARITY',
+            'scripts/apply_main_hotfixes.py',
+            'STREAMFORGE_ADMIN_SEED_FRESH_INSTALL_ONLY',
+            'app/main.py',
+            'Rolling back from',
+            'atomic_copy',
+        ):
+            if marker not in text:
+                errors.append(f"{updater.name} v12.73 Main hotfix contract missing {marker}")
+    elif bounded_node_login_v1272:
         if 'cp -a "$SRC/." "$STAGE/"' in text:
             errors.append(f"{updater.name} v12.72 must not copy the entire tree")
         for marker in (
