@@ -35,6 +35,8 @@ else:
     # /var/cache/streamforge/main-static, so an updater that changes installed
     # app/static files must republish that cache (v12.78 did not).
     static_cache_v1279 = "STREAMFORGE_V1279_STATIC_CACHE_UPDATER" in text
+    # STREAMFORGE_RELEASE_NODE_LIVE_CHARTS_V1281:
+    node_live_charts_v1281 = "STREAMFORGE_V1281_NODE_LIVE_CHARTS_UPDATER" in text
     # STREAMFORGE_RELEASE_LIVE_CHARTS_V1280:
     live_charts_v1280 = "STREAMFORGE_V1280_LIVE_CHARTS_UPDATER" in text
     touches_static = re.search(r'PATCH_FILES=\([^)]*app/static/', text) is not None
@@ -137,7 +139,23 @@ else:
         None,
     )
 
-    if live_charts_v1280:
+    if node_live_charts_v1281:
+        if 'cp -a "$SRC/." "$STAGE/"' in text:
+            errors.append(f"{updater.name} v12.81 must not copy the entire tree")
+        if re.search(r'systemctl[ \t]+(restart|reload)[ \t]+(nginx|streamforge-channel-supervisor)', text):
+            errors.append(f"{updater.name} v12.81 must not restart Nginx or the channel supervisor")
+        for marker in (
+            'STREAMFORGE_V1281_NODE_LIVE_CHARTS_UPDATER',
+            '12.80|12.81',
+            'OLD_NODE_BLOB="83521def749210e025af9a979a77405983f0a43e"',
+            'STREAMFORGE_V1281_NODE_APP_ONLY_PARITY',
+            'STREAMFORGE_NODE_DASHBOARD_LIVE_CHARTS_V1281',
+            'Rolling back from',
+            'atomic_copy',
+        ):
+            if marker not in text:
+                errors.append(f"{updater.name} v12.81 contract missing {marker}")
+    elif live_charts_v1280:
         if 'cp -a "$SRC/." "$STAGE/"' in text:
             errors.append(f"{updater.name} v12.80 must not copy the entire tree")
         if re.search(r'systemctl[ \t]+(restart|reload)[ \t]+(nginx|streamforge-channel-supervisor)', text):
