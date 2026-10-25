@@ -303,11 +303,30 @@ def _add_other_access(path: Path, bits: int) -> None:
         pass
 
 
+def _stream_link_secret() -> str:
+    """Return the persistent relay-key secret Main keeps in app_settings.
+
+    STREAMFORGE_STREAM_LINK_SECRET_V1276: Main seeds it from the secret key once,
+    so relay keys survive later STREAMFORGE_SECRET_KEY rotation.
+    """
+    try:
+        connection = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True, timeout=5)
+        try:
+            row = connection.execute(
+                "SELECT value FROM app_settings WHERE key='stream_link_secret'"
+            ).fetchone()
+        finally:
+            connection.close()
+    except sqlite3.Error:
+        row = None
+    return str(row[0] or "").strip() if row else ""
+
+
 def sync_local_relay_links() -> int:
     """Seed the signed Nginx relay namespace from current enabled HLS channels."""
     if not DB_PATH.exists():
         return 0
-    secret = os.environ.get("STREAMFORGE_SECRET_KEY", "").strip() or file_env_value(Path("/etc/streamforge.env"), "STREAMFORGE_SECRET_KEY")
+    secret = _stream_link_secret() or os.environ.get("STREAMFORGE_SECRET_KEY", "").strip() or file_env_value(Path("/etc/streamforge.env"), "STREAMFORGE_SECRET_KEY")
     if not secret:
         fail("STREAMFORGE_SECRET_KEY is unavailable for Nginx relay fast path")
     if not HLS_ROOT.is_absolute() or not RELAY_STATIC_ROOT.is_absolute():

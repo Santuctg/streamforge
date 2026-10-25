@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import base64
-import hashlib
 import io
-import hmac
 import json
 import os
 import re
@@ -28,6 +26,7 @@ from .db import SessionLocal
 from .ffmpeg import stream_manager
 from .models import AdminUser, AppSetting, Channel, ChannelCategory, Node, StreamUser
 from .audit_log import log_event
+from .stream_keys import stream_link_hmac
 from .system_metrics import system_metrics
 from .permissions import role_permission_set
 from .secrets_store import decrypt_secret
@@ -558,7 +557,7 @@ class NodeController:
     @staticmethod
     def _relay_key(channel: Channel) -> str:
         message = f"streamforge-channel:{channel.id}:{channel.slug}".encode("utf-8")
-        return hmac.new(settings.secret_key.encode("utf-8"), message, hashlib.sha256).hexdigest()[:32]
+        return stream_link_hmac(message)
 
     def relay_base_url(self, channel: Channel) -> str:
         local = next((item for item in self.assigned_nodes(channel) if item.node_type == "local"), None)
