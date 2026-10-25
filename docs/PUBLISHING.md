@@ -111,9 +111,12 @@ bash -n scripts/force_update_vXYY.sh scripts/update.sh
 git diff --check origin/main...HEAD
 ```
 
-Older `scripts/test_v12*_updater.py` scripts are tied to their own release
-version and fail on newer `VERSION` values; CI only runs them on their own
-version.
+Older `scripts/test_v12*_updater.py` scripts start with a version gate and
+print `SKIP` unless `VERSION` is their release; add the same gate to a
+release's updater test when the next release begins. When a release changes
+the bundled Node Agent, pin the previous `node_agent/app.py` git blob in the
+updater (`OLD_NODE_BLOB`) and verify every other Node runtime file
+byte-for-byte, as v12.72 and v12.77 do.
 
 > ⚠️ Some workflows contain steps guarded by
 > `if: github.event_name == 'push' && github.ref == ...` that commit and push

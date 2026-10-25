@@ -15,8 +15,8 @@ auth=contents("app/auth.py")
 errors=[]
 def need(ok,message):
     if not ok:errors.append(message)
-need(contents("VERSION").strip()=="12.76","Main VERSION 12.76")
-need(contents("node_agent/VERSION").strip()=="12.76","bundled Node VERSION 12.76")
+need(contents("VERSION").strip()=="12.77","Main VERSION 12.77")
+need(contents("node_agent/VERSION").strip()=="12.77","bundled Node VERSION 12.77")
 need("STREAMFORGE_PANEL_CREDENTIAL_VAULT_V1263" in vault,"module marker")
 need("STREAMFORGE_PANEL_CREDENTIAL_VAULT_V1263" in contents("scripts/apply_v1263_vault.py"),"Main integration patch marker")
 need('STREAMFORGE_PANEL_PASSWORD_VAULT_KEY' in vault,"dedicated external Fernet key")
@@ -101,5 +101,10 @@ for relative, marker in (("app/main.py", "STREAMFORGE_MAIN_SECURITY_HEADERS_V127
                          ("app/backup_manager.py", "STREAMFORGE_BACKUP_ARCHIVE_ENCRYPTION_V1276")):
     need(marker in contents(relative), f"v12.76 {marker} in {relative}")
 need("AutoAddPolicy()" not in contents("app/backup_manager.py"), "backup SFTP uses pinned host keys")
-if errors: raise SystemExit("FAIL v12.76: "+", ".join(errors))
-print("PASS: v12.76 security hardening plus preserved Main login/vault/IP security")
+for relative, marker in (("app/auth.py", "PANEL_PASSWORD_MIN_LENGTH = 12"),
+                         ("app/main.py", "app.add_middleware(PasswordChangeRequiredMiddleware)"),
+                         ("node_agent/app.py", "STREAMFORGE_NODE_SECURITY_HEADERS_V1277")):
+    need(marker in contents(relative), f"v12.77 {marker} in {relative}")
+need('minlength="8"' not in contents("app/templates/admin_user_form.html"), "12-character Panel user form")
+if errors: raise SystemExit("FAIL v12.77: "+", ".join(errors))
+print("PASS: v12.77 password policy and Node Panel headers plus preserved Main login/vault/IP security")
