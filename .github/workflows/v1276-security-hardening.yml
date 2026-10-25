@@ -27,28 +27,28 @@ jobs:
         shell: bash
         run: |
           python3 scripts/test_v1276_stream_link_secret.py > test.log 2>&1 && cat test.log || {
-            tail -30 test.log | while IFS= read -r line; do echo "::error title=test_v1276_stream_link_secret.py::$line"; done
+            tail -9 test.log | tac | while IFS= read -r line; do echo "::error title=test_v1276_stream_link_secret.py::$line"; done
             exit 1
           }
       - name: Headers, session revocation and Xtream limits
         shell: bash
         run: |
           python3 scripts/test_v1276_security.py > test.log 2>&1 && cat test.log || {
-            tail -30 test.log | while IFS= read -r line; do echo "::error title=test_v1276_security.py::$line"; done
+            tail -9 test.log | tac | while IFS= read -r line; do echo "::error title=test_v1276_security.py::$line"; done
             exit 1
           }
       - name: SSH host-key pinning
         shell: bash
         run: |
           python3 scripts/test_v1276_ssh_host_key.py > test.log 2>&1 && cat test.log || {
-            tail -30 test.log | while IFS= read -r line; do echo "::error title=test_v1276_ssh_host_key.py::$line"; done
+            tail -9 test.log | tac | while IFS= read -r line; do echo "::error title=test_v1276_ssh_host_key.py::$line"; done
             exit 1
           }
       - name: Encrypted backups
         shell: bash
         run: |
           python3 scripts/test_v1276_backup_encryption.py > test.log 2>&1 && cat test.log || {
-            tail -30 test.log | while IFS= read -r line; do echo "::error title=test_v1276_backup_encryption.py::$line"; done
+            tail -9 test.log | tac | while IFS= read -r line; do echo "::error title=test_v1276_backup_encryption.py::$line"; done
             exit 1
           }
       - name: Secure session cookie still applied
