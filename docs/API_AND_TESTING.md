@@ -40,7 +40,7 @@ policy of the serving Node. Rejections are written to the **Client log**.
 | Endpoint | Purpose |
 | --- | --- |
 | `GET /health` | Returns `ok` (header `X-StreamForge-Process-Role: control` or `public`) |
-| `GET /version` | Returns the running Main version, e.g. `12.78` |
+| `GET /version` | Returns the running Main version, e.g. `12.79` |
 | `GET /relay/{relay_key}/{slug}/index.m3u8` (+ segments) | HLS relay pulled by Remote Nodes; the HMAC relay key authorises it |
 
 Local checks on the Main Server:
@@ -74,8 +74,8 @@ request (`.github/workflows/`).
 python3 -m pip install -r requirements.txt httpx   # httpx is needed by TestClient tests
 
 # current release
+python3 scripts/test_v1279_updater.py
 python3 scripts/test_v1278_dashboard.py
-python3 scripts/test_v1278_updater.py
 python3 scripts/test_v1277_password_policy.py
 python3 scripts/test_v1277_node_headers.py
 python3 scripts/test_v1276_stream_link_secret.py

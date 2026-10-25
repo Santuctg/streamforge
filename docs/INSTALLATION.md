@@ -26,7 +26,7 @@ smbclient and the yt-dlp runtime used for YouTube Live.
 
 ```bash
 cd /root
-VERSION=12.78
+VERSION=12.79
 curl -fL -o streamforge-$VERSION.zip \
   https://github.com/Santuctg/streamforge/releases/download/v$VERSION/streamforge-$VERSION.zip
 sha256sum streamforge-$VERSION.zip      # compare with the hash you were given
@@ -128,6 +128,12 @@ sudo systemctl restart streamforge streamforge-public
 ```
 
 ---
+
+## 🔐 After upgrading to v12.79
+
+- Reload the **Overview** page. The chart legends now show current values,
+  which v12.78 alone did not deliver on upgraded servers (its scripts did not
+  reach the Nginx static cache).
 
 ## 🔐 After upgrading to v12.78
 
