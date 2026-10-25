@@ -1220,6 +1220,9 @@
       setText('[data-host-uptime]', formatHostUptime(data.uptime_seconds));
       const uptimeStat = document.querySelector('[data-system-uptime]');
       if (uptimeStat) uptimeStat.textContent = formatHostUptime(data.uptime_seconds);
+      // STREAMFORGE_MAIN_DASHBOARD_LIVE_CHARTS_V1280: let the Overview charts
+      // extend their last point from this same poll.
+      document.dispatchEvent(new CustomEvent('streamforge:system-metrics', {detail: data}));
     };
     // STREAMFORGE_MAIN_POLL_BACKPRESSURE_V34:
     // Never stack metric polls if Main is briefly busy. One bounded request is

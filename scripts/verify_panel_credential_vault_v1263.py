@@ -15,8 +15,8 @@ auth=contents("app/auth.py")
 errors=[]
 def need(ok,message):
     if not ok:errors.append(message)
-need(contents("VERSION").strip()=="12.79","Main VERSION 12.79")
-need(contents("node_agent/VERSION").strip()=="12.79","bundled Node VERSION 12.79")
+need(contents("VERSION").strip()=="12.80","Main VERSION 12.80")
+need(contents("node_agent/VERSION").strip()=="12.80","bundled Node VERSION 12.80")
 need("STREAMFORGE_PANEL_CREDENTIAL_VAULT_V1263" in vault,"module marker")
 need("STREAMFORGE_PANEL_CREDENTIAL_VAULT_V1263" in contents("scripts/apply_v1263_vault.py"),"Main integration patch marker")
 need('STREAMFORGE_PANEL_PASSWORD_VAULT_KEY' in vault,"dedicated external Fernet key")
@@ -107,5 +107,5 @@ for relative, marker in (("app/auth.py", "PANEL_PASSWORD_MIN_LENGTH = 12"),
     need(marker in contents(relative), f"v12.77 {marker} in {relative}")
 need('minlength="8"' not in contents("app/templates/admin_user_form.html"), "12-character Panel user form")
 need("STREAMFORGE_MAIN_DASHBOARD_LEGEND_VALUES_V1278" in contents("app/templates/dashboard.html"), "v12.78 Overview legend values")
-if errors: raise SystemExit("FAIL v12.79: "+", ".join(errors))
-print("PASS: v12.79 Overview fixes plus preserved password policy, Node Panel headers and Main login/vault/IP security")
+if errors: raise SystemExit("FAIL v12.80: "+", ".join(errors))
+print("PASS: v12.80 Overview fixes plus preserved password policy, Node Panel headers and Main login/vault/IP security")

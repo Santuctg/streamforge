@@ -5,7 +5,7 @@ permissions (see [Panel users & roles](#-panel-users--roles)).
 
 | Menu | Purpose |
 | --- | --- |
-| **Overview** | Server resources, history charts with current values beside each legend (v12.78+), running channels and live viewers |
+| **Overview** | Server resources, live history charts (v12.80+) with current values beside each legend (v12.78+), running channels and live viewers |
 | **Channels** | Create, start/stop and inspect channels |
 | **Nodes** · **Node Updates** | Remote Nodes and their Node Agent versions |
 | **Categories** · **Import streams** | Organise channels; bulk-add from M3U/CSV |
