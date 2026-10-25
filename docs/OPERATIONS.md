@@ -184,6 +184,11 @@ Harmless on v12.77 and older: the update still finishes and the Node fetches
 hls.js by itself later. Fixed in v12.78, which ships the helper in the SSH
 package.
 
+**After v12.78 the chart legends still show no values.**
+The v12.78 updater did not refresh the Nginx static cache, so browsers kept
+the v12.77 scripts. Install v12.79, then reload the page. A manual equivalent:
+`sudo python3 /opt/streamforge/scripts/sync_main_static_cache.py /opt/streamforge/app/static /var/cache/streamforge/main-static`.
+
 **Overview shows `—` for memory, disk or network for a few seconds.**
 Before v12.78 these filled in at the first live refresh, five seconds after
 the page opened. From v12.78 they render with the page; empty charts show

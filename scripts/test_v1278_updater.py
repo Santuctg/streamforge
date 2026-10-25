@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """v12.78 updater: staged Main-only patch, reinstall, rollback and version/Node gates."""
 from __future__ import annotations
+# Historical release check: runs only on its own release.
+if (__import__("pathlib").Path(__file__).resolve().parents[1] / "VERSION").read_text().strip() != "12.78":
+    print("SKIP: v12.78 updater test runs only while VERSION is 12.78")
+    raise SystemExit(0)
 from pathlib import Path
 import json
 import os

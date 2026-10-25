@@ -31,6 +31,15 @@ else:
             f"{updater.name} runs py_compile in SOURCE_DIR before staging and can create __pycache__"
         )
 
+    # STREAMFORGE_RELEASE_STATIC_CACHE_V1279: Nginx serves /static/ from
+    # /var/cache/streamforge/main-static, so an updater that changes installed
+    # app/static files must republish that cache (v12.78 did not).
+    static_cache_v1279 = "STREAMFORGE_V1279_STATIC_CACHE_UPDATER" in text
+    touches_static = re.search(r'PATCH_FILES=\([^)]*app/static/', text) is not None
+    publishes_static = "sync_main_static_cache.py" in text or "main-static" in text
+    if touches_static and not publishes_static and "STREAMFORGE_V1278_DASHBOARD_UPDATER" not in text:
+        errors.append(f"{updater.name} patches app/static but does not refresh the Nginx static cache")
+
     # STREAMFORGE_RELEASE_DASHBOARD_V1278:
     dashboard_v1278 = "STREAMFORGE_V1278_DASHBOARD_UPDATER" in text
 
@@ -126,7 +135,20 @@ else:
         None,
     )
 
-    if dashboard_v1278:
+    if static_cache_v1279:
+        if re.search(r'systemctl[ \t]+(restart|reload)[ \t]+(nginx|streamforge-channel-supervisor)', text):
+            errors.append(f"{updater.name} v12.79 must not restart Nginx or the channel supervisor")
+        for marker in (
+            'STREAMFORGE_V1279_STATIC_CACHE_UPDATER',
+            '12.78|12.79',
+            'STREAMFORGE_V1279_MAIN_ONLY_NODE_PARITY',
+            'scripts/sync_main_static_cache.py',
+            'STREAMFORGE_V1279_STATIC_CACHE_VERIFIED',
+            'Rolling back from',
+        ):
+            if marker not in text:
+                errors.append(f"{updater.name} v12.79 contract missing {marker}")
+    elif dashboard_v1278:
         if 'cp -a "$SRC/." "$STAGE/"' in text:
             errors.append(f"{updater.name} v12.78 must not copy the entire tree")
         if re.search(r'systemctl[ \t]+(restart|reload)[ \t]+(nginx|streamforge-channel-supervisor)', text):

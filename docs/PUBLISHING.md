@@ -118,6 +118,12 @@ the bundled Node Agent, pin the previous `node_agent/app.py` git blob in the
 updater (`OLD_NODE_BLOB`) and verify every other Node runtime file
 byte-for-byte, as v12.72 and v12.77 do.
 
+When a release changes files under `app/static/`, the updater must also
+republish them into the Nginx static cache `/var/cache/streamforge/main-static`
+with `scripts/sync_main_static_cache.py`, as v12.79 does: Nginx serves
+`/static/` from that cache, not from `/opt/streamforge`.
+`verify_release_updater_staging.py` refuses an updater that skips it.
+
 > ⚠️ Some workflows contain steps guarded by
 > `if: github.event_name == 'push' && github.ref == ...` that commit and push
 > (for example in `v1253-main-waiting-retry.yml`). Never run those steps
