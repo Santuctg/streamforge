@@ -24,13 +24,33 @@ jobs:
       - name: Install Main runtime dependencies
         run: python3 -m pip install -q -r requirements.txt httpx
       - name: Stable stream/relay keys
-        run: python3 scripts/test_v1276_stream_link_secret.py
+        shell: bash
+        run: |
+          python3 scripts/test_v1276_stream_link_secret.py > test.log 2>&1 && cat test.log || {
+            tail -30 test.log | while IFS= read -r line; do echo "::error title=test_v1276_stream_link_secret.py::$line"; done
+            exit 1
+          }
       - name: Headers, session revocation and Xtream limits
-        run: python3 scripts/test_v1276_security.py
+        shell: bash
+        run: |
+          python3 scripts/test_v1276_security.py > test.log 2>&1 && cat test.log || {
+            tail -30 test.log | while IFS= read -r line; do echo "::error title=test_v1276_security.py::$line"; done
+            exit 1
+          }
       - name: SSH host-key pinning
-        run: python3 scripts/test_v1276_ssh_host_key.py
+        shell: bash
+        run: |
+          python3 scripts/test_v1276_ssh_host_key.py > test.log 2>&1 && cat test.log || {
+            tail -30 test.log | while IFS= read -r line; do echo "::error title=test_v1276_ssh_host_key.py::$line"; done
+            exit 1
+          }
       - name: Encrypted backups
-        run: python3 scripts/test_v1276_backup_encryption.py
+        shell: bash
+        run: |
+          python3 scripts/test_v1276_backup_encryption.py > test.log 2>&1 && cat test.log || {
+            tail -30 test.log | while IFS= read -r line; do echo "::error title=test_v1276_backup_encryption.py::$line"; done
+            exit 1
+          }
       - name: Secure session cookie still applied
         run: python3 scripts/test_v1275_secure_cookie.py
       - name: Verify integrated Main, vault and IP guard contracts
