@@ -1,0 +1,43 @@
+name: v12.80 Live Overview Charts
+on:
+  pull_request:
+    paths:
+      - VERSION
+      - node_agent/VERSION
+      - app/static/**
+      - scripts/sync_main_static_cache.py
+      - scripts/apply_v1280_live_charts.py
+      - scripts/apply_v1280_live_charts.json
+      - scripts/force_update_v1280.sh
+      - scripts/test_v1280_*.py
+      - scripts/update.sh
+      - scripts/verify_release_updater_staging.py
+      - .github/workflows/v1280-live-charts.yml
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Live chart behaviour contract
+        run: python3 scripts/test_v1280_live_charts.py
+      - name: Test staged update, static cache refresh and rollback
+        shell: bash
+        run: |
+          python3 scripts/test_v1280_updater.py > test.log 2>&1 && cat test.log || {
+            tail -9 test.log | tac | while IFS= read -r line; do echo "::error title=test_v1280_updater.py::$line"; done
+            exit 1
+          }
+      - name: Verify release staging and safe restart scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/verify_release_updater_staging.py
+          bash -n scripts/force_update_v1280.sh
+          bash -n scripts/update.sh
+          if [[ "$(cat VERSION)" == "12.80" ]]; then
+            grep -Fq 'force_update_v1280.sh' scripts/update.sh
+            test "$(cat node_agent/VERSION)" = "12.80"
+          fi
+          if grep -Eq 'systemctl[[:space:]]+(restart|reload)[[:space:]]+(nginx|streamforge-channel-supervisor)' scripts/force_update_v1280.sh; then exit 1; fi
+          grep -Fq 'streamforge-update --force /root/streamforge-12.80.zip' release-notes/v12.80.md
+          git diff --check

@@ -184,6 +184,11 @@ Harmless on v12.77 and older: the update still finishes and the Node fetches
 hls.js by itself later. Fixed in v12.78, which ships the helper in the SSH
 package.
 
+**Overview charts stopped moving.**
+From v12.80 the charts update live, but pause while you are zoomed in
+(double-click the chart to reset), while the pointer is over a chart and while
+the browser tab is in the background.
+
 **After v12.78 the chart legends still show no values.**
 The v12.78 updater did not refresh the Nginx static cache, so browsers kept
 the v12.77 scripts. Install v12.79, then reload the page. A manual equivalent:

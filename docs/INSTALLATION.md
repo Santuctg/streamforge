@@ -26,7 +26,7 @@ smbclient and the yt-dlp runtime used for YouTube Live.
 
 ```bash
 cd /root
-VERSION=12.79
+VERSION=12.80
 curl -fL -o streamforge-$VERSION.zip \
   https://github.com/Santuctg/streamforge/releases/download/v$VERSION/streamforge-$VERSION.zip
 sha256sum streamforge-$VERSION.zip      # compare with the hash you were given
@@ -128,6 +128,11 @@ sudo systemctl restart streamforge streamforge-public
 ```
 
 ---
+
+## 🔐 After upgrading to v12.80
+
+- Reload the **Overview** page. The charts now update live: their newest point
+  every 5 seconds and the full history once per sample interval.
 
 ## 🔐 After upgrading to v12.79
 
