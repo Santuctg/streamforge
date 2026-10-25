@@ -250,6 +250,30 @@
     </div>
   </div>
 
+  {# STREAMFORGE_BACKUP_ARCHIVE_ENCRYPTION_V1276 #}
+  <div class="backup-restore-card backup-encryption-card">
+    <div class="backup-restore-copy">
+      <b>Backup encryption · {% if backup_encryption_enabled %}<span class="backup-encryption-on">On</span>{% else %}<span class="backup-encryption-off">Off</span>{% endif %}</b>
+      <small>Backups contain the database and the STREAMFORGE_* environment (including the secret key). With a passphrase, every copy sent to a backup destination is encrypted (AES-256-GCM). Main Server's own retained copies stay usable on this server. <b>Store the passphrase somewhere safe: without it, encrypted backups cannot be restored on a new server.</b></small>
+      {% if not backup_encryption_enabled %}<small class="backup-encryption-warning">Backup destinations currently receive unencrypted archives.</small>{% endif %}
+    </div>
+    <form method="post" action="/system/backups/encryption" class="backup-restore-form" autocomplete="off">
+      <label class="backup-restore-file">{% if backup_encryption_enabled %}New passphrase{% else %}Passphrase{% endif %} (12+ characters)
+        <input type="password" name="passphrase" minlength="12" autocomplete="new-password" required>
+      </label>
+      <label class="backup-restore-file">Confirm passphrase
+        <input type="password" name="passphrase_confirm" minlength="12" autocomplete="new-password" required>
+      </label>
+      <button class="button primary" type="submit">{% if backup_encryption_enabled %}Change passphrase{% else %}Turn on encryption{% endif %}</button>
+    </form>
+    {% if backup_encryption_enabled %}
+    <form method="post" action="/system/backups/encryption" class="backup-encryption-clear" onsubmit="return confirm('Turn off backup encryption? New backups sent to destinations will be unencrypted. Existing encrypted backups still need the old passphrase.');">
+      <input type="hidden" name="clear" value="1">
+      <button class="button ghost-danger" type="submit">Turn off encryption</button>
+    </form>
+    {% endif %}
+  </div>
+
   <div class="backup-restore-card">
     <div class="backup-restore-copy">
       <b>Restore Main Server</b>
@@ -258,6 +282,9 @@
     <form method="post" action="/system/backups/restore" enctype="multipart/form-data" class="backup-restore-form" onsubmit="return confirm('Restore this Main Server backup now? Backup data/settings will be restored, but this server's current Main domain/access links will be preserved. The Main service will restart.');">
       <label class="backup-restore-file">Backup archive
         <input type="file" name="archive" accept=".tar.gz,.tgz,application/gzip" required>
+      </label>
+      <label class="backup-restore-file">Backup passphrase <span class="optional-label">encrypted backups only</span>
+        <input type="password" name="backup_passphrase" autocomplete="off">
       </label>
       <label class="check backup-restore-confirm">
         <input type="checkbox" name="confirm_restore" value="yes" required>
@@ -636,10 +663,14 @@ body.backup-modal-open{overflow:hidden}
 .backup-restore-copy small{color:var(--muted);line-height:1.45}
 .backup-restore-form{
   display:grid;
-  grid-template-columns:minmax(220px,1fr) minmax(280px,1fr) auto;
+  grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
   gap:12px;
   align-items:end;
 }
+.backup-encryption-card{border-color:var(--line);background:transparent}
+.backup-encryption-card .backup-encryption-clear{grid-column:1/-1;justify-self:end}
+.backup-encryption-on{color:#4ade80}
+.backup-encryption-off,.backup-encryption-warning{color:#fbbf24}
 .backup-restore-file{display:grid;gap:6px;min-width:0}
 .backup-restore-file input{
   width:100%;

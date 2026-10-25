@@ -23,11 +23,16 @@ from typing import Any
 import paramiko
 from cryptography.fernet import Fernet
 
+from .backup_crypto import BackupDecryptError, decrypt_file, encrypt_file, is_encrypted_backup
+from .ssh_installer import SSHInstallError, _host_key_changed_error, _new_ssh_client
+
 CONFIG_FILE = Path("/var/lib/streamforge/backup-targets.json")
 ARCHIVE_ROOT = Path("/var/lib/streamforge/backups")
 BACKUP_SECRET_KEY = Path("/var/lib/streamforge/backups/secret.key")
 BACKUP_SMB_AUTH_ROOT = Path("/var/lib/streamforge/backups/smb-auth")
 LOCAL_BACKUP_CONFIG_FILE = Path("/var/lib/streamforge/local-backup-settings.json")
+BACKUP_ENCRYPTION_FILE = Path("/var/lib/streamforge/backup-encryption.json")
+BACKUP_PASSPHRASE_MIN_LENGTH = 12
 
 
 def _normalize_schedule_time(value: Any) -> str:
@@ -63,6 +68,54 @@ def _decrypt_secret(value: str) -> str:
         return _secret_box().decrypt(value.encode("ascii")).decode("utf-8")
     except Exception as exc:
         raise RuntimeError("Stored backup credential could not be decrypted") from exc
+
+
+# STREAMFORGE_BACKUP_ARCHIVE_ENCRYPTION_V1276: archives delivered to backup
+# targets are encrypted with an operator passphrase (kept here encrypted with
+# the backup secret key). Main's own retained copies stay readable locally.
+def backup_encryption_passphrase() -> str:
+    try:
+        raw = json.loads(BACKUP_ENCRYPTION_FILE.read_text(encoding="utf-8"))
+        return _decrypt_secret(str(raw.get("passphrase_enc") or ""))
+    except Exception:
+        return ""
+
+
+def backup_encryption_enabled() -> bool:
+    return bool(backup_encryption_passphrase())
+
+
+def save_backup_encryption_passphrase(passphrase: str) -> None:
+    value = str(passphrase or "")
+    if len(value) < BACKUP_PASSPHRASE_MIN_LENGTH:
+        raise ValueError(f"Backup passphrase must contain at least {BACKUP_PASSPHRASE_MIN_LENGTH} characters")
+    BACKUP_ENCRYPTION_FILE.parent.mkdir(parents=True, exist_ok=True)
+    temp = BACKUP_ENCRYPTION_FILE.with_suffix(".tmp")
+    temp.write_text(json.dumps({"passphrase_enc": _encrypt_secret(value)}), encoding="utf-8")
+    os.chmod(temp, 0o600)
+    temp.replace(BACKUP_ENCRYPTION_FILE)
+
+
+def clear_backup_encryption_passphrase() -> None:
+    BACKUP_ENCRYPTION_FILE.unlink(missing_ok=True)
+
+
+def prepare_restore_archive(path: Path, passphrase: str = "") -> bool:
+    """Decrypt an encrypted backup in place before validation; True if it was encrypted."""
+    if not is_encrypted_backup(path):
+        return False
+    secret = str(passphrase or "") or backup_encryption_passphrase()
+    if not secret:
+        raise ValueError("This backup is encrypted: restore it with the upload form and enter its backup passphrase")
+    plain = path.with_name(path.name + ".plain")
+    try:
+        decrypt_file(path, plain, secret)
+        plain.replace(path)
+    except BackupDecryptError as exc:
+        raise ValueError(str(exc)) from exc
+    finally:
+        plain.unlink(missing_ok=True)
+    return True
 
 
 def _write_smb_auth_file(username: str, password: str, domain: str = "") -> Path:
@@ -860,8 +913,11 @@ def _open_sftp(destination: str, key_path: str, username_override: str = "", pas
         user = str(username_override).strip()
     key_file = _ssh_key_for_target(key_path)
 
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    # STREAMFORGE_SSH_HOST_KEY_PINNING_V1276: same remembered host keys as Node SSH.
+    try:
+        client = _new_ssh_client()
+    except SSHInstallError as exc:
+        raise RuntimeError(str(exc)) from exc
     try:
         client.connect(
             hostname=host,
@@ -876,6 +932,9 @@ def _open_sftp(destination: str, key_path: str, username_override: str = "", pas
             look_for_keys=not bool(password) and not bool(key_file),
         )
         return client, client.open_sftp(), remote_path
+    except paramiko.BadHostKeyException as exc:
+        client.close()
+        raise RuntimeError(str(_host_key_changed_error(host, port, exc))) from exc
     except Exception as exc:
         client.close()
         raise RuntimeError(f"SSH/SFTP connection failed: {exc}") from exc
@@ -1415,7 +1474,16 @@ def run_target(target_id: str) -> dict[str, Any]:
     archive = _archive()
     destination = str(target.get("destination") or "").strip()
     kind = str(target.get("kind") or "local")
+    retained_archive = archive
+    outgoing_dir: Path | None = None
     try:
+        passphrase = backup_encryption_passphrase()
+        if passphrase:
+            # Same file name at the destination, so listing, rotation and
+            # restore keep working; the content starts with the SFBKENC1 header.
+            outgoing_dir = Path(tempfile.mkdtemp(prefix=".outgoing-", dir=str(ARCHIVE_ROOT)))
+            archive = outgoing_dir / retained_archive.name
+            encrypt_file(retained_archive, archive, passphrase)
         if kind == "local":
             folder = _require_absolute_directory(destination, create=True)
             _write_probe(folder)
@@ -1451,13 +1519,17 @@ def run_target(target_id: str) -> dict[str, Any]:
             delivered = str(result.get("webViewLink") or result.get("name") or archive.name)
         else:
             raise ValueError(f"Unsupported backup target type: {kind}")
-        target.update({"last_run": int(time.time()), "last_status": "Success", "last_archive": delivered})
+        target.update({"last_run": int(time.time()), "last_status": "Success", "last_archive": delivered,
+                       "last_encrypted": bool(outgoing_dir)})
     except Exception as exc:
         target.update({"last_run": int(time.time()), "last_status": f"Failed: {str(exc)[-300:]}", "last_archive": ""})
         save_targets(targets)
-        archive.unlink(missing_ok=True)
-        Path(str(archive) + ".partial").unlink(missing_ok=True)
+        retained_archive.unlink(missing_ok=True)
+        Path(str(retained_archive) + ".partial").unlink(missing_ok=True)
         raise
+    finally:
+        if outgoing_dir is not None:
+            shutil.rmtree(outgoing_dir, ignore_errors=True)
     save_targets(targets)
     keep = max(1, min(500, int(target.get("rotation_keep") or 20)))
     rotation = _prune_target_backup_archives(target_id, keep=keep)
@@ -1468,7 +1540,7 @@ def run_target(target_id: str) -> dict[str, Any]:
     # Main Server local retained backups have their own independent rotation.
     local_keep = int(local_backup_settings().get("rotation_keep") or 20)
     _prune_local_backup_archives(keep=local_keep)
-    Path(str(archive) + ".partial").unlink(missing_ok=True)
+    Path(str(retained_archive) + ".partial").unlink(missing_ok=True)
     return target
 
 

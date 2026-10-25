@@ -19,6 +19,47 @@ class SSHInstallError(RuntimeError):
     pass
 
 
+# STREAMFORGE_SSH_HOST_KEY_PINNING_V1276: remember each Node's SSH host key on
+# first contact and refuse a different key later. AutoAddPolicy alone accepted
+# any key on every connection, so an attacker on the path could capture the
+# SSH password used for Node install, administration and uninstall.
+KNOWN_HOSTS_ENV = "STREAMFORGE_SSH_KNOWN_HOSTS"
+KNOWN_HOSTS_DEFAULT = "/var/lib/streamforge/.ssh/known_hosts"
+
+
+def _known_hosts_path() -> Path:
+    return Path(os.environ.get(KNOWN_HOSTS_ENV, KNOWN_HOSTS_DEFAULT))
+
+
+def _new_ssh_client() -> paramiko.SSHClient:
+    client = paramiko.SSHClient()
+    client.load_system_host_keys()
+    path = _known_hosts_path()
+    try:
+        path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        path.touch(mode=0o600, exist_ok=True)
+        client.load_host_keys(str(path))
+    except OSError as exc:
+        raise SSHInstallError(f"SSH known_hosts file {path} is unavailable: {exc}") from exc
+    # With a loaded host-key file, Paramiko's AutoAddPolicy saves a first-seen
+    # key there; a key that differs from the saved one raises BadHostKeyException.
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    return client
+
+
+def _host_key_changed_error(host: str, port: int, exc: paramiko.BadHostKeyException) -> SSHInstallError:
+    def fingerprint(key) -> str:
+        return ":".join(f"{byte:02x}" for byte in key.get_fingerprint())
+
+    entry = host if int(port) == 22 else f"[{host}]:{int(port)}"
+    return SSHInstallError(
+        f"SSH host key for {host}:{int(port)} has changed (saved {fingerprint(exc.expected_key)}, "
+        f"server sent {fingerprint(exc.key)}). The connection may be intercepted, so it was refused. "
+        f"If the server was reinstalled, remove the old key on the Main Server and retry: "
+        f"sudo -u streamforge ssh-keygen -f {_known_hosts_path()} -R '{entry}'"
+    )
+
+
 # STREAMFORGE_NODE_SSH_TAR_HYGIENE_V107:
 def _node_payload_filter(info: tarfile.TarInfo) -> tarfile.TarInfo | None:
     """Exclude runtime/compiler/editor artifacts from Remote Node payloads."""
@@ -159,11 +200,9 @@ def install_node_over_ssh(
     remote_tar = f"/tmp/streamforge-node-{remote_id}.tar.gz"
     remote_dir = f"/tmp/streamforge-node-{remote_id}"
 
-    client = paramiko.SSHClient()
-    client.load_system_host_keys()
     # The UI explicitly shows the returned fingerprint after first connection.
     # Passwords are used only for this connection and are never persisted.
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client = _new_ssh_client()
     try:
         client.connect(
             hostname=host,
@@ -261,6 +300,8 @@ def install_node_over_ssh(
             host_key_fingerprint=fingerprint,
             output=output,
         )
+    except paramiko.BadHostKeyException as exc:
+        raise _host_key_changed_error(host, port, exc) from exc
     except (paramiko.SSHException, socket.timeout, OSError) as exc:
         raise SSHInstallError(f"SSH connection failed: {exc}") from exc
     finally:
@@ -290,9 +331,7 @@ def run_node_admin_command_over_ssh(
     if not 1 <= int(port) <= 65535:
         raise SSHInstallError("SSH port must be between 1 and 65535")
 
-    client = paramiko.SSHClient()
-    client.load_system_host_keys()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client = _new_ssh_client()
     try:
         client.connect(
             hostname=host,
@@ -331,6 +370,8 @@ def run_node_admin_command_over_ssh(
             host_key_fingerprint=fingerprint,
             output=output,
         )
+    except paramiko.BadHostKeyException as exc:
+        raise _host_key_changed_error(host, port, exc) from exc
     except (paramiko.SSHException, socket.timeout, OSError) as exc:
         raise SSHInstallError(f"SSH connection failed: {exc}") from exc
     finally:
@@ -360,9 +401,7 @@ def uninstall_node_over_ssh(
     payload = script_path.read_bytes()
     remote_script = f"/tmp/streamforge-uninstall-{secrets.token_hex(6)}.sh"
 
-    client = paramiko.SSHClient()
-    client.load_system_host_keys()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client = _new_ssh_client()
     try:
         client.connect(
             hostname=host,
@@ -400,6 +439,8 @@ def uninstall_node_over_ssh(
         if code != 0:
             raise SSHInstallError(f"Remote Node uninstall exited with code {code}:\n{output[-6000:]}")
         return output
+    except paramiko.BadHostKeyException as exc:
+        raise _host_key_changed_error(host, port, exc) from exc
     except (paramiko.SSHException, socket.timeout, OSError) as exc:
         raise SSHInstallError(f"Remote Node uninstall SSH failed: {exc}") from exc
     finally:

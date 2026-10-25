@@ -11,7 +11,7 @@
 >
 > **Typical use:** One **Main Server** encodes every channel once; several **Remote Nodes** in other data centres relay those channels and serve the viewers, with per-user connection limits, IP/ASN access policies and automatic node selection.
 
-**Current release:** [v12.75](https://github.com/Santuctg/streamforge/releases/tag/v12.75) · **Deployment:** Linux host with systemd, Nginx and FFmpeg · **Docker image:** not provided.
+**Current release:** [v12.76](https://github.com/Santuctg/streamforge/releases/tag/v12.76) · **Deployment:** Linux host with systemd, Nginx and FFmpeg · **Docker image:** not provided.
 
 ---
 
@@ -27,10 +27,10 @@
 | 📃 **Playlists & Xtream API** | Issue M3U playlists, Xtream `player_api.php` / `get.php` logins and direct stream URLs for IPTV apps. |
 | 🌐 **Web Player** | Branded browser player with login, quick-login and an optional Android APK download. |
 | 👥 **Users & playlists** | Viewer and restreamer accounts with channel playlists, expiry dates, connection limits and allowed source IPs. |
-| 🛡️ **Access control** | IP/CIDR and ASN rules for Panel and playback, GeoIP lookups, and a 5-failure / 3-hour login IP block shared by Main and Nodes. |
+| 🛡️ **Access control** | IP/CIDR and ASN rules for Panel and playback, GeoIP lookups, a 5-failure / 3-hour Panel login IP block shared by Main and Nodes, and Xtream login limits. |
 | 🔐 **Panel users & roles** | Role-based permissions, Super Admin, encrypted password vault with audited reveal. |
 | 📊 **Monitoring** | Live CPU/RAM/network dashboard, channel bitrate/uptime, viewer sessions with kill, stream logs and metrics history. |
-| 💾 **Backup & restore** | Scheduled backups to local disk, SMB, SSH or Google Drive; validated one-click restore with a safety backup. |
+| 💾 **Backup & restore** | Scheduled backups to local disk, SMB, SSH or Google Drive, encrypted with your passphrase; validated one-click restore with a safety backup. |
 
 ### Example: One Main Server, two Remote Nodes
 
@@ -117,16 +117,16 @@ Download `streamforge-X.YY.zip` from **[Releases](https://github.com/Santuctg/st
 
 ```bash
 cd /root
-curl -fL -o streamforge-12.75.zip \
-  https://github.com/Santuctg/streamforge/releases/download/v12.75/streamforge-12.75.zip
-sha256sum streamforge-12.75.zip
+curl -fL -o streamforge-12.76.zip \
+  https://github.com/Santuctg/streamforge/releases/download/v12.76/streamforge-12.76.zip
+sha256sum streamforge-12.76.zip
 ```
 
 ### 2a. Fresh install (new server only)
 
 ```bash
-unzip -q streamforge-12.75.zip -d /root
-sudo bash /root/streamforge-12.75/scripts/install.sh
+unzip -q streamforge-12.76.zip -d /root
+sudo bash /root/streamforge-12.76/scripts/install.sh
 ```
 
 Open `http://SERVER_IP`, sign in as **`admin` / `ChangeMe123!`** and **change that password immediately**.
@@ -134,7 +134,7 @@ Open `http://SERVER_IP`, sign in as **`admin` / `ChangeMe123!`** and **change th
 ### 2b. Upgrade an existing server
 
 ```bash
-sudo streamforge-update --force /root/streamforge-12.75.zip
+sudo streamforge-update --force /root/streamforge-12.76.zip
 ```
 
 Releases are applied **in order** — each updater accepts only the previous version and rolls back automatically on failure. **Never run `install.sh` on an existing server.**
@@ -192,7 +192,7 @@ streamforge/
 
 **Channel keeps restarting?** Open the channel's **Stream logs**; check the source URL from the server with **Scan**, and `journalctl -u streamforge-channel-supervisor -n 100`.
 
-**All Remote Node channels down at once?** Check whether `STREAMFORGE_SECRET_KEY` in `/etc/streamforge.env` was changed — it derives the Node relay keys. Restore the previous value and restart the services.
+**All Remote Node channels down at once?** On v12.75 or older, check whether `STREAMFORGE_SECRET_KEY` in `/etc/streamforge.env` was changed — it derived the Node relay keys; restore the previous value and restart the services. From v12.76 relay keys no longer depend on it.
 
 **Updater refuses to run?** Its message names the version it requires; install the missing releases in order.
 
@@ -205,8 +205,9 @@ For more scenarios, see [Operations](docs/OPERATIONS.md#-troubleshooting).
 ## 🔒 Security notes
 
 - Replace the default `admin` / `ChangeMe123!` login immediately after installation.
-- Keep `/etc/streamforge.env` private; **do not rotate `STREAMFORGE_SECRET_KEY`** on a running deployment (it breaks Node relays, playlist links and saved secrets — see [Operations](docs/OPERATIONS.md#-secret-key-rules)).
-- Serve the Panel over HTTPS; the session cookie is marked `Secure` on HTTPS requests (v12.75+).
+- Keep `/etc/streamforge.env` private. From v12.76, rotating `STREAMFORGE_SECRET_KEY` no longer breaks Node relays or playlist links, but still signs everyone out and requires re-entering saved GeoIP keys and Node SSH passwords — see [Operations](docs/OPERATIONS.md#-secret-key-rules).
+- **Set a backup passphrase** (Backups → Backup encryption) so off-server backups are encrypted, and store it safely.
+- Serve the Panel over HTTPS; the session cookie is marked `Secure` on HTTPS requests (v12.75+). Panel pages refuse to be framed by other sites, and HSTS can be enabled with `STREAMFORGE_HSTS_MAX_AGE` (v12.76+).
 - Give staff least-privilege roles; reserve Super Admin for owners.
 - Protect backups, playlist links and Node tokens — they grant access to your streams.
 

@@ -64,25 +64,34 @@ events.
 ## 🔑 Secret key rules
 
 `STREAMFORGE_SECRET_KEY` in `/etc/streamforge.env` is generated once by the
-installer (64 random hex characters). Many things are derived from it:
+installer (64 random hex characters). What changing it affects depends on the
+installed version:
 
-| Derived from the key | If the key changes |
-| --- | --- |
-| Panel login sessions | Everyone is logged out |
-| **Remote Node relay keys** | **All Remote Node channels stop** |
-| **Public stream keys in playlist links** | **Existing viewer links stop working** |
-| Encrypted playback keys | Open Web Player sessions must restart |
-| Encrypted saved secrets | Backup target passwords, GeoIP keys and saved SSH passwords must be re-entered |
+| Item | Key it uses | If `STREAMFORGE_SECRET_KEY` changes |
+| --- | --- | --- |
+| Panel login sessions | Secret key | Everyone is logged out |
+| Web Player playback keys | Secret key | Open Web Player sessions restart |
+| Saved GeoIP keys, saved Node SSH passwords | Secret key | Must be entered again |
+| **Remote Node relay keys, viewer stream links** | **v12.76+:** `stream_link_secret` in the database (seeded once from the secret key) · **≤ v12.75:** the secret key | **v12.76+: unchanged** · ≤ v12.75: **all Node channels stop and playlist links break** |
+| Backup destination passwords | Separate key file `/var/lib/streamforge/backups/secret.key` | Unchanged |
+| Panel password vault | Separate `STREAMFORGE_PANEL_PASSWORD_VAULT_KEY` | Unchanged |
 
 **Rules**
 
 1. Keep it private: never paste it into chats, tickets or screenshots.
-2. **Do not rotate it on a running deployment.** If you ever must, plan a
-   maintenance window: resync every Node, re-send playlists to every user, and
-   re-enter all saved secrets.
+2. Rotate it only when it may have leaked, and on v12.76 or newer. Expect
+   everyone to sign in again and re-enter saved GeoIP keys and Node SSH
+   passwords. On v12.75 or older, **do not rotate it** — update first.
 3. Back up `/etc/streamforge.env` together with your database backups.
 
-**Rotated by mistake? Put the old value back:**
+```bash
+sudo cp -a /etc/streamforge.env /etc/streamforge.env.bak
+NEW=$(openssl rand -hex 32)
+sudo sed -i "s/^STREAMFORGE_SECRET_KEY=.*/STREAMFORGE_SECRET_KEY=$NEW/" /etc/streamforge.env
+sudo systemctl restart streamforge streamforge-public
+```
+
+**Rotated by mistake on v12.75 or older? Put the old value back:**
 
 ```bash
 sudo cp -a /etc/streamforge.env.bak /etc/streamforge.env     # or edit the line by hand
@@ -98,10 +107,10 @@ new key was active must be entered again.
 
 - [ ] `admin` / `ChangeMe123!` replaced (or `admin` deleted after creating your own Super Admin)
 - [ ] `STREAMFORGE_SECRET_KEY` is a long random value and has never been shared
-- [ ] Panel served over HTTPS (session cookie is `Secure` on HTTPS since v12.75)
+- [ ] Panel served over HTTPS (session cookie is `Secure` on HTTPS since v12.75); optionally `STREAMFORGE_HSTS_MAX_AGE` when every port of the domain uses HTTPS
 - [ ] Staff use least-privilege roles; Super Admin limited to owners
 - [ ] Panel access restricted by IP/ASN where possible
-- [ ] Backups go off-server (SMB / SSH / Google Drive) and are protected
+- [ ] Backups go off-server (SMB / SSH / Google Drive) **with a backup passphrase set** (v12.76+), and the passphrase is stored safely elsewhere
 - [ ] A second SSH session is open before changing access rules or updating
 
 ---
@@ -125,7 +134,8 @@ sources asking to "confirm you're not a bot" need a fresh `cookies.txt` in
 
 **All Remote Node channels stopped at the same time.**
 Check whether `STREAMFORGE_SECRET_KEY` changed (see
-[Secret key rules](#-secret-key-rules)). Otherwise check that Nodes can reach
+[Secret key rules](#-secret-key-rules); from v12.76 this no longer affects
+relays). Otherwise check that Nodes can reach
 the Main relay URL and look at **Nodes** for errors.
 
 **One Node offline.**
@@ -147,3 +157,23 @@ Fixed in v12.73 — upgrade.
 
 **A deleted `admin` user came back after an update.**
 Fixed in v12.73 — upgrade; then delete it once more.
+
+**Node install/admin or SSH backup says "SSH host key … has changed".**
+Since v12.76 StreamForge remembers each server's SSH host key. If you really
+reinstalled that server, run the `ssh-keygen -R` command shown in the error
+and retry; otherwise stop — the connection may be intercepted.
+
+**An IPTV app or Web Player login keeps failing with correct credentials.**
+After repeated wrong passwords, that IP + username is blocked for 15 minutes
+(100 failures across usernames block the whole IP). Fix the saved password in
+the app and wait 15 minutes. Blocks appear in **Logs** as
+"Xtream login blocked after repeated failures".
+
+**Restore says "This backup is encrypted".**
+Use the **Restore Main Server** upload form and type the backup passphrase
+that was active when the backup was made. Offline:
+`python3 /opt/streamforge/app/backup_crypto.py decrypt IN.tar.gz OUT.tar.gz`.
+
+**Signed out after someone changed your password.**
+Expected since v12.76: a password change ends every other session of that
+user.

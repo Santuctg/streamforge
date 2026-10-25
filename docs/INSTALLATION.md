@@ -26,7 +26,7 @@ smbclient and the yt-dlp runtime used for YouTube Live.
 
 ```bash
 cd /root
-VERSION=12.75
+VERSION=12.76
 curl -fL -o streamforge-$VERSION.zip \
   https://github.com/Santuctg/streamforge/releases/download/v$VERSION/streamforge-$VERSION.zip
 sha256sum streamforge-$VERSION.zip      # compare with the hash you were given
@@ -128,6 +128,18 @@ sudo systemctl restart streamforge streamforge-public
 
 ---
 
+## 🔐 After upgrading to v12.76
+
+- Open **Backups → Backup encryption** and set a passphrase (12+ characters),
+  then store it outside the server. Until then, backup destinations receive
+  unencrypted archives.
+- Optional: if **every** port of your Panel/Playlist domain uses HTTPS, add
+  `STREAMFORGE_HSTS_MAX_AGE=15552000` to `/etc/streamforge.env` and restart
+  `streamforge` and `streamforge-public`. Leave it off if any Playlist or Web
+  Player URL on that domain uses plain HTTP.
+
+---
+
 ## 🩹 Manual Main hotfix
 
 `scripts/apply_main_hotfixes.py` applies the Main fixes from v12.73–v12.75
@@ -140,6 +152,10 @@ sudo cp -a /opt/streamforge/app/main.py /opt/streamforge/app/main.py.bak
 sudo python3 scripts/apply_main_hotfixes.py /opt/streamforge/app/main.py
 sudo systemctl restart streamforge streamforge-public
 ```
+
+The v12.76 security changes span several files and new modules, so install
+them only with `streamforge-update` (it runs `scripts/apply_v1276_security.py`
+on staged copies, adds the new modules and the root helper, and can roll back).
 
 ---
 

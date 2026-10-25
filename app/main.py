@@ -38,7 +38,7 @@ from sqlalchemy import and_, case, delete, func, or_, select, text
 from sqlalchemy.orm import Session, object_session, selectinload
 from starlette.middleware.sessions import SessionMiddleware
 
-from .auth import current_admin, hash_password, verify_password
+from .auth import current_admin, hash_password, stamp_admin_session, verify_password
 from .config import settings
 from .db import Base, SessionLocal, engine, ensure_runtime_schema, get_db
 from .ffmpeg import stream_manager
@@ -58,11 +58,13 @@ from .permissions import (
 from .stream_info import probe_stream
 from .system_metrics import available_network_interfaces, system_metrics
 from .metrics_history import MetricsHistory
-from .backup_manager import load_targets as load_backup_targets, add_target as add_backup_target, delete_target as delete_backup_target, run_target as run_backup_target, run_due_targets as run_due_backup_targets, google_drive_status as backup_google_drive_status, test_google_drive_connection as test_backup_google_drive_connection, save_google_oauth_credentials, load_google_oauth_credentials, save_google_drive_token, test_destination as test_backup_destination, update_target as update_backup_target, list_local_backup_archives, resolve_local_backup_archive, list_target_backup_archives, fetch_target_backup_archive, delete_target_backup_archive, local_backup_settings, save_local_backup_settings, run_local_backup
+from .backup_manager import load_targets as load_backup_targets, add_target as add_backup_target, delete_target as delete_backup_target, run_target as run_backup_target, run_due_targets as run_due_backup_targets, google_drive_status as backup_google_drive_status, test_google_drive_connection as test_backup_google_drive_connection, save_google_oauth_credentials, load_google_oauth_credentials, save_google_drive_token, test_destination as test_backup_destination, update_target as update_backup_target, list_local_backup_archives, resolve_local_backup_archive, list_target_backup_archives, fetch_target_backup_archive, delete_target_backup_archive, local_backup_settings, save_local_backup_settings, run_local_backup, backup_encryption_enabled, save_backup_encryption_passphrase, clear_backup_encryption_passphrase, prepare_restore_archive
 from .ssh_installer import SSHInstallError, install_node_over_ssh, uninstall_node_over_ssh, run_node_admin_command_over_ssh
 from .viewer_tracking import viewer_tracker
 from .redis_state import redis_state
 from .secrets_store import encrypt_secret, decrypt_secret
+from .stream_keys import ensure_stream_link_secret, stream_link_hmac
+from .xtream_guard import clear_xtream_failures, record_xtream_failure, xtream_auth_blocked
 # STREAMFORGE_PANEL_CREDENTIAL_VAULT_V1263: Main-only opt-in encrypted credentials.
 from .panel_password_vault import (
     router as panel_vault_router, can_vault_reveal, can_vault_manage, vault_enabled, vault_csrf_token,
@@ -4355,7 +4357,7 @@ def clean_import_profile(value: str | None, fallback: str) -> str:
 
 def channel_stream_key(channel: Channel) -> str:
     message = f"streamforge-channel:{channel.id}:{channel.slug}".encode("utf-8")
-    return hmac.new(settings.secret_key.encode("utf-8"), message, hashlib.sha256).hexdigest()[:32]
+    return stream_link_hmac(message)
 
 
 def channel_http_urls(channel: Channel, request: Request, db: Session, *, public_base: str | None = None) -> dict[str, str]:
@@ -5157,6 +5159,7 @@ async def lifespan(_app: FastAPI):
     ensure_runtime_schema()
     with SessionLocal() as db:
         super_role = ensure_default_roles(db)
+        ensure_stream_link_secret(db)
         existing = db.scalar(select(AdminUser).where(AdminUser.username == settings.admin_user))
         # STREAMFORGE_ADMIN_SEED_FRESH_INSTALL_ONLY:
         # Seed the env-configured admin only on a fresh install. Re-creating it
@@ -5261,6 +5264,51 @@ class SecureSessionCookieMiddleware:
         await self.app(scope, receive, send_with_secure_cookie)
 
 
+class SecurityHeadersMiddleware:
+    """Add browser security headers to Main responses.
+
+    STREAMFORGE_MAIN_SECURITY_HEADERS_V1276: Panel pages may not be framed by
+    other sites (clickjacking); Playlist/Web Player routes stay embeddable.
+    Registered inside the alias router so scope["path"] is the internal route.
+    HSTS is opt-in (STREAMFORGE_HSTS_MAX_AGE seconds) because it applies to
+    every port of the host and would break a plain-HTTP Playlist/Web Player
+    served on the same domain.
+    """
+
+    def __init__(self, app) -> None:
+        self.app = app
+        try:
+            self.hsts_max_age = max(0, int(os.getenv("STREAMFORGE_HSTS_MAX_AGE", "0") or 0))
+        except ValueError:
+            self.hsts_max_age = 0
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        added = [
+            (b"x-content-type-options", b"nosniff"),
+            (b"referrer-policy", b"strict-origin-when-cross-origin"),
+        ]
+        if main_route_role(str(scope.get("path") or "/")) == "panel":
+            added += [
+                (b"x-frame-options", b"SAMEORIGIN"),
+                (b"content-security-policy", b"frame-ancestors 'self'; base-uri 'self'; object-src 'none'"),
+            ]
+        if self.hsts_max_age and SecureSessionCookieMiddleware._is_https(scope):
+            added.append((b"strict-transport-security", f"max-age={self.hsts_max_age}".encode("latin-1")))
+
+        async def send_with_headers(message) -> None:
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers") or [])
+                present = {name.lower() for name, _ in headers}
+                headers += [(name, value) for name, value in added if name not in present]
+                message = {**message, "headers": headers}
+            await send(message)
+
+        await self.app(scope, receive, send_with_headers)
+
+
 app = FastAPI(title="StreamForge", lifespan=lifespan)
 app.include_router(panel_vault_router)  # protected Main-only vault POST
 app.add_middleware(
@@ -5279,6 +5327,7 @@ app.add_middleware(
 )
 # Added after SessionMiddleware so it wraps it and sees the session Set-Cookie.
 app.add_middleware(SecureSessionCookieMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 app.mount("/channel-logos", RestoredAssetStaticFiles(directory=str(settings.logo_root), check_dir=False), name="channel-logos")
 app.mount("/node-logos", RestoredAssetStaticFiles(directory=str(settings.node_logo_root), check_dir=False), name="node-logos")
@@ -5673,7 +5722,7 @@ def login(
         log_event("Panel login IP guard unavailable", scope="auth", level="error",
                   actor=username.strip() or None)
         return render(request, "login.html", db, error="Login temporarily unavailable")
-    request.session["admin_id"] = admin.id
+    stamp_admin_session(request, admin)
     log_event("Panel login succeeded", scope="auth", actor=admin.username, details={"ip": client_ip(request)})
     return RedirectResponse(first_allowed_path(admin), status_code=303)
 
@@ -5851,7 +5900,35 @@ def system_backups_page(request: Request, message: str = "", error: str = "", db
         backup_targets=load_backup_targets(),
         backup_google_drive=backup_google_drive_status(),
         local_backup=local_backup_settings(),
+        backup_encryption_enabled=backup_encryption_enabled(),
     )
+
+
+@app.post("/system/backups/encryption", dependencies=[Depends(permission_required("backups.edit"))])
+def system_backup_encryption_update(
+    request: Request,
+    passphrase: str = Form(""),
+    passphrase_confirm: str = Form(""),
+    clear: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    # STREAMFORGE_BACKUP_ARCHIVE_ENCRYPTION_V1276
+    admin = current_admin(request, db)
+    if not admin:
+        return redirect_login()
+    try:
+        if as_bool(clear):
+            clear_backup_encryption_passphrase()
+            message = "Backup encryption turned off; new target backups are stored unencrypted"
+        else:
+            if passphrase != passphrase_confirm:
+                raise ValueError("Backup passphrase confirmation does not match")
+            save_backup_encryption_passphrase(passphrase)
+            message = "Backup passphrase saved; new target backups are encrypted"
+        log_event(message, scope="backup", actor=admin.username)
+        return RedirectResponse("/system/backups?message=" + quote_plus(message), status_code=303)
+    except ValueError as exc:
+        return RedirectResponse("/system/backups?error=" + quote_plus(str(exc)), status_code=303)
 
 
 @app.post("/system/backups/google/credentials", dependencies=[Depends(permission_required("backups.edit"))])
@@ -6382,6 +6459,7 @@ def system_backup_target_file_restore(
     archive_name: str,
     request: Request,
     confirm_restore: str = Form(""),
+    backup_passphrase: str = Form(""),
     db: Session = Depends(get_db),
 ):
     admin = current_admin(request, db)
@@ -6399,6 +6477,7 @@ def system_backup_target_file_restore(
         staged = MAIN_RESTORE_INBOX / f"restore-{int(time.time())}-{secrets.token_hex(8)}.tar.gz"
         fetch_target_backup_archive(target_id, archive_name, staged)
         staged.chmod(0o600)
+        prepare_restore_archive(staged, backup_passphrase)
 
         _validate_main_restore_archive(staged)
 
@@ -6502,6 +6581,7 @@ async def system_backup_restore(
     request: Request,
     archive: UploadFile = File(...),
     confirm_restore: str = Form(""),
+    backup_passphrase: str = Form(""),
     db: Session = Depends(get_db),
 ):
     admin = current_admin(request, db)
@@ -6544,6 +6624,7 @@ async def system_backup_restore(
 
         if written < 128:
             raise ValueError("Restore archive is empty or invalid")
+        prepare_restore_archive(staged, backup_passphrase)
 
         _validate_main_restore_archive(staged)
 
@@ -12535,6 +12616,8 @@ def account_password_change(
         raise HTTPException(503, "Encrypted password vault unavailable; password unchanged")
     affected_node_ids = {item.id for item in admin.nodes}
     db.commit()
+    # Other sessions of this user end; this browser stays signed in.
+    stamp_admin_session(request, admin)
     sync_errors = sync_panel_users_for_node_ids(affected_node_ids, request, db)
     log_event("Panel user changed own password", scope="auth", actor=admin.username, details={"ip": client_ip(request)})
     message = "Password changed successfully."
@@ -12733,6 +12816,8 @@ def admin_user_update(
         if not vault_store(db, panel_user, password):
             raise HTTPException(503, "Encrypted password vault unavailable; password unchanged")
     db.commit()
+    if password and actor is not None and panel_user.id == actor.id:
+        stamp_admin_session(request, panel_user)
     affected_node_ids = old_node_ids | {item.id for item in selected_nodes}
     sync_errors = sync_panel_users_for_node_ids(affected_node_ids, request, db)
     return panel_admin_redirect(
@@ -14763,7 +14848,7 @@ def public_web_player_login(request: Request, username: str = Form(...), passwor
     settings = _webplayer_effective_settings(db, local_node.id, request)
     if settings.get("login_mode") == "auto":
         return RedirectResponse(_web_player_home_url(request), status_code=303)
-    user = xtream_authenticate(db, username.strip(), password)
+    user = xtream_authenticate(db, username.strip(), password, request)
     if not user:
         _log_client_denied(request, "Web player login failed", username=username, reason="Invalid username or password", db=db)
         return _web_player_flash_redirect(request, "Invalid username or password")
@@ -15543,15 +15628,38 @@ def direct_media_playlist_legacy(stream_key: str, slug: str, request: Request, d
     return RedirectResponse(main_playlist_child_path(request, f"/live/{stream_key}/{slug}/n/{choice.node.id}/index.m3u8"), status_code=307)
 
 
+def _xtream_guard_client_ip(request: Request | None) -> str:
+    """Rightmost Nginx-appended client IP; a client-supplied X-Forwarded-For
+    prefix must not let one source rotate past the Xtream failure limits."""
+    if request is None:
+        return ""
+    try:
+        return main_panel_client_ip(request)
+    except LoginGuardUnavailable:
+        return client_ip(request)
+
+
 # Xtream-compatible API for Android/TV clients.
-def xtream_authenticate(db: Session, username: str, password: str) -> StreamUser | None:
+def xtream_authenticate(db: Session, username: str, password: str, request: Request | None = None) -> StreamUser | None:
     cleaned = (username or "").strip()
     if not cleaned or not password:
         return None
-    user = db.scalar(select(StreamUser).where(func.lower(StreamUser.xtream_username) == cleaned.lower()))
-    if not user or not user_valid(user) or not user.xtream_password_hash:
+    # STREAMFORGE_XTREAM_AUTH_GUARD_V1276: refuse blocked sources before scrypt.
+    source_ip = _xtream_guard_client_ip(request)
+    if xtream_auth_blocked(source_ip, cleaned):
         return None
-    return user if verify_password(password, user.xtream_password_hash) else None
+    user = db.scalar(select(StreamUser).where(func.lower(StreamUser.xtream_username) == cleaned.lower()))
+    valid = bool(
+        user and user_valid(user) and user.xtream_password_hash
+        and verify_password(password, user.xtream_password_hash)
+    )
+    if valid:
+        clear_xtream_failures(source_ip, cleaned)
+        return user
+    if record_xtream_failure(source_ip, cleaned):
+        log_event("Xtream login blocked after repeated failures", scope="auth", level="warning",
+                  actor=cleaned, details={"ip": source_ip})
+    return None
 
 
 def xtream_server_info(request: Request, db: Session) -> dict[str, object]:
@@ -15704,7 +15812,7 @@ def xtream_player_api(
     db: Session = Depends(get_db),
 ):
     local_node = public_local_node(db)
-    user = xtream_authenticate(db, username, password)
+    user = xtream_authenticate(db, username, password, request)
     if user:
         enforce_stream_user_source(user, request)
     else:
@@ -15743,7 +15851,7 @@ def xtream_stream_target(user: StreamUser, channel: Channel) -> str:
 def xtream_stream_access(
     username: str, password: str, stream_ref: str, request: Request, db: Session
 ) -> tuple[StreamUser, Channel]:
-    user = xtream_authenticate(db, username, password)
+    user = xtream_authenticate(db, username, password, request)
     if not user:
         _log_client_denied(request, "Xtream stream authentication failed", username=username, reason="Invalid Xtream credentials")
         raise HTTPException(403, "Invalid Xtream credentials")
@@ -15780,7 +15888,7 @@ def xtream_get_playlist(
     type: str = "m3u_plus", output: str = "m3u8", db: Session = Depends(get_db),
 ):
     local_node = public_local_node(db)
-    user = xtream_authenticate(db, username, password)
+    user = xtream_authenticate(db, username, password, request)
     if not user:
         _log_client_denied(request, "Xtream playlist authentication failed", username=username, reason="Invalid Xtream credentials")
         raise HTTPException(403, "Invalid Xtream credentials")

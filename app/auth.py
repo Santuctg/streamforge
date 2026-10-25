@@ -41,6 +41,21 @@ def verify_password(password: str, encoded: str) -> bool:
         return False
 
 
+# STREAMFORGE_MAIN_SESSION_AUTH_VERSION_V1276: the signed session cookie also
+# carries a fingerprint of the password hash, so changing a password ends every
+# other session of that Panel user (same formula the Node live auth uses).
+ADMIN_AUTH_VERSION_SESSION_KEY = "admin_auth_version"
+
+
+def admin_auth_version(admin: AdminUser) -> str:
+    return hashlib.sha256(str(admin.password_hash or "").encode("utf-8")).hexdigest()[:24]
+
+
+def stamp_admin_session(request: Request, admin: AdminUser) -> None:
+    request.session["admin_id"] = admin.id
+    request.session[ADMIN_AUTH_VERSION_SESSION_KEY] = admin_auth_version(admin)
+
+
 def current_admin(request: Request, db: Session) -> Optional[AdminUser]:
     # STREAMFORGE_MAIN_REQUEST_ADMIN_CACHE_V48:
     # Permission dependencies and HTML rendering both ask for the same admin.
@@ -57,6 +72,15 @@ def current_admin(request: Request, db: Session) -> Optional[AdminUser]:
     if not admin or not admin.is_active or not admin.main_panel_access:
         request.session.clear()
         admin = None
+    else:
+        stamped = request.session.get(ADMIN_AUTH_VERSION_SESSION_KEY)
+        if not stamped:
+            # Sessions created before v12.76 adopt the current password.
+            request.session[ADMIN_AUTH_VERSION_SESSION_KEY] = admin_auth_version(admin)
+        elif not hmac.compare_digest(str(stamped), admin_auth_version(admin)):
+            request.session.pop("admin_id", None)
+            request.session.pop(ADMIN_AUTH_VERSION_SESSION_KEY, None)
+            admin = None
     request.state._streamforge_admin_cache_loaded = True
     request.state._streamforge_admin_cache = admin
     return admin

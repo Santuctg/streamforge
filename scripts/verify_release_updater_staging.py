@@ -31,6 +31,9 @@ else:
             f"{updater.name} runs py_compile in SOURCE_DIR before staging and can create __pycache__"
         )
 
+    # STREAMFORGE_RELEASE_SECURITY_HARDENING_V1276:
+    security_hardening_v1276 = "STREAMFORGE_V1276_SECURITY_HARDENING_UPDATER" in text
+
     # STREAMFORGE_RELEASE_SECURE_SESSION_COOKIE_V1275:
     secure_cookie_v1275 = "STREAMFORGE_V1275_SECURE_SESSION_COOKIE_UPDATER" in text
 
@@ -117,7 +120,25 @@ else:
         None,
     )
 
-    if secure_cookie_v1275:
+    if security_hardening_v1276:
+        if 'cp -a "$SRC/." "$STAGE/"' in text:
+            errors.append(f"{updater.name} v12.76 must not copy the entire tree")
+        if re.search(r'systemctl[ \t]+(restart|reload)[ \t]+(nginx|streamforge-channel-supervisor)', text):
+            errors.append(f"{updater.name} v12.76 must not restart Nginx or the channel supervisor")
+        for marker in (
+            'STREAMFORGE_V1276_SECURITY_HARDENING_UPDATER',
+            '12.75|12.76',
+            'STREAMFORGE_V1276_MAIN_ONLY_NODE_PARITY',
+            'scripts/apply_v1276_security.py',
+            'app/stream_keys.py',
+            'streamforge-apply-main-access',
+            'absent-files.txt',
+            'Rolling back from',
+            'atomic_copy',
+        ):
+            if marker not in text:
+                errors.append(f"{updater.name} v12.76 security contract missing {marker}")
+    elif secure_cookie_v1275:
         if 'cp -a "$SRC/." "$STAGE/"' in text:
             errors.append(f"{updater.name} v12.75 must not copy the entire tree")
         for marker in (

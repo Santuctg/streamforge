@@ -1,0 +1,76 @@
+name: v12.76 Security Hardening
+on:
+  pull_request:
+    paths:
+      - VERSION
+      - node_agent/VERSION
+      - app/**
+      - scripts/apply_main_access.py
+      - scripts/apply_v1276_security.py
+      - scripts/apply_v1276_security.json
+      - scripts/force_update_v1276.sh
+      - scripts/test_v1276_*.py
+      - scripts/update.sh
+      - scripts/verify_release_updater_staging.py
+      - scripts/verify_panel_credential_vault_v1263.py
+      - .github/workflows/v1276-security-hardening.yml
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install Main runtime dependencies
+        run: python3 -m pip install -q -r requirements.txt httpx
+      - name: Stable stream/relay keys
+        shell: bash
+        run: |
+          python3 scripts/test_v1276_stream_link_secret.py > test.log 2>&1 && cat test.log || {
+            tail -9 test.log | tac | while IFS= read -r line; do echo "::error title=test_v1276_stream_link_secret.py::$line"; done
+            exit 1
+          }
+      - name: Headers, session revocation and Xtream limits
+        shell: bash
+        run: |
+          python3 scripts/test_v1276_security.py > test.log 2>&1 && cat test.log || {
+            tail -9 test.log | tac | while IFS= read -r line; do echo "::error title=test_v1276_security.py::$line"; done
+            exit 1
+          }
+      - name: SSH host-key pinning
+        shell: bash
+        run: |
+          python3 scripts/test_v1276_ssh_host_key.py > test.log 2>&1 && cat test.log || {
+            tail -9 test.log | tac | while IFS= read -r line; do echo "::error title=test_v1276_ssh_host_key.py::$line"; done
+            exit 1
+          }
+      - name: Encrypted backups
+        shell: bash
+        run: |
+          python3 scripts/test_v1276_backup_encryption.py > test.log 2>&1 && cat test.log || {
+            tail -9 test.log | tac | while IFS= read -r line; do echo "::error title=test_v1276_backup_encryption.py::$line"; done
+            exit 1
+          }
+      - name: Secure session cookie still applied
+        run: python3 scripts/test_v1275_secure_cookie.py
+      - name: Verify integrated Main, vault and IP guard contracts
+        run: python3 scripts/verify_panel_credential_vault_v1263.py
+      - name: Test staged security update and rollback
+        run: python3 scripts/test_v1276_updater.py
+      - name: Verify release staging and safe restart scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/verify_release_updater_staging.py
+          bash -n scripts/force_update_v1276.sh
+          bash -n scripts/update.sh
+          grep -Fq 'force_update_v1276.sh' scripts/update.sh
+          if grep -Eq 'systemctl[[:space:]]+(restart|reload)[[:space:]]+(nginx|streamforge-channel-supervisor)' scripts/force_update_v1276.sh; then exit 1; fi
+          git diff --check
+      - name: Verify version and notes
+        shell: bash
+        run: |
+          test "$(cat VERSION)" = "12.76"
+          test "$(cat node_agent/VERSION)" = "12.76"
+          grep -Fq 'passphrase' release-notes/v12.76.md
+          grep -Fq 'streamforge-update --force /root/streamforge-12.76.zip' release-notes/v12.76.md
