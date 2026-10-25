@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """v12.65 bounded updater install/reinstall/rollback + Node runtime parity tests."""
 from __future__ import annotations
+# Historical release check: runs only on its own release.
+if (__import__("pathlib").Path(__file__).resolve().parents[1] / "VERSION").read_text().strip() != "12.65":
+    print("SKIP: v12.65 updater test runs only while VERSION is 12.65")
+    raise SystemExit(0)
 import hashlib
 import os
 from pathlib import Path

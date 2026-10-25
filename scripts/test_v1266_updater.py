@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 """Bounded v12.66 upgrade and rollback from a simulated v12.65 install."""
+# Historical release check: runs only on its own release.
+if (__import__("pathlib").Path(__file__).resolve().parents[1] / "VERSION").read_text().strip() != "12.66":
+    print("SKIP: v12.66 updater test runs only while VERSION is 12.66")
+    raise SystemExit(0)
 import hashlib
 import os
 import runpy

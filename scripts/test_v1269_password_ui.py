@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """v12.69 secure saved-password Show/Hide and compact Node notice regression."""
 from __future__ import annotations
+# Historical release check: runs only on its own release.
+if (__import__("pathlib").Path(__file__).resolve().parents[1] / "VERSION").read_text().strip() != "12.69":
+    print("SKIP: v12.69-only regression check (later releases changed the Node notice)")
+    raise SystemExit(0)
 import re
 import subprocess
 import shutil

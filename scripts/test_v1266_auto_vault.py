@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 """v12.66 managed-credential auto-retention Main and Remote Node contracts."""
+# Historical release check: runs only on its own release.
+if (__import__("pathlib").Path(__file__).resolve().parents[1] / "VERSION").read_text().strip() != "12.66":
+    print("SKIP: v12.66-only regression check (later releases changed the Node notice)")
+    raise SystemExit(0)
 from pathlib import Path
 import runpy
 

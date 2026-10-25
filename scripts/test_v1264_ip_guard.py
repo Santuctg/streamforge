@@ -62,9 +62,12 @@ with tempfile.TemporaryDirectory(prefix="sf-v1264-ip-guard-") as tmp:
         assert guard.record_ip_failure(a) is True
         assert guard.ip_locked(a)
         assert not guard.ip_locked(b)
+        # v12.65 added which server triggered the block; record_ip_failure()
+        # without an origin reports it as unknown.
         assert guard.list_locked_ips() == [{
             "ip": a, "failed_attempts": 5,
             "blocked_until": now + 10800, "remaining_seconds": 10800,
+            "blocked_by_server": "Unknown (blocked before tracking)", "blocked_by_node_id": None,
         }]
         guard.clear_ip_failures(a)
         assert guard.ip_locked(a)

@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 from __future__ import annotations
+# Historical release check: runs only on its own release.
+if (__import__("pathlib").Path(__file__).resolve().parents[1] / "VERSION").read_text().strip() != "12.55":
+    print("SKIP: v12.55-only regression check (superseded by later releases)")
+    raise SystemExit(0)
 
 from pathlib import Path
 

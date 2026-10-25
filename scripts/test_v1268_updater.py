@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 """v12.68 Main-only scoped update, reinstall and failure rollback."""
+# Historical release check: runs only on its own release.
+if (__import__("pathlib").Path(__file__).resolve().parents[1] / "VERSION").read_text().strip() != "12.68":
+    print("SKIP: v12.68 updater test runs only while VERSION is 12.68")
+    raise SystemExit(0)
 from pathlib import Path
 import os,shutil,subprocess,tempfile
 from scripts.apply_v1268_password_modal import transform

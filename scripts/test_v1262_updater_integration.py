@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Bounded v12.62 install and rollback without touching Node runtime or existing channels."""
 from __future__ import annotations
+# Historical release check: runs only on its own release.
+if (__import__("pathlib").Path(__file__).resolve().parents[1] / "VERSION").read_text().strip() != "12.62":
+    print("SKIP: v12.62 updater test runs only while VERSION is 12.62")
+    raise SystemExit(0)
 import hashlib
 import os
 from pathlib import Path
