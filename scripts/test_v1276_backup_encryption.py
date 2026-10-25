@@ -136,11 +136,17 @@ os.environ.update(
     STREAMFORGE_DATABASE_URL=f"sqlite:///{d}/t.db", STREAMFORGE_HLS_ROOT=f"{d}/h",
     STREAMFORGE_LOGO_ROOT=f"{d}/l", STREAMFORGE_NODE_LOGO_ROOT=f"{d}/n",
     STREAMFORGE_PANEL_LOGIN_GUARD_DB=f"{d}/guard.sqlite3", STREAMFORGE_SECRET_KEY="x" * 64,
-    STREAMFORGE_ADMIN_USER="admin", STREAMFORGE_ADMIN_PASSWORD="BootTest!12345",
+    STREAMFORGE_ADMIN_USER="admin", STREAMFORGE_ADMIN_PASSWORD="Env-Seed-Only-Pass1",
 )
 from fastapi.testclient import TestClient  # noqa: E402
 import app.main as m  # noqa: E402
 m.metrics_history.path = Path(d) / "metrics-history.jsonl"  # default path is under /var/lib/streamforge
+# The operator's own password differs from the env seed password; since v12.77
+# logging in with the seed (installation default) forces a password change.
+m.Base.metadata.create_all(bind=m.engine)
+with m.SessionLocal() as _db:
+    _db.add(m.AdminUser(username="admin", password_hash=m.hash_password("BootTest!12345")))
+    _db.commit()
 
 m.main_panel_client_ip = lambda request: "198.51.100.7"
 m.MAIN_RESTORE_INBOX = d / "restore-inbox"

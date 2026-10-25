@@ -88,7 +88,7 @@
       <div class="panel-user-password-field">
         <label for="panel-user-password">Password</label>
         <div class="panel-user-password-input" data-panel-password-group>
-          <input id="panel-user-password" data-panel-user-password-focus data-focus-on-load="{{ '1' if request.query_params.get('focus') == 'password' else '0' }}" data-panel-password-field type="password" name="password" minlength="8" {% if not panel_user or not panel_user.id %}required{% endif %} autocomplete="new-password" placeholder="{{ 'Leave blank to keep current password' if panel_user and panel_user.id else 'Minimum 8 characters' }}">
+          <input id="panel-user-password" data-panel-user-password-focus data-focus-on-load="{{ '1' if request.query_params.get('focus') == 'password' else '0' }}" data-panel-password-field type="password" name="password" minlength="12" {% if not panel_user or not panel_user.id %}required{% endif %} autocomplete="new-password" placeholder="{{ 'Leave blank to keep current password' if panel_user and panel_user.id else 'Minimum 8 characters' }}">
           <button type="button" class="button small" data-panel-password-toggle aria-label="Show new password" aria-pressed="false">Show</button>
         </div>
         {% if panel_user and panel_user.id %}<small class="field-help">Leave blank to keep the current password. Previously saved passwords can be revealed by authorized viewers from Panel Users; existing one-way hashes cannot be recovered.</small>{% endif %}
@@ -96,7 +96,7 @@
       <div class="panel-user-password-field">
         <label for="panel-user-password-confirm">Confirm password</label>
         <div class="panel-user-password-input" data-panel-password-group>
-          <input id="panel-user-password-confirm" data-panel-password-field type="password" name="password_confirm" minlength="8" {% if not panel_user or not panel_user.id %}required{% endif %} autocomplete="new-password">
+          <input id="panel-user-password-confirm" data-panel-password-field type="password" name="password_confirm" minlength="12" {% if not panel_user or not panel_user.id %}required{% endif %} autocomplete="new-password">
           <button type="button" class="button small" data-panel-password-toggle aria-label="Show confirmation" aria-pressed="false">Show</button>
         </div>
       </div>

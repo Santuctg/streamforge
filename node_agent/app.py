@@ -9241,8 +9241,46 @@ async def lifespan(_app: FastAPI):
         manager.log("Control worker stopped; dedicated channel supervisor and FFmpeg processes remain online", scope="channel")
 
 
+class NodeSecurityHeadersMiddleware:
+    """Browser security headers for Node responses.
+
+    STREAMFORGE_NODE_SECURITY_HEADERS_V1277: Node Panel pages may not be framed
+    by other sites (clickjacking); Playlist/App and Web Player routes stay
+    embeddable. Registered inside enforce_node_access, so scope["path"] is the
+    resolved internal route.
+    """
+
+    def __init__(self, app) -> None:
+        self.app = app
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        added = [
+            (b"x-content-type-options", b"nosniff"),
+            (b"referrer-policy", b"strict-origin-when-cross-origin"),
+        ]
+        if _route_kind(str(scope.get("path") or "/")) == "panel":
+            added += [
+                (b"x-frame-options", b"SAMEORIGIN"),
+                (b"content-security-policy", b"frame-ancestors 'self'; base-uri 'self'; object-src 'none'"),
+            ]
+
+        async def send_with_headers(message) -> None:
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers") or [])
+                present = {bytes(name).lower() for name, _ in headers}
+                headers += [(name, value) for name, value in added if name not in present]
+                message = {**message, "headers": headers}
+            await send(message)
+
+        await self.app(scope, receive, send_with_headers)
+
+
 app = FastAPI(title="StreamForge Node Agent", version=VERSION, lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "HEAD", "OPTIONS"], allow_headers=["*"])
+app.add_middleware(NodeSecurityHeadersMiddleware)
 
 
 @app.get("/.well-known/acme-challenge/{token}", include_in_schema=False)
@@ -11006,8 +11044,8 @@ def node_panel_account_password_page(request: Request, message: str = "", error:
         + '. The credential is changed on the Main Server and is immediately valid on this Node. As a managed account, authorized administrators can recover changed passwords.</p></div></div>'
         + '<div class="form-grid">'
         + '<label>Current password<input type="password" name="current_password" autocomplete="current-password" required></label>'
-        + '<label>New password<input type="password" name="new_password" minlength="8" autocomplete="new-password" required><small class="field-help">Minimum 8 characters.</small></label>'
-        + '<label style="grid-column:1 / -1">Confirm new password<input type="password" name="new_password_confirm" minlength="8" autocomplete="new-password" required></label>'
+        + '<label>New password<input type="password" name="new_password" minlength="12" autocomplete="new-password" required><small class="field-help">Minimum 12 characters.</small></label>'
+        + '<label style="grid-column:1 / -1">Confirm new password<input type="password" name="new_password_confirm" minlength="12" autocomplete="new-password" required></label>'
         + '</div></section>'
         + '<div class="form-actions"><button class="btn primary" type="submit">Change password</button></div>'
         + '</form>'
@@ -11023,8 +11061,9 @@ async def node_panel_account_password_change(request: Request):
     current_password = str(form.get("current_password") or "")
     new_password = str(form.get("new_password") or "")
     confirm = str(form.get("new_password_confirm") or "")
-    if len(new_password) < 8:
-        return node_panel_account_password_page(request, error="New password must contain at least 8 characters.")
+    # STREAMFORGE_PANEL_PASSWORD_POLICY_V1277: Main enforces the same rule.
+    if len(new_password) < 12:
+        return node_panel_account_password_page(request, error="New password must contain at least 12 characters.")
     if new_password != confirm:
         return node_panel_account_password_page(request, error="New password confirmation does not match.")
     status, updated_user, detail = manager.live_panel_authorize(

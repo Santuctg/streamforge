@@ -285,9 +285,9 @@ section.panel.sf-login-guard-card .table-wrap table tbody tr td::before{display:
     <form data-panel-pw-reset-form autocomplete="off">
       <input type="hidden" data-panel-pw-reset-csrf value="{{ vault_csrf_token }}">
       <label for="sf-pw-reset-value">New password</label>
-      <input id="sf-pw-reset-value" type="password" data-panel-pw-reset-value minlength="8" autocomplete="new-password" required>
+      <input id="sf-pw-reset-value" type="password" data-panel-pw-reset-value minlength="12" autocomplete="new-password" required>
       <label for="sf-pw-reset-confirm">Confirm new password</label>
-      <input id="sf-pw-reset-confirm" type="password" data-panel-pw-reset-confirm minlength="8" autocomplete="new-password" required>
+      <input id="sf-pw-reset-confirm" type="password" data-panel-pw-reset-confirm minlength="12" autocomplete="new-password" required>
       <p class="sf-pw-reset-error" data-panel-pw-reset-error role="alert" hidden></p>
       <div class="sf-pw-reset-actions">
         <button class="button primary" type="submit" data-panel-pw-reset-submit>Change password</button>
@@ -355,7 +355,7 @@ section.panel.sf-login-guard-card .table-wrap table tbody tr td::before{display:
     error.hidden = true;
     const raw = pw.value;
     const verification = confirmPw.value;
-    if (raw.length < 8) return showError('Password must contain at least 8 characters.');
+    if (raw.length < 12) return showError('Password must contain at least 12 characters.');
     if (raw !== verification) return showError('Password confirmation does not match.');
     if (!csrf.value) return showError('Reload this page before changing a password.');
     const body = new URLSearchParams({
