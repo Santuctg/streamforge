@@ -25,6 +25,7 @@ from app.config import settings  # noqa: E402
 from app.db import SessionLocal  # noqa: E402
 from app.models import AppSetting, Channel  # noqa: E402
 from app.node_manager import node_controller  # noqa: E402
+m.metrics_history.path = Path(d) / "metrics-history.jsonl"  # default path is under /var/lib/streamforge
 
 
 def legacy_key(secret: str, channel_id: int, slug: str) -> str:

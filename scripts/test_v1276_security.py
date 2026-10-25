@@ -25,6 +25,7 @@ import app.xtream_guard as guard  # noqa: E402
 from app.auth import hash_password  # noqa: E402
 from app.db import SessionLocal  # noqa: E402
 from app.models import AdminUser, StreamUser  # noqa: E402
+m.metrics_history.path = Path(d) / "metrics-history.jsonl"  # default path is under /var/lib/streamforge
 
 m.main_panel_client_ip = lambda request: str(request.headers.get("x-test-ip") or "198.51.100.7")
 BASE = "http://127.0.0.1"

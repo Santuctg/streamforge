@@ -140,6 +140,7 @@ os.environ.update(
 )
 from fastapi.testclient import TestClient  # noqa: E402
 import app.main as m  # noqa: E402
+m.metrics_history.path = Path(d) / "metrics-history.jsonl"  # default path is under /var/lib/streamforge
 
 m.main_panel_client_ip = lambda request: "198.51.100.7"
 m.MAIN_RESTORE_INBOX = d / "restore-inbox"
