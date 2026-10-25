@@ -26,7 +26,7 @@ smbclient and the yt-dlp runtime used for YouTube Live.
 
 ```bash
 cd /root
-VERSION=12.80
+VERSION=12.81
 curl -fL -o streamforge-$VERSION.zip \
   https://github.com/Santuctg/streamforge/releases/download/v$VERSION/streamforge-$VERSION.zip
 sha256sum streamforge-$VERSION.zip      # compare with the hash you were given
@@ -128,6 +128,12 @@ sudo systemctl restart streamforge streamforge-public
 ```
 
 ---
+
+## 🔐 After upgrading to v12.81
+
+- Open **Node Updates** and update every Remote Node to v12.81. Node Panel
+  dashboards then show values beside the chart legends and live charts.
+  Running relays keep playing during the Node update.
 
 ## 🔐 After upgrading to v12.80
 

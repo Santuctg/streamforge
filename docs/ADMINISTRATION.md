@@ -95,7 +95,8 @@ A Remote Node relays Main channels and serves viewers near it.
 **Node Panel**: each Node has its own Panel; logins are verified live against
 the Main Server and follow the same login IP block policy and password rules.
 From v12.77 Node Panel pages refuse to be framed by other sites (update Nodes
-from **Node Updates**).
+from **Node Updates**). From v12.81 the Node dashboard charts show current
+values beside their legends and update live, like the Main Overview.
 
 **Updating Nodes**: after upgrading Main, open **Node Updates**, update the
 Nodes (individually or in bulk) and confirm each reports the new version.

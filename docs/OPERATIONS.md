@@ -185,7 +185,8 @@ hls.js by itself later. Fixed in v12.78, which ships the helper in the SSH
 package.
 
 **Overview charts stopped moving.**
-From v12.80 the charts update live, but pause while you are zoomed in
+From v12.80 (Main) and v12.81 (Node Panel, after updating the Node) the charts
+update live, but pause while you are zoomed in
 (double-click the chart to reset), while the pointer is over a chart and while
 the browser tab is in the background.
 
