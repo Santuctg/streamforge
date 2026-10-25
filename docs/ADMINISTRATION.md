@@ -93,7 +93,9 @@ A Remote Node relays Main channels and serves viewers near it.
 (`/relay/<relay-key>/<channel>/index.m3u8`) only for channels assigned to it.
 
 **Node Panel**: each Node has its own Panel; logins are verified live against
-the Main Server and follow the same login IP block policy.
+the Main Server and follow the same login IP block policy and password rules.
+From v12.77 Node Panel pages refuse to be framed by other sites (update Nodes
+from **Node Updates**).
 
 **Updating Nodes**: after upgrading Main, open **Node Updates**, update the
 Nodes (individually or in bulk) and confirm each reports the new version.
@@ -152,6 +154,10 @@ The **Viewer sessions** page shows live sessions and lets you end one.
 - **Roles & Permissions** — build roles from fine-grained permissions
   (`channels.*`, `nodes.*`, `users.*`, `logs.*`, `backups.*`,
   `settings.edit`, …). **Super Admin** is built in and unrestricted.
+- **Password policy** (v12.77+) — Panel passwords need 12+ characters and may
+  not be `ChangeMe123!` or the `STREAMFORGE_ADMIN_PASSWORD` seed. Signing in
+  with a weaker password works once, but every Panel page leads to
+  **Change password** until it is replaced.
 - **Panel users** — staff accounts with a role; Main Panel access can be
   switched off per user. Changing or resetting a password signs that user out
   everywhere else (v12.76+); changing your own keeps your current browser

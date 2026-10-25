@@ -51,7 +51,7 @@ events.
 
 | Situation | Command |
 | --- | --- |
-| Forgot the admin password / no Super Admin left | `sudo streamforge resetuser` — prompts for a username and a 10+ character password |
+| Forgot the admin password / no Super Admin left | `sudo streamforge resetuser` — prompts for a username and a 12+ character password |
 | Wrong Panel/Playlist domain or URL lock | `sudo streamforge resetdomain [http://IP-or-domain/optional-path]` |
 | Locked out by Panel IP/ASN rules | `sudo streamforge resetpanelaccess` |
 | Logos lost after a migration | `sudo streamforge restorelogos /absolute/path/to/backup.tar.gz` |
@@ -105,7 +105,8 @@ new key was active must be entered again.
 
 ## 🔒 Security checklist
 
-- [ ] `admin` / `ChangeMe123!` replaced (or `admin` deleted after creating your own Super Admin)
+- [ ] `admin` deleted after creating your own Super Admin; every Panel password has 12+ characters (enforced at login from v12.77)
+- [ ] Remote Nodes updated from **Node Updates** to the Main version
 - [ ] `STREAMFORGE_SECRET_KEY` is a long random value and has never been shared
 - [ ] Panel served over HTTPS (session cookie is `Secure` on HTTPS since v12.75); optionally `STREAMFORGE_HSTS_MAX_AGE` when every port of the domain uses HTTPS
 - [ ] Staff use least-privilege roles; Super Admin limited to owners
@@ -177,3 +178,8 @@ that was active when the backup was made. Offline:
 **Signed out after someone changed your password.**
 Expected since v12.76: a password change ends every other session of that
 user.
+
+**Every Panel page sends me to "Change password".**
+Since v12.77 a login with a default password or one shorter than 12 characters
+must set a new password first. Choose 12+ characters that are not
+`ChangeMe123!` or the `STREAMFORGE_ADMIN_PASSWORD` seed.

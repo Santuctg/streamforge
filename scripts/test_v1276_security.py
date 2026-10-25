@@ -16,7 +16,7 @@ os.environ.update(
     STREAMFORGE_LOGO_ROOT=f"{d}/l", STREAMFORGE_NODE_LOGO_ROOT=f"{d}/n",
     STREAMFORGE_PANEL_LOGIN_GUARD_DB=f"{d}/guard.sqlite3", STREAMFORGE_XTREAM_GUARD_DB=f"{d}/xtream.sqlite3",
     STREAMFORGE_SECRET_KEY="x" * 64, STREAMFORGE_PANEL_PASSWORD_VAULT_KEY=Fernet.generate_key().decode(),
-    STREAMFORGE_ADMIN_USER="admin", STREAMFORGE_ADMIN_PASSWORD="BootTest!12345",
+    STREAMFORGE_ADMIN_USER="admin", STREAMFORGE_ADMIN_PASSWORD="Env-Seed-Only-Pass1",
 )
 sys.path.insert(0, str(ROOT))
 from fastapi.testclient import TestClient  # noqa: E402
@@ -26,6 +26,12 @@ from app.auth import hash_password  # noqa: E402
 from app.db import SessionLocal  # noqa: E402
 from app.models import AdminUser, StreamUser  # noqa: E402
 m.metrics_history.path = Path(d) / "metrics-history.jsonl"  # default path is under /var/lib/streamforge
+# The operator's own password differs from the env seed password; since v12.77
+# logging in with the seed (installation default) forces a password change.
+m.Base.metadata.create_all(bind=m.engine)
+with m.SessionLocal() as _db:
+    _db.add(m.AdminUser(username="admin", password_hash=m.hash_password("BootTest!12345")))
+    _db.commit()
 
 m.main_panel_client_ip = lambda request: str(request.headers.get("x-test-ip") or "198.51.100.7")
 BASE = "http://127.0.0.1"

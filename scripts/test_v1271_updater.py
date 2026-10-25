@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """v12.71 scoped updater and rollback; no Node/runtime changes."""
 from __future__ import annotations
+# Historical release check: runs only on its own release.
+if (__import__("pathlib").Path(__file__).resolve().parents[1] / "VERSION").read_text().strip() != "12.71":
+    print("SKIP: v12.71 updater test runs only while VERSION is 12.71")
+    raise SystemExit(0)
 from pathlib import Path
 import os
 import shutil

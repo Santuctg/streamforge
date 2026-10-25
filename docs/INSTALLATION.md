@@ -26,7 +26,7 @@ smbclient and the yt-dlp runtime used for YouTube Live.
 
 ```bash
 cd /root
-VERSION=12.76
+VERSION=12.77
 curl -fL -o streamforge-$VERSION.zip \
   https://github.com/Santuctg/streamforge/releases/download/v$VERSION/streamforge-$VERSION.zip
 sha256sum streamforge-$VERSION.zip      # compare with the hash you were given
@@ -62,10 +62,11 @@ When it prints **`StreamForge installed.`**, open the shown address and sign in:
 | --- | --- |
 | `admin` | `ChangeMe123!` |
 
-> ⚠️ **Change this password immediately** (**Panel users**), or create your own
-> Super Admin and delete `admin`. The env-file admin is only created when the
-> database has no Panel admin at all; a deleted `admin` is not re-created on
-> restart or update (since v12.73).
+> ⚠️ Since v12.77 the Panel opens **Change password** first and accepts only a
+> password of 12+ characters that is not a default. Afterwards, create your
+> own Super Admin and delete `admin`. The env-file admin is only created when
+> the database has no Panel admin at all; a deleted `admin` is not re-created
+> on restart or update (since v12.73).
 
 > 🚫 **`install.sh` is for new servers only.** On an existing server it replaces
 > the installed `app/main.py`, which every updater patches in place. Always
@@ -127,6 +128,13 @@ sudo systemctl restart streamforge streamforge-public
 ```
 
 ---
+
+## 🔐 After upgrading to v12.77
+
+- Open **Node Updates** and update every Remote Node to v12.77, so Node Panels
+  send the new security headers.
+- Panel users whose password is shorter than 12 characters (or a default) are
+  asked to change it at their next login — tell your staff.
 
 ## 🔐 After upgrading to v12.76
 

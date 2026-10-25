@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 """Exercise v12.72 Node-login scoped upgrade, reinstall and rollback."""
+# Historical release check: runs only on its own release.
+if (__import__("pathlib").Path(__file__).resolve().parents[1] / "VERSION").read_text().strip() != "12.72":
+    print("SKIP: v12.72 updater test runs only while VERSION is 12.72")
+    raise SystemExit(0)
 from pathlib import Path
 import os,shutil,subprocess,tempfile,hashlib
 

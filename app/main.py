@@ -38,7 +38,7 @@ from sqlalchemy import and_, case, delete, func, or_, select, text
 from sqlalchemy.orm import Session, object_session, selectinload
 from starlette.middleware.sessions import SessionMiddleware
 
-from .auth import current_admin, hash_password, stamp_admin_session, verify_password
+from .auth import PASSWORD_CHANGE_REQUIRED_SESSION_KEY, current_admin, hash_password, panel_password_policy_error, stamp_admin_session, verify_password
 from .config import settings
 from .db import Base, SessionLocal, engine, ensure_runtime_schema, get_db
 from .ffmpeg import stream_manager
@@ -5309,6 +5309,37 @@ class SecurityHeadersMiddleware:
         await self.app(scope, receive, send_with_headers)
 
 
+class PasswordChangeRequiredMiddleware:
+    """Send a session flagged at login to the password page first.
+
+    STREAMFORGE_PANEL_PASSWORD_POLICY_V1277: a login with the installation
+    default or a password shorter than 12 characters may only reach the
+    account password page (and logout) until the password is changed.
+    Registered inside SessionMiddleware and the alias router, so it sees the
+    session and the internal route path.
+    """
+
+    ALLOWED_PATHS = frozenset({"/account/password", "/logout", "/login", "/health", "/version"})
+
+    def __init__(self, app) -> None:
+        self.app = app
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] == "http":
+            session = scope.get("session") or {}
+            path = str(scope.get("path") or "/")
+            if (
+                session.get(PASSWORD_CHANGE_REQUIRED_SESSION_KEY)
+                and session.get("admin_id")
+                and path not in self.ALLOWED_PATHS
+                and main_route_role(path) == "panel"
+            ):
+                target = str(scope.get("root_path") or "").rstrip("/") + "/account/password"
+                await RedirectResponse(target, status_code=303)(scope, receive, send)
+                return
+        await self.app(scope, receive, send)
+
+
 app = FastAPI(title="StreamForge", lifespan=lifespan)
 app.include_router(panel_vault_router)  # protected Main-only vault POST
 app.add_middleware(
@@ -5318,6 +5349,8 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["Content-Length", "Content-Range", "Accept-Ranges"],
 )
+# Added before SessionMiddleware so it runs inside it and can read the session.
+app.add_middleware(PasswordChangeRequiredMiddleware)
 app.add_middleware(
     SessionMiddleware,
     secret_key=settings.secret_key,
@@ -5724,6 +5757,11 @@ def login(
         return render(request, "login.html", db, error="Login temporarily unavailable")
     stamp_admin_session(request, admin)
     log_event("Panel login succeeded", scope="auth", actor=admin.username, details={"ip": client_ip(request)})
+    if panel_password_policy_error(password, settings.admin_password):
+        request.session[PASSWORD_CHANGE_REQUIRED_SESSION_KEY] = True
+        log_event("Panel login requires a password change", scope="auth", level="warning", actor=admin.username)
+        return RedirectResponse("/account/password", status_code=303)
+    request.session.pop(PASSWORD_CHANGE_REQUIRED_SESSION_KEY, None)
     return RedirectResponse(first_allowed_path(admin), status_code=303)
 
 
@@ -9708,8 +9746,9 @@ async def node_panel_live_auth(
         new_password = str(payload.get("new_password") or "")
         if not verify_password(current_password, admin.password_hash):
             raise HTTPException(401, "Current password is incorrect")
-        if len(new_password) < 8:
-            raise HTTPException(400, "New password must contain at least 8 characters")
+        policy_error = panel_password_policy_error(new_password, settings.admin_password)
+        if policy_error:
+            raise HTTPException(400, policy_error)
         if verify_password(new_password, admin.password_hash):
             raise HTTPException(400, "New password must be different from the current password")
         admin.password_hash = hash_password(new_password)
@@ -12600,8 +12639,8 @@ def account_password_change(
     error = ""
     if not verify_password(current_password, admin.password_hash):
         error = "Current password is incorrect."
-    elif len(new_password) < 8:
-        error = "New password must contain at least 8 characters."
+    elif panel_password_policy_error(new_password, settings.admin_password):
+        error = panel_password_policy_error(new_password, settings.admin_password)
     elif new_password != new_password_confirm:
         error = "New password confirmation does not match."
     elif verify_password(new_password, admin.password_hash):
@@ -12618,6 +12657,7 @@ def account_password_change(
     db.commit()
     # Other sessions of this user end; this browser stays signed in.
     stamp_admin_session(request, admin)
+    request.session.pop(PASSWORD_CHANGE_REQUIRED_SESSION_KEY, None)
     sync_errors = sync_panel_users_for_node_ids(affected_node_ids, request, db)
     log_event("Panel user changed own password", scope="auth", actor=admin.username, details={"ip": client_ip(request)})
     message = "Password changed successfully."
@@ -12693,8 +12733,8 @@ def admin_user_create(
         error = "Select a valid role."
     elif not role_is_within_actor_ceiling(actor, role):
         error = "You cannot assign a role above your own permission level."
-    elif len(password) < 8:
-        error = "Password must contain at least 8 characters."
+    elif panel_password_policy_error(password, settings.admin_password):
+        error = panel_password_policy_error(password, settings.admin_password)
     elif password != password_confirm:
         error = "Password confirmation does not match."
     elif not as_bool(main_panel_access) and not selected_nodes:
@@ -12787,8 +12827,8 @@ def admin_user_update(
         error = "Select a valid role."
     elif not role_is_within_actor_ceiling(actor, role):
         error = "You cannot assign a role above your own permission level."
-    elif password and len(password) < 8:
-        error = "Password must contain at least 8 characters."
+    elif password and panel_password_policy_error(password, settings.admin_password):
+        error = panel_password_policy_error(password, settings.admin_password)
     elif password != password_confirm:
         error = "Password confirmation does not match."
     elif not new_main_access and not selected_nodes:

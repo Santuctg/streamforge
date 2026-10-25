@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 """Functional 5-attempt/3-hour persistent per-Panel-user login throttle."""
+# Historical release check: runs only on its own release.
+if (__import__("pathlib").Path(__file__).resolve().parents[1] / "VERSION").read_text().strip() != "12.63":
+    print("SKIP: v12.63-only regression check (the per-account guard was replaced by the v12.64 IP guard)")
+    raise SystemExit(0)
 import os
 import stat
 import tempfile

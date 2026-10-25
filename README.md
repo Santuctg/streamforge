@@ -11,7 +11,7 @@
 >
 > **Typical use:** One **Main Server** encodes every channel once; several **Remote Nodes** in other data centres relay those channels and serve the viewers, with per-user connection limits, IP/ASN access policies and automatic node selection.
 
-**Current release:** [v12.76](https://github.com/Santuctg/streamforge/releases/tag/v12.76) · **Deployment:** Linux host with systemd, Nginx and FFmpeg · **Docker image:** not provided.
+**Current release:** [v12.77](https://github.com/Santuctg/streamforge/releases/tag/v12.77) · **Deployment:** Linux host with systemd, Nginx and FFmpeg · **Docker image:** not provided.
 
 ---
 
@@ -117,24 +117,24 @@ Download `streamforge-X.YY.zip` from **[Releases](https://github.com/Santuctg/st
 
 ```bash
 cd /root
-curl -fL -o streamforge-12.76.zip \
-  https://github.com/Santuctg/streamforge/releases/download/v12.76/streamforge-12.76.zip
-sha256sum streamforge-12.76.zip
+curl -fL -o streamforge-12.77.zip \
+  https://github.com/Santuctg/streamforge/releases/download/v12.77/streamforge-12.77.zip
+sha256sum streamforge-12.77.zip
 ```
 
 ### 2a. Fresh install (new server only)
 
 ```bash
-unzip -q streamforge-12.76.zip -d /root
-sudo bash /root/streamforge-12.76/scripts/install.sh
+unzip -q streamforge-12.77.zip -d /root
+sudo bash /root/streamforge-12.77/scripts/install.sh
 ```
 
-Open `http://SERVER_IP`, sign in as **`admin` / `ChangeMe123!`** and **change that password immediately**.
+Open `http://SERVER_IP` and sign in as **`admin` / `ChangeMe123!`**. The Panel then requires a new password of at least 12 characters before anything else.
 
 ### 2b. Upgrade an existing server
 
 ```bash
-sudo streamforge-update --force /root/streamforge-12.76.zip
+sudo streamforge-update --force /root/streamforge-12.77.zip
 ```
 
 Releases are applied **in order** — each updater accepts only the previous version and rolls back automatically on failure. **Never run `install.sh` on an existing server.**
@@ -204,10 +204,10 @@ For more scenarios, see [Operations](docs/OPERATIONS.md#-troubleshooting).
 
 ## 🔒 Security notes
 
-- Replace the default `admin` / `ChangeMe123!` login immediately after installation.
+- Panel passwords need 12+ characters; a default or shorter password must be changed at the next login (v12.77+). Create your own Super Admin and delete `admin` after installation.
 - Keep `/etc/streamforge.env` private. From v12.76, rotating `STREAMFORGE_SECRET_KEY` no longer breaks Node relays or playlist links, but still signs everyone out and requires re-entering saved GeoIP keys and Node SSH passwords — see [Operations](docs/OPERATIONS.md#-secret-key-rules).
 - **Set a backup passphrase** (Backups → Backup encryption) so off-server backups are encrypted, and store it safely.
-- Serve the Panel over HTTPS; the session cookie is marked `Secure` on HTTPS requests (v12.75+). Panel pages refuse to be framed by other sites, and HSTS can be enabled with `STREAMFORGE_HSTS_MAX_AGE` (v12.76+).
+- Serve the Panel over HTTPS; the session cookie is marked `Secure` on HTTPS requests (v12.75+). Main and Node Panel pages refuse to be framed by other sites (v12.76+ / v12.77+), and HSTS can be enabled with `STREAMFORGE_HSTS_MAX_AGE`.
 - Give staff least-privilege roles; reserve Super Admin for owners.
 - Protect backups, playlist links and Node tokens — they grant access to your streams.
 

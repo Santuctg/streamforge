@@ -24,7 +24,8 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
-from .auth import current_admin, verify_password, hash_password
+from .auth import current_admin, verify_password, hash_password, panel_password_policy_error
+from .config import settings as _streamforge_settings
 from .audit_log import log_event
 from .db import get_db
 from .models import AdminUser, PanelUserCredentialVault
@@ -342,8 +343,9 @@ def reset_panel_user_password_modal(
     target = db.get(AdminUser, int(admin_user_id))
     if not vault_target_visible(actor, target):
         return _secret_response({"error": "Not permitted"}, 403)
-    if len(password) < 8:
-        return _secret_response({"error": "Password must contain at least 8 characters"}, 400)
+    policy_error = panel_password_policy_error(password, _streamforge_settings.admin_password)
+    if policy_error:
+        return _secret_response({"error": policy_error}, 400)
     if password != password_confirm:
         return _secret_response({"error": "Password confirmation does not match"}, 400)
     if not vault_enabled():

@@ -68,7 +68,7 @@ is missing, StreamForge falls back to local state (single-worker behaviour).
 
 | Boundary | Protection |
 | --- | --- |
-| Internet → Panel | Session login (scrypt password hashes), role permissions, CSRF tokens on sensitive forms, IP/ASN Panel access rules, 5-failure / 3-hour login IP block |
+| Internet → Panel | Session login (scrypt password hashes, 12+ character policy with forced change after a weak login, v12.77+), role permissions, CSRF tokens on sensitive forms, IP/ASN Panel access rules, 5-failure / 3-hour login IP block |
 | Internet → playback | Per-account credentials or tokens, expiry and connection limits, restreamer source IPs, per-Node IP/ASN policy, encrypted IP-bound playback keys |
 | Main → Node | Node API requires the `X-Node-Token` header, compared in constant time; Node Panel logins are verified live against Main |
 | Node → Main relay | Relay URLs carry an HMAC relay key derived from the database `stream_link_secret` (v12.76+) |
@@ -76,7 +76,7 @@ is missing, StreamForge falls back to local state (single-worker behaviour).
 | Secrets at rest | Panel and Xtream passwords: scrypt hashes; saved GeoIP keys and Node SSH passwords: Fernet keyed from the secret key; backup destination passwords: Fernet with `/var/lib/streamforge/backups/secret.key`; password vault: Fernet with its own key |
 | Backups off-server | With a backup passphrase (v12.76+): AES-256-GCM, scrypt-derived key, chunk order and truncation authenticated |
 | Main → SSH servers | Host keys remembered on first contact and enforced afterwards (v12.76+) |
-| Browser | All user-supplied names are HTML-escaped; session cookie is `HttpOnly`, `SameSite=Lax`, `Secure` on HTTPS (v12.75+) and invalidated by a password change (v12.76+); `nosniff` and `Referrer-Policy` on every response, `X-Frame-Options`/`frame-ancestors` on Panel pages, opt-in HSTS (v12.76+) |
+| Browser | All user-supplied names are HTML-escaped; session cookie is `HttpOnly`, `SameSite=Lax`, `Secure` on HTTPS (v12.75+) and invalidated by a password change (v12.76+); `nosniff` and `Referrer-Policy` on every response, `X-Frame-Options`/`frame-ancestors` on Main Panel pages (v12.76+) and Node Panel pages (v12.77+), opt-in HSTS |
 | Internet → Xtream logins | 10 failures per IP + username or 100 per IP in 10 minutes → 15-minute block (v12.76+) |
 
 ### 🔑 Which key protects what

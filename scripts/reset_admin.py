@@ -13,8 +13,8 @@ from app.permissions import SUPERUSER_PERMISSION, encode_permissions
 
 username = input("Admin username [admin]: ").strip() or "admin"
 password = getpass.getpass("New password: ")
-if len(password) < 10:
-    print("Password must be at least 10 characters", file=sys.stderr)
+if len(password) < 12 or password == "ChangeMe123!":
+    print("Password must be at least 12 characters and not the installation default", file=sys.stderr)
     raise SystemExit(1)
 
 Base.metadata.create_all(bind=engine)

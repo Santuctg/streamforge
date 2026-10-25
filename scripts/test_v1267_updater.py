@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """v12.67 Node Agent-only scoped install, reinstall and rollback tests."""
 from __future__ import annotations
+# Historical release check: runs only on its own release.
+if (__import__("pathlib").Path(__file__).resolve().parents[1] / "VERSION").read_text().strip() != "12.67":
+    print("SKIP: v12.67 updater test runs only while VERSION is 12.67")
+    raise SystemExit(0)
 import hashlib
 import os
 from pathlib import Path

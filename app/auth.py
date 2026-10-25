@@ -41,6 +41,22 @@ def verify_password(password: str, encoded: str) -> bool:
         return False
 
 
+# STREAMFORGE_PANEL_PASSWORD_POLICY_V1277: Panel passwords need 12+ characters
+# and may not be a known default. A login with a weaker password still works but
+# flags the session so every Panel page leads to the password change first.
+PANEL_PASSWORD_MIN_LENGTH = 12
+PASSWORD_CHANGE_REQUIRED_SESSION_KEY = "password_change_required"
+KNOWN_DEFAULT_PASSWORDS = frozenset({"ChangeMe123!"})
+
+
+def panel_password_policy_error(password: str, configured_default: str = "") -> str:
+    if len(password or "") < PANEL_PASSWORD_MIN_LENGTH:
+        return f"Password must contain at least {PANEL_PASSWORD_MIN_LENGTH} characters."
+    if password in KNOWN_DEFAULT_PASSWORDS or (configured_default and password == configured_default):
+        return "Choose a password other than the installation default."
+    return ""
+
+
 # STREAMFORGE_MAIN_SESSION_AUTH_VERSION_V1276: the signed session cookie also
 # carries a fingerprint of the password hash, so changing a password ends every
 # other session of that Panel user (same formula the Node live auth uses).

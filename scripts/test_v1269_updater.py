@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 """v12.69 bounded UI upgrade from v12.68; rollback without Node runtime drift."""
+# Historical release check: runs only on its own release.
+if (__import__("pathlib").Path(__file__).resolve().parents[1] / "VERSION").read_text().strip() != "12.69":
+    print("SKIP: v12.69 updater test runs only while VERSION is 12.69")
+    raise SystemExit(0)
 from pathlib import Path
 import os,shutil,subprocess,tempfile,hashlib
 
