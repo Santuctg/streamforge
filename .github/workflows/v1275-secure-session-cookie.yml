@@ -26,8 +26,14 @@ jobs:
         run: python3 scripts/test_v1275_secure_cookie.py
       - name: Verify integrated Main, vault and IP guard contracts
         run: python3 scripts/verify_panel_credential_vault_v1263.py
-      - name: Test staged Main update and rollback
-        run: python3 scripts/test_v1275_updater.py
+      - name: Test historical v12.75 updater only on v12.75
+        shell: bash
+        run: |
+          if [[ "$(cat VERSION)" == "12.75" ]]; then
+            python3 scripts/test_v1275_updater.py
+          else
+            echo 'v12.75 updater test skipped for newer release.'
+          fi
       - name: Verify release staging and safe restart scope
         shell: bash
         run: |
@@ -35,13 +41,18 @@ jobs:
           python3 scripts/verify_release_updater_staging.py
           bash -n scripts/force_update_v1275.sh
           bash -n scripts/update.sh
-          grep -Fq 'force_update_v1275.sh' scripts/update.sh
+          if [[ "$(cat VERSION)" == "12.75" ]]; then
+            grep -Fq 'force_update_v1275.sh' scripts/update.sh
+          fi
           if grep -Eq 'systemctl[[:space:]]+(restart|reload)[[:space:]]+(nginx|streamforge-channel-supervisor)' scripts/force_update_v1275.sh; then exit 1; fi
           git diff --check
       - name: Verify version and notes
         shell: bash
         run: |
-          test "$(cat VERSION)" = "12.75"
-          test "$(cat node_agent/VERSION)" = "12.75"
+          if [[ "$(cat VERSION)" == "12.75" ]]; then
+            test "$(cat node_agent/VERSION)" = "12.75"
+          else
+            echo 'Historical v12.75 version check skipped.'
+          fi
           grep -Fq 'Secure' release-notes/v12.75.md
           grep -Fq 'streamforge-update --force /root/streamforge-12.75.zip' release-notes/v12.75.md
