@@ -11,7 +11,7 @@
 >
 > **Typical use:** One **Main Server** encodes every channel once; several **Remote Nodes** in other data centres relay those channels and serve the viewers, with per-user connection limits, IP/ASN access policies and automatic node selection.
 
-**Current release:** [v12.77](https://github.com/Santuctg/streamforge/releases/tag/v12.77) · **Deployment:** Linux host with systemd, Nginx and FFmpeg · **Docker image:** not provided.
+**Current release:** [v12.78](https://github.com/Santuctg/streamforge/releases/tag/v12.78) · **Deployment:** Linux host with systemd, Nginx and FFmpeg · **Docker image:** not provided.
 
 ---
 
@@ -117,16 +117,16 @@ Download `streamforge-X.YY.zip` from **[Releases](https://github.com/Santuctg/st
 
 ```bash
 cd /root
-curl -fL -o streamforge-12.77.zip \
-  https://github.com/Santuctg/streamforge/releases/download/v12.77/streamforge-12.77.zip
-sha256sum streamforge-12.77.zip
+curl -fL -o streamforge-12.78.zip \
+  https://github.com/Santuctg/streamforge/releases/download/v12.78/streamforge-12.78.zip
+sha256sum streamforge-12.78.zip
 ```
 
 ### 2a. Fresh install (new server only)
 
 ```bash
-unzip -q streamforge-12.77.zip -d /root
-sudo bash /root/streamforge-12.77/scripts/install.sh
+unzip -q streamforge-12.78.zip -d /root
+sudo bash /root/streamforge-12.78/scripts/install.sh
 ```
 
 Open `http://SERVER_IP` and sign in as **`admin` / `ChangeMe123!`**. The Panel then requires a new password of at least 12 characters before anything else.
@@ -134,7 +134,7 @@ Open `http://SERVER_IP` and sign in as **`admin` / `ChangeMe123!`**. The Panel t
 ### 2b. Upgrade an existing server
 
 ```bash
-sudo streamforge-update --force /root/streamforge-12.77.zip
+sudo streamforge-update --force /root/streamforge-12.78.zip
 ```
 
 Releases are applied **in order** — each updater accepts only the previous version and rolls back automatically on failure. **Never run `install.sh` on an existing server.**

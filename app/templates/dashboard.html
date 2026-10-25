@@ -2,6 +2,9 @@
 {% block title %}Overview · {{ branding.name }}{% endblock %}
 {% block heading %}<h1>Overview</h1><p>Live encoder, subscriber and server status</p>{% endblock %}
 {% block content %}
+{# STREAMFORGE_MAIN_DASHBOARD_INSTANT_METRICS_V1278: render byte/bit values with the page so the cards are complete before the first live poll. #}
+{% macro sf_bytes(value) %}{% set n = (value or 0)|float %}{% if n >= 1073741824 %}{{ "%.2f"|format(n / 1073741824) }} GiB{% elif n >= 1048576 %}{{ "%.2f"|format(n / 1048576) }} MiB{% elif n >= 1024 %}{{ "%.1f"|format(n / 1024) }} KiB{% elif n > 0 %}{{ n|int }} B{% else %}—{% endif %}{% endmacro %}
+{% macro sf_bits(value) %}{% set n = (value or 0)|float %}{% if n >= 1000000000 %}{{ "%.2f"|format(n / 1000000000) }} Gb/s{% elif n >= 1000000 %}{{ "%.2f"|format(n / 1000000) }} Mb/s{% elif n >= 1000 %}{{ "%.0f"|format(n / 1000) }} kb/s{% elif n > 0 %}{{ n|int }} b/s{% else %}—{% endif %}{% endmacro %}
 <section class="stats-grid">
   <article class="stat"><span>Channels</span><strong>{{ total_channel_count }}</strong><small>{{ running_count }} running</small></article>
   <article class="stat"><span>Users</span><strong>{{ user_count }}</strong><small>{{ central_user_count }} main/load-balanced · {{ direct_user_count }} direct node</small></article>
@@ -28,7 +31,7 @@
       <span class="resource-icon">RAM</span>
     </div>
     <div class="resource-meter" aria-label="Memory usage"><span data-memory-meter style="width:{{ system_metrics.memory.percent }}%"></span></div>
-    <div class="resource-meta"><span><b data-memory-used>—</b> used</span><span><b data-memory-total>—</b> total</span></div>
+    <div class="resource-meta"><span><b data-memory-used>{{ sf_bytes(system_metrics.memory.used_bytes) }}</b> used</span><span><b data-memory-total>{{ sf_bytes(system_metrics.memory.total_bytes) }}</b> total</span></div>
   </article>
 
   <article class="resource-card disk-resource-card">
@@ -37,17 +40,17 @@
       <span class="resource-icon">DISK</span>
     </div>
     <div class="resource-meter" aria-label="Disk usage"><span data-disk-meter style="width:{{ system_metrics.disk.percent }}%"></span></div>
-    <div class="resource-meta"><span><b data-disk-used>—</b> used</span><span><b data-disk-free>—</b> free</span><span><b data-disk-total>—</b> total</span></div>
+    <div class="resource-meta"><span><b data-disk-used>{{ sf_bytes(system_metrics.disk.used_bytes) }}</b> used</span><span><b data-disk-free>{{ sf_bytes(system_metrics.disk.free_bytes) }}</b> free</span><span><b data-disk-total>{{ sf_bytes(system_metrics.disk.total_bytes) }}</b> total</span></div>
   </article>
 
   <article class="resource-card network-resource-card">
     <div class="resource-card-head">
-      <div><span class="resource-label network-label-row">Network traffic <small data-network-interfaces>{{ system_metrics.network.interfaces|join(', ') or 'No active interface' }}</small></span><strong data-network-total>—</strong></div>
+      <div><span class="resource-label network-label-row">Network traffic <small data-network-interfaces>{{ system_metrics.network.interfaces|join(', ') or 'No active interface' }}</small></span><strong data-network-total>{{ sf_bits((system_metrics.network.rx_bits_per_second or 0) + (system_metrics.network.tx_bits_per_second or 0)) }}</strong></div>
       <span class="resource-icon">NIC</span>
     </div>
     <div class="network-rate-grid">
-      <div><span>Download</span><b data-network-rx>—</b></div>
-      <div><span>Upload</span><b data-network-tx>—</b></div>
+      <div><span>Download</span><b data-network-rx>{{ sf_bits(system_metrics.network.rx_bits_per_second) }}</b></div>
+      <div><span>Upload</span><b data-network-tx>{{ sf_bits(system_metrics.network.tx_bits_per_second) }}</b></div>
     </div>
   </article>
 
@@ -63,12 +66,12 @@
 </section>{% endif %}
 
 {% if can('system_metrics.view') %}<div class="metrics-history-toolbar"><label>Graph time span <select data-metrics-span><option value="1">1 hour</option><option value="6">6 hours</option><option value="24">24 hours</option><option value="72">3 days</option><option value="168">7 days</option><option value="720">30 days</option></select></label></div><section class="metrics-history-grid" data-metrics-history data-endpoint="{{ app_root }}/metrics-history.json">
-  <article class="metrics-chart-card"><div class="metrics-chart-title"><b>CPU &amp; Memory</b></div><canvas width="720" height="260" data-metric-chart="resources"></canvas><div class="metrics-legend"><span class="cpu">CPU Usage</span><span class="memory">Memory Usage</span></div></article>
-  <article class="metrics-chart-card"><div class="metrics-chart-title"><b>Network Traffic</b></div><canvas width="720" height="260" data-metric-chart="network"></canvas><div class="metrics-legend"><span class="input">Input</span><span class="output">Output</span></div></article>
-  <article class="metrics-chart-card metrics-users-card"><div class="metrics-chart-title"><b>Online users</b></div><canvas width="720" height="260" data-metric-chart="users"></canvas><div class="metrics-legend"><span class="users">Online users</span></div></article>
-  <article class="metrics-chart-card metrics-channels-card"><div class="metrics-chart-title"><b>Channels</b></div><canvas width="720" height="260" data-metric-chart="channels" title="Drag to zoom · double-click to reset"></canvas><div class="metrics-legend"><span class="total-channels">Total channels</span><span class="online-channels">Online channels</span></div></article>
-  <article class="metrics-chart-card gpu-history-card" data-gpu-history {% if not system_metrics.gpu.available %}hidden{% endif %}><div class="metrics-chart-title"><b>GPU utilization</b></div><canvas width="720" height="260" data-metric-chart="gpu-util"></canvas><div class="metrics-legend"><span class="gpu-usage">GPU</span><span class="gpu-encoder">Encoder</span><span class="gpu-vram">VRAM</span></div></article>
-  <article class="metrics-chart-card gpu-history-card" data-gpu-history {% if not system_metrics.gpu.available %}hidden{% endif %}><div class="metrics-chart-title"><b>GPU temperature</b></div><canvas width="720" height="260" data-metric-chart="gpu-temp"></canvas><div class="metrics-legend"><span class="gpu-temp">Temperature</span></div></article>
+  <article class="metrics-chart-card"><div class="metrics-chart-title"><b>CPU &amp; Memory</b></div><canvas width="720" height="260" data-metric-chart="resources"></canvas><div class="metrics-legend"><span class="cpu">CPU Usage <b data-legend-value="cpu"></b></span><span class="memory">Memory Usage <b data-legend-value="memory"></b></span></div></article>
+  <article class="metrics-chart-card"><div class="metrics-chart-title"><b>Network Traffic</b></div><canvas width="720" height="260" data-metric-chart="network"></canvas><div class="metrics-legend"><span class="input">Input <b data-legend-value="input"></b></span><span class="output">Output <b data-legend-value="output"></b></span></div></article>
+  <article class="metrics-chart-card metrics-users-card"><div class="metrics-chart-title"><b>Online users</b></div><canvas width="720" height="260" data-metric-chart="users"></canvas><div class="metrics-legend"><span class="users">Online users <b data-legend-value="users"></b></span></div></article>
+  <article class="metrics-chart-card metrics-channels-card"><div class="metrics-chart-title"><b>Channels</b></div><canvas width="720" height="260" data-metric-chart="channels" title="Drag to zoom · double-click to reset"></canvas><div class="metrics-legend"><span class="total-channels">Total channels <b data-legend-value="total-channels"></b></span><span class="online-channels">Online channels <b data-legend-value="online-channels"></b></span></div></article>
+  <article class="metrics-chart-card gpu-history-card" data-gpu-history {% if not system_metrics.gpu.available %}hidden{% endif %}><div class="metrics-chart-title"><b>GPU utilization</b></div><canvas width="720" height="260" data-metric-chart="gpu-util"></canvas><div class="metrics-legend"><span class="gpu-usage">GPU <b data-legend-value="gpu-usage"></b></span><span class="gpu-encoder">Encoder <b data-legend-value="gpu-encoder"></b></span><span class="gpu-vram">VRAM <b data-legend-value="gpu-vram"></b></span></div></article>
+  <article class="metrics-chart-card gpu-history-card" data-gpu-history {% if not system_metrics.gpu.available %}hidden{% endif %}><div class="metrics-chart-title"><b>GPU temperature</b></div><canvas width="720" height="260" data-metric-chart="gpu-temp"></canvas><div class="metrics-legend"><span class="gpu-temp">Temperature <b data-legend-value="gpu-temp"></b></span></div></article>
 </section>{% endif %}
 
 {% if can('channels.view') %}<section class="panel dashboard-live-channels-panel">
@@ -109,5 +112,6 @@
 </section>{% endif %}
 {% endblock %}
 {% block scripts %}
+<style>/* STREAMFORGE_MAIN_DASHBOARD_LEGEND_VALUES_V1278 */.metrics-legend [data-legend-value]{margin-left:4px;color:#e6eef7;font-variant-numeric:tabular-nums}.metrics-legend [data-legend-value]:empty{display:none}</style>
 <script src="/static/dashboard.js?v={{ app_version }}"></script>
 {% endblock %}

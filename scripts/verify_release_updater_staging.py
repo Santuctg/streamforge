@@ -31,6 +31,9 @@ else:
             f"{updater.name} runs py_compile in SOURCE_DIR before staging and can create __pycache__"
         )
 
+    # STREAMFORGE_RELEASE_DASHBOARD_V1278:
+    dashboard_v1278 = "STREAMFORGE_V1278_DASHBOARD_UPDATER" in text
+
     # STREAMFORGE_RELEASE_PASSWORD_POLICY_V1277:
     password_policy_v1277 = "STREAMFORGE_V1277_PASSWORD_POLICY_UPDATER" in text
 
@@ -123,7 +126,24 @@ else:
         None,
     )
 
-    if password_policy_v1277:
+    if dashboard_v1278:
+        if 'cp -a "$SRC/." "$STAGE/"' in text:
+            errors.append(f"{updater.name} v12.78 must not copy the entire tree")
+        if re.search(r'systemctl[ \t]+(restart|reload)[ \t]+(nginx|streamforge-channel-supervisor)', text):
+            errors.append(f"{updater.name} v12.78 must not restart Nginx or the channel supervisor")
+        for marker in (
+            'STREAMFORGE_V1278_DASHBOARD_UPDATER',
+            '12.77|12.78',
+            'STREAMFORGE_V1278_MAIN_ONLY_NODE_PARITY',
+            'scripts/apply_v1278_dashboard.py',
+            'STREAMFORGE_NODE_SSH_HLSJS_PAYLOAD_V1278',
+            'absent-files.txt',
+            'Rolling back from',
+            'atomic_copy',
+        ):
+            if marker not in text:
+                errors.append(f"{updater.name} v12.78 contract missing {marker}")
+    elif password_policy_v1277:
         if 'cp -a "$SRC/." "$STAGE/"' in text:
             errors.append(f"{updater.name} v12.77 must not copy the entire tree")
         if re.search(r'systemctl[ \t]+(restart|reload)[ \t]+(nginx|streamforge-channel-supervisor)', text):

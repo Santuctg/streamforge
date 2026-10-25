@@ -5,7 +5,7 @@ permissions (see [Panel users & roles](#-panel-users--roles)).
 
 | Menu | Purpose |
 | --- | --- |
-| **Overview** | Server resources, running channels and live viewers |
+| **Overview** | Server resources, history charts with current values beside each legend (v12.78+), running channels and live viewers |
 | **Channels** | Create, start/stop and inspect channels |
 | **Nodes** · **Node Updates** | Remote Nodes and their Node Agent versions |
 | **Categories** · **Import streams** | Organise channels; bulk-add from M3U/CSV |
@@ -99,6 +99,10 @@ from **Node Updates**).
 
 **Updating Nodes**: after upgrading Main, open **Node Updates**, update the
 Nodes (individually or in bulk) and confirm each reports the new version.
+**Update this Node** uses the Node API and is the normal choice. **Update over
+SSH** is for recovery or a port change: it reinstalls the Node Agent over SSH,
+keeping its token, slug, Panel URL and DNS setting, and restarts the Node
+briefly — that is what its confirmation dialog asks about.
 
 **Maintenance**: a Node in maintenance is skipped when choosing where to send
 viewers.

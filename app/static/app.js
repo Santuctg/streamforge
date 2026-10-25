@@ -1186,6 +1186,18 @@
       setText('[data-network-tx]', formatBits(tx));
       setText('[data-network-total]', formatBits(rx + tx));
       setText('[data-network-interfaces]', (network.interfaces || []).join(', ') || 'No active interface');
+      // STREAMFORGE_MAIN_DASHBOARD_LEGEND_VALUES_V1278: current values beside the
+      // history chart legends follow the same live poll as the resource cards.
+      const setLegend = (key, value) => {
+        const node = document.querySelector(`[data-legend-value="${key}"]`);
+        if (!node) return;
+        node.textContent = value;
+        node.dataset.live = '1';
+      };
+      setLegend('cpu', `${cpuPercent.toFixed(1)}%`);
+      setLegend('memory', `${memoryPercent.toFixed(1)}%`);
+      setLegend('input', formatBits(rx));
+      setLegend('output', formatBits(tx));
       // STREAMFORGE_MAIN_GPU_DASHBOARD_LIVE_V1069
       const gpu = data.gpu || {};
       const gpuCard = systemMetricsPanel.querySelector('[data-gpu-card]');
@@ -1239,10 +1251,12 @@
     // The first resource snapshot is already server-rendered. Avoid a redundant
     // XHR during first paint; start the live cadence only when the first 5s tick
     // is due.
+    // STREAMFORGE_MAIN_DASHBOARD_INSTANT_METRICS_V1278: one early refresh after
+    // first paint fills live rates and chart legends; the 5s cadence is unchanged.
     setTimeout(() => {
       refreshSystemMetrics();
       setInterval(refreshSystemMetrics, 5000);
-    }, 5000);
+    }, 1000);
   }
 
   const dashboardChannelSearch = document.querySelector('[data-dashboard-channel-search]');
@@ -2238,6 +2252,11 @@
         if (totalNode) totalNode.textContent = formatKbpsTotal(total);
         const onlineTotal = document.querySelector('[data-online-total]');
         if (onlineTotal) onlineTotal.textContent = String(Math.max(0, Number(data.online_users) || 0));
+        const onlineLegend = document.querySelector('[data-legend-value="users"]');
+        if (onlineLegend) {
+          onlineLegend.textContent = String(Math.max(0, Number(data.online_users) || 0));
+          onlineLegend.dataset.live = '1';
+        }
         if (typeof window.streamforgeApplyDashboardSearch === 'function') window.streamforgeApplyDashboardSearch();
         if (typeof window.streamforgeApplyChannelFilter === 'function') window.streamforgeApplyChannelFilter();
         if (typeof window.streamforgeApplyChannelSort === 'function') window.streamforgeApplyChannelSort();
