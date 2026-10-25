@@ -85,6 +85,9 @@ A Remote Node relays Main channels and serves viewers near it.
 - **Auto install remote node** — give SSH host, port, user and password; the
   Panel uploads and installs the Node Agent, verifies it and synchronises it.
   You may save the SSH password (encrypted) for later API-update fallback.
+  The server's SSH host key is remembered on first contact; a different key
+  later is refused (v12.76+). After really reinstalling a server, remove the
+  old key with the `ssh-keygen -R` command shown in the error.
 
 **How Nodes get channels**: each Node pulls a channel from the Main relay
 (`/relay/<relay-key>/<channel>/index.m3u8`) only for channels assigned to it.
@@ -135,6 +138,12 @@ The **Viewer sessions** page shows live sessions and lets you end one.
   block that IP for 3 hours on Main and all Nodes. **Panel users → Security ·
   Panel Login · Blocked IPs** lists them; a Super Admin can unblock after
   reauthenticating.
+- **Xtream login limits** (v12.76+) — Xtream API, M3U `get.php`, Xtream
+  stream URLs and Web Player logins: 10 failures for one username from one IP
+  in 10 minutes block that IP + username for 15 minutes; 100 failures across
+  usernames block the IP for 15 minutes. Attempts refused while blocked are
+  not counted, so viewers sharing a carrier-grade NAT IP are not all blocked
+  by one misconfigured app.
 
 ---
 
@@ -144,7 +153,9 @@ The **Viewer sessions** page shows live sessions and lets you end one.
   (`channels.*`, `nodes.*`, `users.*`, `logs.*`, `backups.*`,
   `settings.edit`, …). **Super Admin** is built in and unrestricted.
 - **Panel users** — staff accounts with a role; Main Panel access can be
-  switched off per user.
+  switched off per user. Changing or resetting a password signs that user out
+  everywhere else (v12.76+); changing your own keeps your current browser
+  signed in.
 - **Password vault** — when a staff password is set or changed, an encrypted,
   administrator-recoverable copy is kept on the Main Server. Authorised
   viewers can reveal it only after reauthentication; every reveal is logged.
@@ -157,10 +168,19 @@ The **Viewer sessions** page shows live sessions and lets you end one.
 - **Targets**: local disk (`/var/lib/streamforge/backups`), **SMB** share,
   **SSH** server or **Google Drive**, each with its own schedule (every N
   hours or at a set time). The newest 20 archives are kept by default.
-  Target passwords are stored encrypted.
+  Target passwords are stored encrypted. SSH targets use the same remembered
+  host keys as Node SSH.
+- **Backup encryption** (v12.76+) — set a passphrase (12+ characters) in
+  **Backups → Backup encryption**. Every archive sent to a target is then
+  encrypted (AES-256-GCM); Main's own retained copies stay readable on this
+  server. **Keep the passphrase somewhere safe**: it is required to restore an
+  encrypted backup on another server. Until it is set, targets receive
+  unencrypted archives and the page shows a warning.
 - **Saved backups** can be downloaded, restored or deleted from
   **Backups → Local files** (and from remote targets).
-- **Restore** accepts a saved archive or an uploaded `.tar.gz`. The archive is
+- **Restore** accepts a saved archive or an uploaded `.tar.gz`. Encrypted
+  archives are decrypted first with the saved passphrase or the one typed in
+  the upload form. The archive is
   validated (expected files only, no links or device files), a safety backup
   is taken first, and the current server's Panel URL is preserved so you are
   not locked out. Main restarts during the restore.

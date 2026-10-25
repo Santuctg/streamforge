@@ -71,23 +71,25 @@ is missing, StreamForge falls back to local state (single-worker behaviour).
 | Internet → Panel | Session login (scrypt password hashes), role permissions, CSRF tokens on sensitive forms, IP/ASN Panel access rules, 5-failure / 3-hour login IP block |
 | Internet → playback | Per-account credentials or tokens, expiry and connection limits, restreamer source IPs, per-Node IP/ASN policy, encrypted IP-bound playback keys |
 | Main → Node | Node API requires the `X-Node-Token` header, compared in constant time; Node Panel logins are verified live against Main |
-| Node → Main relay | Relay URLs carry an HMAC relay key derived from the secret key |
+| Node → Main relay | Relay URLs carry an HMAC relay key derived from the database `stream_link_secret` (v12.76+) |
 | Web workers → root | Workers never run as root; privileged actions are requested through files watched by systemd path units, and the helpers validate every request (e.g. restore archives: allowed paths only, no links or devices) |
-| Secrets at rest | Panel passwords: scrypt hashes; saved SSH/backup/GeoIP secrets and the password vault: Fernet encryption |
-| Browser | All user-supplied names are HTML-escaped; session cookie is `HttpOnly`, `SameSite=Lax`, and `Secure` on HTTPS requests (v12.75+) |
+| Secrets at rest | Panel and Xtream passwords: scrypt hashes; saved GeoIP keys and Node SSH passwords: Fernet keyed from the secret key; backup destination passwords: Fernet with `/var/lib/streamforge/backups/secret.key`; password vault: Fernet with its own key |
+| Backups off-server | With a backup passphrase (v12.76+): AES-256-GCM, scrypt-derived key, chunk order and truncation authenticated |
+| Main → SSH servers | Host keys remembered on first contact and enforced afterwards (v12.76+) |
+| Browser | All user-supplied names are HTML-escaped; session cookie is `HttpOnly`, `SameSite=Lax`, `Secure` on HTTPS (v12.75+) and invalidated by a password change (v12.76+); `nosniff` and `Referrer-Policy` on every response, `X-Frame-Options`/`frame-ancestors` on Panel pages, opt-in HSTS (v12.76+) |
+| Internet → Xtream logins | 10 failures per IP + username or 100 per IP in 10 minutes → 15-minute block (v12.76+) |
 
-### 🔑 What `STREAMFORGE_SECRET_KEY` protects
+### 🔑 Which key protects what
 
-One key in `/etc/streamforge.env` derives several things, so it must stay
-**stable and private**:
-
-| Derived from the key | Effect of changing the key |
-| --- | --- |
-| Panel session signatures | Everyone is logged out |
-| Node relay keys | **All Remote Node channels stop** until Nodes are resynchronised |
-| Public stream keys in playlist links | **Existing viewer links stop working** |
-| Encrypted playback keys | Open playback sessions must restart |
-| Encrypted saved secrets | Backup target passwords, GeoIP keys and saved SSH passwords must be re-entered |
+| Item | Key | Changing `STREAMFORGE_SECRET_KEY` |
+| --- | --- | --- |
+| Panel session signatures | `STREAMFORGE_SECRET_KEY` | Everyone is logged out |
+| Encrypted Web Player playback keys | `STREAMFORGE_SECRET_KEY` | Open sessions restart |
+| Saved GeoIP keys, saved Node SSH passwords | `STREAMFORGE_SECRET_KEY` | Must be re-entered |
+| Node relay keys, viewer stream links | `stream_link_secret` row in `app_settings` (v12.76+; seeded once from the secret key so existing links keep their value) | Unchanged on v12.76+ (on ≤ v12.75 they broke) |
+| Backup destination passwords | `/var/lib/streamforge/backups/secret.key` | Unchanged |
+| Panel password vault | `STREAMFORGE_PANEL_PASSWORD_VAULT_KEY` | Unchanged |
+| Encrypted destination backups | Operator backup passphrase | Unchanged |
 
 ---
 

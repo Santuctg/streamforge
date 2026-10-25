@@ -34,11 +34,18 @@ changes a bounded set of installed files, most often by applying a patcher
 (`scripts/apply_*.py`) to a **staged copy of the installed** `app/main.py`.
 Therefore:
 
-1. Any change to `app/main.py` must also be shipped as an idempotent patcher
-   (today: `scripts/apply_main_hotfixes.py`; add a new numbered fix there),
-   and the repository `app/main.py` must equal "previous release `main.py` +
+1. Any change to an installed file must also be shipped as an idempotent
+   patcher, and the repository file must equal "previous release file +
    patcher" byte for byte. Fresh installs use the repository file; existing
-   servers get the patcher; both must end up identical.
+   servers get the patcher; both must end up identical. Two styles exist:
+   - single-file fixes in `scripts/apply_main_hotfixes.py` (numbered fixes for
+     `app/main.py`);
+   - multi-file releases as exact-text hunks, e.g.
+     `scripts/apply_v1276_security.py` + `scripts/apply_v1276_security.json`
+     (one marker per file; generate the hunks from
+     `git diff <previous tag>` with enough context that each original block
+     occurs exactly once, and assert that applying them to the previous
+     release reproduces the new files).
 2. Patchers locate exact anchor text and refuse (non-zero exit) when an
    anchor is missing or ambiguous; they skip fixes whose marker is already
    present.
