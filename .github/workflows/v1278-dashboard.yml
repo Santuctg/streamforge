@@ -1,0 +1,66 @@
+name: v12.78 Overview and SSH Payload
+on:
+  pull_request:
+    paths:
+      - VERSION
+      - node_agent/VERSION
+      - app/**
+      - scripts/install_node_agent.sh
+      - scripts/fetch_hlsjs.sh
+      - scripts/apply_v1278_dashboard.py
+      - scripts/apply_v1278_dashboard.json
+      - scripts/force_update_v1278.sh
+      - scripts/test_v1278_*.py
+      - scripts/update.sh
+      - scripts/verify_release_updater_staging.py
+      - scripts/verify_panel_credential_vault_v1263.py
+      - .github/workflows/v1278-dashboard.yml
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install Main runtime dependencies
+        run: python3 -m pip install -q -r requirements.txt httpx
+      - name: Overview first paint, legend values and SSH payload
+        shell: bash
+        run: |
+          python3 scripts/test_v1278_dashboard.py > test.log 2>&1 && cat test.log || {
+            tail -9 test.log | tac | while IFS= read -r line; do echo "::error title=test_v1278_dashboard.py::$line"; done
+            exit 1
+          }
+      - name: Verify integrated Main, vault and IP guard contracts
+        run: python3 scripts/verify_panel_credential_vault_v1263.py
+      - name: Test staged update and rollback
+        shell: bash
+        run: |
+          python3 scripts/test_v1278_updater.py > test.log 2>&1 && cat test.log || {
+            tail -9 test.log | tac | while IFS= read -r line; do echo "::error title=test_v1278_updater.py::$line"; done
+            exit 1
+          }
+      - name: Verify release staging and safe restart scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/verify_release_updater_staging.py
+          bash -n scripts/force_update_v1278.sh
+          bash -n scripts/update.sh
+          if [[ "$(cat VERSION)" == "12.78" ]]; then
+            grep -Fq 'force_update_v1278.sh' scripts/update.sh
+          fi
+          if grep -Eq 'systemctl[[:space:]]+(restart|reload)[[:space:]]+(nginx|streamforge-channel-supervisor)' scripts/force_update_v1278.sh; then exit 1; fi
+          node --check app/static/app.js
+          node --check app/static/dashboard.js
+          git diff --check
+      - name: Verify version and notes
+        shell: bash
+        run: |
+          if [[ "$(cat VERSION)" == "12.78" ]]; then
+            test "$(cat node_agent/VERSION)" = "12.78"
+          else
+            echo 'Historical v12.78 version check skipped.'
+          fi
+          grep -Fq 'fetch_hlsjs.sh' release-notes/v12.78.md
+          grep -Fq 'streamforge-update --force /root/streamforge-12.78.zip' release-notes/v12.78.md

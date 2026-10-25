@@ -41,7 +41,7 @@
     <label class="check"><input type="checkbox" name="save_ssh_password"><span>Save the entered password encrypted</span></label>
     <label>Node Agent port<input type="number" name="agent_port" min="1" max="65535" value="{{ agent_port }}" required></label>
     <div class="wide field-help">The existing API token, DNS-only setting, panel URL and node slug are preserved.</div>
-    <div class="wide form-actions"><a class="button" href="/nodes">Back</a><button class="button restart-button" onclick="return confirm('Reinstall and restart this node over SSH?')">Update over SSH</button></div>
+    <div class="wide form-actions"><a class="button" href="/nodes">Back</a><button class="button restart-button" onclick="return confirm('Update this Node over SSH? The Node Agent is reinstalled with its current token and settings, and the Node restarts briefly.')">Update over SSH</button></div>
   </form>
 </section>
 </div>

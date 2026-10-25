@@ -26,7 +26,7 @@ smbclient and the yt-dlp runtime used for YouTube Live.
 
 ```bash
 cd /root
-VERSION=12.77
+VERSION=12.78
 curl -fL -o streamforge-$VERSION.zip \
   https://github.com/Santuctg/streamforge/releases/download/v$VERSION/streamforge-$VERSION.zip
 sha256sum streamforge-$VERSION.zip      # compare with the hash you were given
@@ -128,6 +128,13 @@ sudo systemctl restart streamforge streamforge-public
 ```
 
 ---
+
+## 🔐 After upgrading to v12.78
+
+- Reload the **Overview** page. Memory, disk and network values appear
+  immediately, and each chart shows its current value beside the legend.
+- Remote Nodes need no update for this release (the Node Agent code is
+  unchanged); updating them from **Node Updates** only aligns the version.
 
 ## 🔐 After upgrading to v12.77
 

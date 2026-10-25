@@ -179,6 +179,16 @@ that was active when the backup was made. Offline:
 Expected since v12.76: a password change ends every other session of that
 user.
 
+**SSH Node update log shows `fetch_hlsjs.sh: No such file or directory`.**
+Harmless on v12.77 and older: the update still finishes and the Node fetches
+hls.js by itself later. Fixed in v12.78, which ships the helper in the SSH
+package.
+
+**Overview shows `—` for memory, disk or network for a few seconds.**
+Before v12.78 these filled in at the first live refresh, five seconds after
+the page opened. From v12.78 they render with the page; empty charts show
+"Loading…" while their history is fetched.
+
 **Every Panel page sends me to "Change password".**
 Since v12.77 a login with a default password or one shorter than 12 characters
 must set a new password first. Choose 12+ characters that are not

@@ -115,6 +115,13 @@ def _package_tarball(app_root: Path) -> bytes:
         archive.add(app_root / "scripts" / "tune_high_concurrency.py", arcname="streamforge_mvp/scripts/tune_high_concurrency.py", filter=_node_payload_filter)
         archive.add(app_root / "scripts" / "uninstall.sh", arcname="streamforge_mvp/scripts/uninstall.sh", filter=_node_payload_filter)
         archive.add(app_root / "scripts" / "cache_clear.sh", arcname="streamforge_mvp/scripts/cache_clear.sh", filter=_node_payload_filter)
+        # STREAMFORGE_NODE_SSH_HLSJS_PAYLOAD_V1278: install_node_agent.sh caches
+        # hls.js through this helper; without it SSH updates logged
+        # "fetch_hlsjs.sh: No such file or directory". Optional, like the API
+        # update package, because the Node also fetches hls.js in the background.
+        hls_fetch = app_root / "scripts" / "fetch_hlsjs.sh"
+        if hls_fetch.is_file():
+            archive.add(hls_fetch, arcname="streamforge_mvp/scripts/fetch_hlsjs.sh", filter=_node_payload_filter)
         archive.add(app_root / "deploy" / "streamforge-geoip-update.service", arcname="streamforge_mvp/deploy/streamforge-geoip-update.service", filter=_node_payload_filter)
         archive.add(app_root / "deploy" / "streamforge-geoip-update.timer", arcname="streamforge_mvp/deploy/streamforge-geoip-update.timer", filter=_node_payload_filter)
     return buffer.getvalue()
