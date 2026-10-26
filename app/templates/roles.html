@@ -25,7 +25,7 @@
       <div class="role-actions actions">
         {% if not row.role.is_system %}
           {% if can('roles.edit') and (is_super_admin or admin.role_id != row.role.id) %}<a class="button small" href="/roles/{{ row.role.id }}/edit">Edit</a>{% endif %}
-          {% if can('roles.delete') and (is_super_admin or admin.role_id != row.role.id) %}<form method="post" action="/roles/{{ row.role.id }}/delete" onsubmit="return confirm('Delete role {{ row.role.name }}?')"><button class="button ghost-danger small">Delete</button></form>{% endif %}
+          {% if can('roles.delete') and (is_super_admin or admin.role_id != row.role.id) %}<form method="post" action="/roles/{{ row.role.id }}/delete" data-confirm-name="{{ row.role.name }}" onsubmit="return confirm('Delete role ' + this.getAttribute('data-confirm-name') + '?')"><button class="button ghost-danger small">Delete</button></form>{% endif %}
         {% elif row.role.is_system %}<span class="muted-tag">Locked</span>{% endif %}
       </div>
     </article>

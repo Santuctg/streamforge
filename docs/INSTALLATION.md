@@ -50,7 +50,10 @@ What the installer does:
    `/var/lib/streamforge`.
 3. Copies the application to `/opt/streamforge`.
 4. Writes `/etc/streamforge.env` **once**, with a random
-   `STREAMFORGE_SECRET_KEY` (64 hex characters) and the first admin login.
+   `STREAMFORGE_SECRET_KEY` (64 hex characters), a random
+   `STREAMFORGE_PANEL_PASSWORD_VAULT_KEY` (base64 of 32 random bytes, since
+   v12.82) and the first admin login. Existing env files created by older
+   releases get the vault key appended if it is missing.
 5. Installs the Nginx site, the systemd units and the CLI tools
    (`streamforge`, `streamforge-update`, `streamforge-cache-clear`,
    `streamforge-uninstall`, `streamforge-capacity-audit`).

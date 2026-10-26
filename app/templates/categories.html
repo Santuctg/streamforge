@@ -28,7 +28,7 @@
           <div class="category-actions">
             <a class="button small" href="/categories/{{ category.id }}/channels">Channels</a>
             {% if can('categories.edit') %}<button class="button small" type="button" data-category-rename-open data-category-id="{{ category.id }}" data-category-name="{{ category.name }}">Rename</button>{% endif %}
-            {% if can('categories.delete') %}<form method="post" action="/categories/{{ category.id }}/delete" onsubmit="return confirm('Delete category {{ category.name }}? Channels will become Uncategorized.')"><button class="button ghost-danger small" type="submit">Delete</button></form>{% endif %}
+            {% if can('categories.delete') %}<form method="post" action="/categories/{{ category.id }}/delete" data-confirm-name="{{ category.name }}" onsubmit="return confirm('Delete category ' + this.getAttribute('data-confirm-name') + '? Channels will become Uncategorized.')"><button class="button ghost-danger small" type="submit">Delete</button></form>{% endif %}
           </div>
         </article>
         {% else %}<div class="empty">No categories yet. Add the first category from the form.</div>{% endfor %}

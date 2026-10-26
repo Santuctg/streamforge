@@ -117,10 +117,19 @@ install -d -o root -g root -m 0755 "$MAIN_STATIC_DIR"
 rsync -a --delete --chmod=D755,F644 "$APP_DIR/app/static/" "$MAIN_STATIC_DIR/"
 chown -R root:root "$MAIN_STATIC_DIR"
 
+# STREAMFORGE_V1282_INSTALL_VAULT_KEY:
+# The Panel password vault keys its Fernet encryption with a dedicated secret.
+# Without it every self-service password change and panel-user save is refused
+# ("Managed password storage is unavailable"), so a fresh install could never
+# rotate the published default password. Generate one here; the append below
+# covers env files created by older releases.
+VAULT_KEY=$(python3 -c "import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())")
+
 if [[ ! -f "$ENV_FILE" ]]; then
   SECRET=$(openssl rand -hex 32)
   cat > "$ENV_FILE" <<EOF
 STREAMFORGE_SECRET_KEY=$SECRET
+STREAMFORGE_PANEL_PASSWORD_VAULT_KEY=$VAULT_KEY
 STREAMFORGE_ADMIN_USER=admin
 STREAMFORGE_ADMIN_PASSWORD=ChangeMe123!
 STREAMFORGE_DATABASE_URL=sqlite:////var/lib/streamforge/streamforge.db
@@ -167,6 +176,13 @@ STREAMFORGE_MAXMIND_ACCOUNT_ID=
 STREAMFORGE_MAXMIND_LICENSE_KEY=
 STREAMFORGE_ACME_DNS_API=https://auth.acme-dns.io
 EOF
+  chmod 600 "$ENV_FILE"
+fi
+
+# STREAMFORGE_V1282_INSTALL_VAULT_KEY: pre-existing env files (older releases,
+# restored images) get a key too, keeping the password-change page usable.
+if ! grep -q '^STREAMFORGE_PANEL_PASSWORD_VAULT_KEY=' "$ENV_FILE"; then
+  printf 'STREAMFORGE_PANEL_PASSWORD_VAULT_KEY=%s\n' "$VAULT_KEY" >> "$ENV_FILE"
   chmod 600 "$ENV_FILE"
 fi
 

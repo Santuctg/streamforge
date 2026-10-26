@@ -85,6 +85,25 @@ def backup_encryption_enabled() -> bool:
     return bool(backup_encryption_passphrase())
 
 
+# STREAMFORGE_V1282_BACKUP_ENCRYPTION_FAIL_CLOSED: the lenient reader above
+# returns "" for both "encryption never configured" and "configured but the
+# key/passphrase can no longer be read". Uploading with the latter case
+# silently sent plaintext archives containing the full environment snapshot.
+# Restore and display code stay lenient; only delivery to a destination is
+# strict.
+def required_backup_encryption_passphrase() -> str:
+    if not BACKUP_ENCRYPTION_FILE.exists():
+        return ""
+    passphrase = backup_encryption_passphrase()
+    if not passphrase:
+        raise RuntimeError(
+            "Backup encryption is configured but its passphrase could not be read; "
+            "refusing to upload an unencrypted archive. Re-enter it under "
+            "Backups → Backup encryption or clear it to send archives in plaintext."
+        )
+    return passphrase
+
+
 def save_backup_encryption_passphrase(passphrase: str) -> None:
     value = str(passphrase or "")
     if len(value) < BACKUP_PASSPHRASE_MIN_LENGTH:
@@ -118,13 +137,39 @@ def prepare_restore_archive(path: Path, passphrase: str = "") -> bool:
     return True
 
 
+# STREAMFORGE_V1282_SMB_SANITIZE: smbclient parses the complete "-c" argument
+# string itself — ";" separates commands and "!" runs a local shell command —
+# while _smb_quote() only escapes double quotes. A destination, username or
+# domain carrying any of those characters would therefore execute on the Main
+# Server as the StreamForge service account on the next backup. Credentials go
+# into a "-A" file instead, so only line breaks are dangerous there.
+_SMB_FORBIDDEN_CHARS = re.compile(r"[\x00-\x1f;!\"]")
+_SMB_FORBIDDEN_CREDENTIAL_CHARS = re.compile(r"[\x00-\x1f\x7f]")
+
+
+def _reject_smb_text(value: Any, label: str) -> str:
+    text = str(value or "")
+    if _SMB_FORBIDDEN_CHARS.search(text):
+        raise ValueError(f"{label} must not contain quotes, semicolons, '!' or control characters")
+    return text
+
+
+def _reject_smb_credentials(value: Any, label: str) -> str:
+    text = str(value or "")
+    if _SMB_FORBIDDEN_CREDENTIAL_CHARS.search(text):
+        raise ValueError(f"{label} must not contain line breaks or control characters")
+    return text
+
+
 def _write_smb_auth_file(username: str, password: str, domain: str = "") -> Path:
     BACKUP_SMB_AUTH_ROOT.mkdir(parents=True, exist_ok=True)
     os.chmod(BACKUP_SMB_AUTH_ROOT, 0o700)
     path = BACKUP_SMB_AUTH_ROOT / f"auth-{uuid.uuid4().hex}.conf"
+    username = _reject_smb_credentials(username, "SMB username")
+    password = _reject_smb_credentials(password, "SMB password")
     lines = [f"username = {username}", f"password = {password}"]
     if str(domain or "").strip():
-        lines.append(f"domain = {str(domain).strip()}")
+        lines.append("domain = " + _reject_smb_credentials(domain.strip(), "SMB domain"))
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     os.chmod(path, 0o600)
     return path
@@ -991,6 +1036,9 @@ def _upload_sftp(
 
 def _parse_smb_destination(destination: str) -> tuple[str, str, str]:
     value = str(destination or "").strip().replace("\\", "/")
+    # STREAMFORGE_V1282_SMB_SANITIZE: reject before the value is split or
+    # handed to smbclient as a "-c" command string.
+    _reject_smb_text(value, "SMB destination")
     if value.startswith("smb://"):
         parsed = urllib.parse.urlparse(value)
         host = parsed.hostname or ""
@@ -1477,7 +1525,9 @@ def run_target(target_id: str) -> dict[str, Any]:
     retained_archive = archive
     outgoing_dir: Path | None = None
     try:
-        passphrase = backup_encryption_passphrase()
+        # STREAMFORGE_V1282_BACKUP_ENCRYPTION_FAIL_CLOSED: strict read, see
+        # required_backup_encryption_passphrase().
+        passphrase = required_backup_encryption_passphrase()
         if passphrase:
             # Same file name at the destination, so listing, rotation and
             # restore keep working; the content starts with the SFBKENC1 header.

@@ -5160,6 +5160,14 @@ async def lifespan(_app: FastAPI):
     with SessionLocal() as db:
         super_role = ensure_default_roles(db)
         ensure_stream_link_secret(db)
+        # STREAMFORGE_VAULT_OPTIONAL_V1282: announce the missing key once at
+        # startup instead of surfacing a 503 on the first password save.
+        if not vault_enabled():
+            log_event(
+                "Panel password vault disabled: STREAMFORGE_PANEL_PASSWORD_VAULT_KEY is not set; "
+                "panel passwords are stored as hashes only and cannot be revealed",
+                scope="system", level="warning",
+            )
         existing = db.scalar(select(AdminUser).where(AdminUser.username == settings.admin_user))
         # STREAMFORGE_ADMIN_SEED_FRESH_INSTALL_ONLY:
         # Seed the env-configured admin only on a fresh install. Re-creating it
@@ -9754,7 +9762,9 @@ async def node_panel_live_auth(
         admin.password_hash = hash_password(new_password)
         if payload.get("managed_password_notice") is True:
             # The updated Node displayed the managed-credential notice.
-            if not vault_store(db, admin, new_password):
+            # STREAMFORGE_VAULT_OPTIONAL_V1282: escrow only while the vault is
+            # configured; a missing key must not reject the password change.
+            if vault_enabled() and not vault_store(db, admin, new_password):
                 raise HTTPException(503, "Encrypted password vault unavailable; password unchanged")
         else:
             # Legacy Node versions did not display the notice. Do not silently escrow.
@@ -12648,11 +12658,18 @@ def account_password_change(
     if error:
         return render(request, "account_password.html", db, message="", error=error)
 
-    if not vault_enabled():
-        return render(request, "account_password.html", db, message="", error="Managed password storage is unavailable; password not changed.")
+    # STREAMFORGE_VAULT_OPTIONAL_V1282: a missing vault key must never block the
+    # self-service password change. Remote Nodes verify Panel credentials live
+    # against the Main Server and panel-user sync carries no password material,
+    # so a hash-only change is safe; only the optional "show saved password"
+    # feature needs the vault. Earlier releases refused the change outright,
+    # which left the published installation default password unrotatable.
     admin.password_hash = hash_password(new_password)
-    if not vault_store(db, admin, new_password):
+    vault_note = ""
+    if vault_enabled() and not vault_store(db, admin, new_password):
         raise HTTPException(503, "Encrypted password vault unavailable; password unchanged")
+    if not vault_enabled():
+        vault_note = " Managed password storage is off, so this password was saved as a hash only."
     affected_node_ids = {item.id for item in admin.nodes}
     db.commit()
     # Other sessions of this user end; this browser stays signed in.
@@ -12660,7 +12677,7 @@ def account_password_change(
     request.session.pop(PASSWORD_CHANGE_REQUIRED_SESSION_KEY, None)
     sync_errors = sync_panel_users_for_node_ids(affected_node_ids, request, db)
     log_event("Panel user changed own password", scope="auth", actor=admin.username, details={"ip": client_ip(request)})
-    message = "Password changed successfully."
+    message = "Password changed successfully." + vault_note
     if sync_errors:
         message += " Node sync warning: " + "; ".join(sync_errors)
     # STREAMFORGE_MAIN_PASSWORD_PREFIX_FIX_V2255:
@@ -12761,7 +12778,9 @@ def admin_user_create(
     db.add(panel_user)
     db.flush()
     # STREAMFORGE_V1266_AUTO_VAULT: the managed-password policy is automatic.
-    if not vault_store(db, panel_user, password):
+    # STREAMFORGE_VAULT_OPTIONAL_V1282: without a vault key the account is still
+    # created with a hash; only the optional reveal feature stays unavailable.
+    if vault_enabled() and not vault_store(db, panel_user, password):
         raise HTTPException(503, "Encrypted password vault unavailable; account not created")
     db.commit()
     sync_errors = sync_panel_users_for_node_ids({item.id for item in selected_nodes}, request, db)
@@ -12853,7 +12872,8 @@ def admin_user_update(
     panel_user.nodes = selected_nodes
     if password:
         panel_user.password_hash = hash_password(password)
-        if not vault_store(db, panel_user, password):
+        # STREAMFORGE_VAULT_OPTIONAL_V1282: hash-only when no vault key exists.
+        if vault_enabled() and not vault_store(db, panel_user, password):
             raise HTTPException(503, "Encrypted password vault unavailable; password unchanged")
     db.commit()
     if password and actor is not None and panel_user.id == actor.id:
