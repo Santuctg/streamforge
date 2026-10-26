@@ -132,6 +132,49 @@ sudo systemctl restart streamforge streamforge-public
 
 ---
 
+## 🔐 After upgrading to v12.82
+
+- **Killing viewer sessions needs its own permission.** Disconnecting a
+  session on **Live sessions** used to follow `dashboard.view`, so a
+  read-only Overview role could stop every stream. Existing roles that
+  already had `dashboard.view` receive the new `sessions.kill` permission
+  automatically at the first start after the upgrade; afterwards grant or
+  revoke it per role under **Roles & Permissions**. The action is now written
+  to the audit log.
+- **Channel sources must be transport URLs.** `file:`, `concat:`, `lavfi:`,
+  `ftp:` and other local/recipe schemes are refused when a channel is saved
+  *and* when FFmpeg or ffprobe opens it, because such a source reads host
+  files and can play them out as a live stream. `http(s)`, `rtmp(s)`,
+  `rtsp(s)`, `rtp`, `udp`, `tcp`, `srt`, `mmsh/t` and `ws(s)` keep working.
+  If you deliberately use another scheme or a local path, add it explicitly
+  and restart the service:
+
+  ```bash
+  sudo sed -i '1i STREAMFORGE_SOURCE_SCHEME_ALLOWLIST=subfile' /etc/streamforge.env
+  # or, for local file sources only:
+  sudo sed -i '1i STREAMFORGE_ALLOW_LOCAL_FILE_SOURCES=1' /etc/streamforge.env
+  sudo systemctl restart streamforge streamforge-channel-supervisor
+  ```
+
+- **Backup archives can leave the environment snapshot behind.** Each archive
+  still contains a `etc/streamforge.env` member with the service's
+  `STREAMFORGE_*` values — a disaster restore on a fresh server needs those
+  keys, because saved Node SSH passwords, Panel passwords and the backup
+  passphrase are encrypted with them. If you re-key after every restore and
+  store archives somewhere less trusted, set
+  `STREAMFORGE_BACKUP_INCLUDE_ENV=0`; the manifest then records the exclusion.
+- **Node API tokens can be rotated from the Panel.** **Nodes → Regenerate API
+  token** mints a new token, pushes it to `/etc/streamforge-node.env` over the
+  Node's saved SSH access, restarts the Node Agent and only then stores it,
+  so a failed push leaves the working pair untouched. It needs `nodes.edit`
+  and saved SSH credentials; a Node installed without saved SSH details must
+  be updated manually.
+- **Check the log for the signing key.** A missing `STREAMFORGE_SECRET_KEY`
+  (or the published development default) is now reported as an error at
+  startup, because anyone who knows that value can forge Panel session
+  cookies. See
+  [Secret key rules](OPERATIONS.md#-secret-key-rules).
+
 ## 🔐 After upgrading to v12.81
 
 - Open **Node Updates** and update every Remote Node to v12.81. Node Panel

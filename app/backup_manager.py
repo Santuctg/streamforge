@@ -35,6 +35,16 @@ BACKUP_ENCRYPTION_FILE = Path("/var/lib/streamforge/backup-encryption.json")
 BACKUP_PASSPHRASE_MIN_LENGTH = 12
 
 
+def _backup_include_env_enabled() -> bool:
+    """True when the runtime env snapshot is written into a backup archive.
+
+    STREAMFORGE_V1282_BACKUP_ENV_OPTOUT_V1: opt-out switch for the
+    STREAMFORGE_* snapshot (see the note at the write site). Read live instead
+    of through Settings() so an override set after import still applies.
+    """
+    return os.getenv("STREAMFORGE_BACKUP_INCLUDE_ENV", "1").strip().lower() in {"1", "true", "yes", "on"}
+
+
 def _normalize_schedule_time(value: Any) -> str:
     """Return a strict server-local HH:MM backup time."""
     text = str(value or "00:00").strip()
@@ -1406,12 +1416,26 @@ def _archive() -> Path:
 
     # /etc/streamforge.env is root-only by design. The running service already
     # has its effective STREAMFORGE_* values, so preserve those directly.
+    # STREAMFORGE_V1282_BACKUP_ENV_OPTOUT_V1: this snapshot is what lets a
+    # disaster restore on a fresh host keep working — SSH passwords, saved
+    # Panel passwords and the backup passphrase are all encrypted with the
+    # keys it carries — so it stays in the archive unless the operator opts
+    # out and plans to re-key after every restore. The switch is read from the
+    # live environment on purpose: Settings() freezes every value at its first
+    # import, and this module is imported before a test or CLI sets its own.
+    include_env = _backup_include_env_enabled()
     env_lines = []
-    for key in sorted(os.environ):
-        if key.startswith("STREAMFORGE_"):
-            value = str(os.environ.get(key, "")).replace("\n", "\\n")
-            env_lines.append(f"{key}={value}")
+    if include_env:
+        for key in sorted(os.environ):
+            if key.startswith("STREAMFORGE_"):
+                value = str(os.environ.get(key, "")).replace("\n", "\\n")
+                env_lines.append(f"{key}={value}")
     env_payload = ("\n".join(env_lines) + "\n").encode("utf-8")
+    env_manifest_line = (
+        "etc/streamforge.env (runtime STREAMFORGE_* snapshot)"
+        if include_env
+        else "excluded by STREAMFORGE_BACKUP_INCLUDE_ENV=0"
+    )
 
     main_assets = _logo_asset_files(logo_root, "streamforge-assets/main-logo")
     if node_logo_root == logo_root:
@@ -1450,11 +1474,12 @@ def _archive() -> Path:
             for path, arcname in all_assets:
                 tar.add(path, arcname=arcname, recursive=False)
 
-            env_info = tarfile.TarInfo(name="etc/streamforge.env")
-            env_info.size = len(env_payload)
-            env_info.mode = 0o600
-            env_info.mtime = int(time.time())
-            tar.addfile(env_info, io.BytesIO(env_payload))
+            if include_env:
+                env_info = tarfile.TarInfo(name="etc/streamforge.env")
+                env_info.size = len(env_payload)
+                env_info.mode = 0o600
+                env_info.mtime = int(time.time())
+                tar.addfile(env_info, io.BytesIO(env_payload))
 
             inventory_info = tarfile.TarInfo(name="streamforge-assets/ASSET-MANIFEST.json")
             inventory_info.size = len(asset_inventory_payload)
@@ -1466,7 +1491,7 @@ def _archive() -> Path:
                 "StreamForge Main backup\n"
                 f"created_utc={stamp}\n"
                 "database=var/lib/streamforge/streamforge.db\n"
-                "environment=etc/streamforge.env (runtime STREAMFORGE_* snapshot)\n"
+                f"environment={env_manifest_line}\n"
                 "assets_complete=1\n"
                 f"main_logo_files={len(main_assets)}\n"
                 f"node_logo_files={len(node_assets) if node_logo_root != logo_root else len(main_assets)}\n"

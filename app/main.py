@@ -45,6 +45,7 @@ from .ffmpeg import stream_manager
 from .node_manager import NodeError, ensure_local_node, node_controller, normalize_node_url, effective_node_url, channel_input_urls, channel_source_program_ids, set_node_maintenance
 from .load_balancer import NodeSelectionError, choose_playback_node, normalize_prefixes, user_allowed_nodes, playback_candidate_nodes, validate_routed_node, pinned_node_for_ip, node_ip_whitelist_allows, node_playback_access_allows
 from .importer import ImportItem, detect_and_parse
+from .input_options import ensure_safe_input_target
 from .models import AdminUser, AppSetting, Channel, ChannelCategory, Node, Role, StreamUser, LogEntry, PlaylistProfile, channel_nodes, channel_category_links, playlist_profile_channels as playlist_profile_channel_links, user_channels as user_channel_links
 from .permissions import (
     ALL_PERMISSION_KEYS,
@@ -583,6 +584,25 @@ def ensure_default_roles(db: Session) -> Role:
             raw_permissions.discard("roles.manage")
             raw_permissions.update({"roles.view", "roles.edit", "roles.delete"})
         role.permissions = encode_permissions(raw_permissions)
+
+    # STREAMFORGE_V1282_SESSION_KILL_PERMISSION_V1:
+    # Disconnecting a viewer session followed dashboard.view, so a read-only
+    # Overview role could stop every stream on the cluster. This one-time
+    # grant keeps the capability for roles that already had it; every later
+    # grant (and every revocation) is an explicit role edit and must survive
+    # the next restart, so the migration runs under a marker exactly once.
+    marker = db.get(AppSetting, "v1282_sessions_kill_migrated")
+    if marker is None:
+        for role in db.scalars(select(Role).where(Role.is_system.is_(False))).all():
+            try:
+                current_permissions = set(json.loads(role.permissions or "[]"))
+            except (TypeError, ValueError, json.JSONDecodeError):
+                current_permissions = set()
+            if SUPERUSER_PERMISSION in current_permissions:
+                continue
+            if "dashboard.view" in current_permissions and "sessions.kill" not in current_permissions:
+                role.permissions = encode_permissions(current_permissions | {"sessions.kill"})
+        db.add(AppSetting(key="v1282_sessions_kill_migrated", value="1"))
 
     # Before RBAC existed every panel account had unrestricted access. Assigning
     # legacy accounts to Super Admin preserves that behaviour during upgrade.
@@ -4262,6 +4282,10 @@ def normalize_source_configs(
         cleaned = str(item or "").strip()
         if not cleaned or cleaned in values:
             continue
+        # STREAMFORGE_V1282_SOURCE_SCHEME_GUARD_V1: refuse the unsafe scheme at
+        # save time so the editor sees the reason here instead of a channel
+        # error later; build_input_args() repeats this check at run time.
+        ensure_safe_input_target(cleaned)
         raw_program = raw_programs[index] if index < len(raw_programs) else ""
         try:
             parsed = int(raw_program) if str(raw_program or "").strip() else None
@@ -4272,6 +4296,7 @@ def normalize_source_configs(
     if not values:
         primary = str(input_url or "").strip()
         if primary:
+            ensure_safe_input_target(primary)
             values.append(primary)
             try:
                 parsed_legacy = int(legacy_program_id) if str(legacy_program_id or "").strip() else None
@@ -4281,6 +4306,7 @@ def normalize_source_configs(
         for item in str(backup_inputs or "").splitlines():
             cleaned = item.strip()
             if cleaned and cleaned not in values:
+                ensure_safe_input_target(cleaned)
                 values.append(cleaned)
                 programs.append(None)
     if not values:
@@ -5168,6 +5194,19 @@ async def lifespan(_app: FastAPI):
                 "panel passwords are stored as hashes only and cannot be revealed",
                 scope="system", level="warning",
             )
+        # STREAMFORGE_V1282_SECRET_KEY_WARN_V1: the dataclass default is a
+        # published development value. Anyone who knows it can forge signed
+        # session cookies, so a live Panel must never run on it silently. The
+        # hard failure lands in a later release, after every env file has had a
+        # chance to be repaired by the updater.
+        secret_key = str(settings.secret_key or "").strip()
+        if secret_key in {"", "dev-change-me-now"} or len(secret_key) < 32:
+            log_event(
+                "STREAMFORGE_SECRET_KEY is missing or a known development value; "
+                "session cookies are signed with a public key. Set a random value "
+                "(openssl rand -hex 32) in /etc/streamforge.env and restart the service",
+                scope="system", level="error",
+            )
         existing = db.scalar(select(AdminUser).where(AdminUser.username == settings.admin_user))
         # STREAMFORGE_ADMIN_SEED_FRESH_INSTALL_ONLY:
         # Seed the env-configured admin only on a fresh install. Re-creating it
@@ -5390,18 +5429,16 @@ async def permission_denied_handler(request: Request, exc: PermissionDenied):
     if request.url.path.endswith(".json") or "application/json" in request.headers.get("accept", ""):
         return JSONResponse({"detail": "Permission denied", "permission": exc.permission}, status_code=403)
     with SessionLocal() as db:
-        admin = current_admin(request, db)
-        return TEMPLATES.TemplateResponse(
-            request=request,
-            name="access_denied.html",
-            context={
-                "admin": admin,
-                "app_version": APP_VERSION,
-                "permission": exc.permission,
-                "can": lambda key: has_permission(admin, key),
-            },
-            status_code=403,
-        )
+        # STREAMFORGE_V1282_ACCESS_DENIED_CONTEXT_V1: this hand-built context
+        # omitted branding/app_root, so base.html raised UndefinedError and the
+        # operator saw a 500 page instead of the denied-permission page. Render
+        # through the shared helper and only override the status code.
+        # The route dependency already cached the admin on its own (now
+        # closed) session, so drop that cache and reload it on ours.
+        request.state._streamforge_admin_cache_loaded = False
+        response = render(request, "access_denied.html", db, permission=exc.permission)
+        response.status_code = 403
+        return response
 
 
 @app.middleware("http")
@@ -6947,12 +6984,13 @@ def viewer_sessions_page(
     )
 
 
-@app.post("/viewer-sessions/kill", dependencies=[Depends(permission_required("dashboard.view"))])
+@app.post("/viewer-sessions/kill", dependencies=[Depends(permission_required("sessions.kill"))])
 def viewer_session_kill(
     request: Request, session_id: str = Form(...), source_key: str = Form("main_proxy"),
     user_id: int | None = Form(None), node_id: int | None = Form(None), db: Session = Depends(get_db),
 ):
-    if not current_admin(request, db):
+    admin = current_admin(request, db)
+    if not admin:
         return redirect_login()
     killed = 0
     error = ""
@@ -6968,6 +7006,17 @@ def viewer_session_kill(
         killed += viewer_tracker.kill(session_id, user_id)
         if user_id:
             killed += connection_tracker.kill(user_id, session_id)
+    # STREAMFORGE_V1282_SESSION_KILL_PERMISSION_V1: the Node-side route already
+    # logged each kill; the Panel route did not, so an operator could disconnect
+    # viewers with no trace.
+    log_event(
+        "Viewer session killed" if killed else "Viewer session kill requested for an offline session",
+        scope="user", level="warning", actor=admin.username,
+        details={
+            "session_id": session_id, "source": source_key, "killed": killed,
+            "user_id": user_id, "node_id": node_id,
+        },
+    )
     query = "message=" + urllib.parse.quote("Online session killed" if killed else "Session was already offline")
     if error:
         query += "&error=" + urllib.parse.quote(error)
@@ -9435,6 +9484,82 @@ def node_service_restart(node_id: int, request: Request, db: Session = Depends(g
 @app.post("/nodes/{node_id}/reboot", dependencies=[Depends(permission_required("nodes.reboot"))])
 def node_system_reboot(node_id: int, request: Request, db: Session = Depends(get_db)):
     return _node_ssh_admin_action(node_id, "reboot", request, db)
+
+
+@app.post("/nodes/{node_id}/token/regenerate", dependencies=[Depends(permission_required("nodes.edit"))])
+def node_regenerate_api_token(node_id: int, request: Request, db: Session = Depends(get_db)):
+    """Mint a new Node API token and apply it on the Node in one action.
+
+    STREAMFORGE_V1282_NODE_TOKEN_ROTATE_V1: Edit Node already let an operator
+    overwrite api_token, but the Node validates the value from its own env
+    file, so a "rotated" credential simply stopped every Main<->Node call until
+    somebody reinstalled the agent. The token is now pushed over saved SSH
+    first (env line rewritten, agent restarted) and stored only after that
+    succeeds, so a failed push leaves the working pair untouched.
+    """
+    admin = current_admin(request, db)
+    if not admin:
+        return redirect_login()
+    node = db.get(Node, node_id)
+    if not node or node.node_type != "remote":
+        raise HTTPException(404)
+    password = decrypt_secret(node.ssh_password_enc) if node.ssh_password_enc else ""
+    host = (node.ssh_host or urlsplit(node.api_url or "").hostname or "").strip()
+    username = (node.ssh_user or "root").strip()
+    if not host or not password:
+        return RedirectResponse(
+            f"/nodes?error={quote_plus(node.name + ': save SSH host and password from Edit Node first')}",
+            status_code=303,
+        )
+    if not (node.api_token or "").strip():
+        return RedirectResponse(
+            f"/nodes?error={quote_plus(node.name + ': save the Node once before rotating its API token')}",
+            status_code=303,
+        )
+    previous_token = node.api_token
+    new_token = secrets.token_urlsafe(32)
+    try:
+        # The SSH command blocks until the agent is back up, so by the time the
+        # token below is stored the Node is already validating the new value.
+        result = run_node_admin_command_over_ssh(
+            host=host, port=int(node.ssh_port or 22), username=username,
+            password=password, action="token_rotate", node_token=new_token,
+        )
+    except SSHInstallError as exc:
+        node.last_error = str(exc)
+        db.commit()
+        return RedirectResponse(
+            f"/nodes?error={quote_plus(node.name + ': token NOT rotated, ' + str(exc))}",
+            status_code=303,
+        )
+    try:
+        node.api_token = new_token
+        node.status = "unknown"
+        node.last_error = None
+        db.commit()
+    except Exception:
+        # The Node now has the new token but the Panel could not record it.
+        # Put the previous value back so the pair agrees again.
+        db.rollback()
+        try:
+            run_node_admin_command_over_ssh(
+                host=host, port=int(node.ssh_port or 22), username=username,
+                password=password, action="token_rotate", node_token=previous_token,
+            )
+        except Exception:
+            pass
+        return RedirectResponse(
+            f"/nodes?error={quote_plus(node.name + ': rotated on the Node but not saved here — retry the rotation')}",
+            status_code=303,
+        )
+    log_event(
+        "Node API token rotated", scope="node", level="warning", node_id=node.id,
+        actor=admin.username, details={"host_key": result.host_key_fingerprint},
+    )
+    return RedirectResponse(
+        f"/nodes?message={quote_plus('API token rotated for ' + node.name)}",
+        status_code=303,
+    )
 
 
 # STREAMFORGE_NODE_TEST_SYNC_BACKGROUND_V60R2:

@@ -679,7 +679,12 @@ class StreamManager:
         except Exception:
             return False
         cmd = [settings.ffprobe_bin, "-v", "error", "-analyzeduration", "2000000", "-probesize", "4000000"]
-        cmd += build_input_args(target, youtube_live=youtube_source)
+        try:
+            cmd += build_input_args(target, youtube_live=youtube_source)
+        except ValueError:
+            # STREAMFORGE_V1282_SOURCE_SCHEME_GUARD_V1: an unusable primary
+            # source simply never recovers.
+            return False
         cmd += ["-show_entries", "stream=index", "-of", "csv=p=0"]
         try:
             result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=max(20, settings.failback_probe_timeout) if youtube_source else settings.failback_probe_timeout, check=False)
@@ -1043,6 +1048,18 @@ class StreamManager:
                 original_profile = self._apply_local_node_encoding_profile(db, channel)
                 try:
                     cmd = self.build_command(channel)
+                except ValueError as exc:
+                    # STREAMFORGE_V1282_SOURCE_SCHEME_GUARD_V1: an unsafe input
+                    # scheme must surface as a channel error, not as a dead
+                    # supervisor thread.
+                    channel.status = "error"
+                    channel.last_error = str(exc)
+                    db.commit()
+                    log_event(
+                        "Channel refused to start: " + str(exc),
+                        scope="channel", level="error", channel_id=channel.id,
+                    )
+                    raise RuntimeError(str(exc)) from exc
                 finally:
                     # Overrides only shape this FFmpeg process. They must never
                     # be flushed back into the channel-wide defaults.

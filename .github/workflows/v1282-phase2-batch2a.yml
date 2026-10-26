@@ -1,0 +1,45 @@
+name: v12.82 Phase-2 Batch 2A
+on:
+  pull_request:
+    paths:
+      - app/**
+      - scripts/test_v1282_*.py
+      - scripts/negative_proof_v1282_*.py
+      - docs/**
+      - .github/workflows/v1282-phase2-batch2a.yml
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install Main runtime dependencies
+        run: python3 -m pip install -q -r requirements.txt httpx
+      - name: Batch 2A contract (source scheme, sessions.kill, token rotation, backup env, secret-key warning)
+        shell: bash
+        run: |
+          python3 scripts/test_v1282_batch2a.py > test.log 2>&1 && cat test.log || {
+            tail -9 test.log | tac | while IFS= read -r line; do echo "::error title=test_v1282_batch2a.py::$line"; done
+            exit 1
+          }
+      - name: Every batch 2A fix is load-bearing (revert must fail the test)
+        shell: bash
+        run: |
+          python3 scripts/negative_proof_v1282_batch2a.py
+      - name: Phase 1 and neighbouring security contracts still hold
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/test_v1282_phase1_hardening.py
+          python3 scripts/test_v1277_password_policy.py
+          python3 scripts/test_v1263_vault_security.py
+          python3 scripts/test_v1276_backup_encryption.py
+          python3 scripts/test_v1276_security.py
+      - name: Syntax and whitespace checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m compileall -q app node_agent scripts
+          bash -n scripts/install.sh
+          git diff --check origin/main...HEAD
