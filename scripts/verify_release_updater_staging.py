@@ -36,6 +36,8 @@ else:
     # app/static files must republish that cache (v12.78 did not).
     static_cache_v1279 = "STREAMFORGE_V1279_STATIC_CACHE_UPDATER" in text
     # STREAMFORGE_RELEASE_NODE_LIVE_CHARTS_V1281:
+    # STREAMFORGE_RELEASE_HARDENING_V1282:
+    hardening_v1282 = "STREAMFORGE_V1282_HARDENING_UPDATER" in text
     node_live_charts_v1281 = "STREAMFORGE_V1281_NODE_LIVE_CHARTS_UPDATER" in text
     # STREAMFORGE_RELEASE_LIVE_CHARTS_V1280:
     live_charts_v1280 = "STREAMFORGE_V1280_LIVE_CHARTS_UPDATER" in text
@@ -139,7 +141,27 @@ else:
         None,
     )
 
-    if node_live_charts_v1281:
+    if hardening_v1282:
+        if 'cp -a "$SRC/." "$STAGE/"' in text:
+            errors.append(f"{updater.name} v12.82 must not copy the entire tree")
+        if re.search(r'systemctl[ \t]+(restart|reload)[ \t]+(nginx|streamforge-channel-supervisor)', text):
+            errors.append(f"{updater.name} v12.82 must not restart Nginx or the channel supervisor")
+        if not (root / "scripts" / "apply_v1282_hardening.py").is_file():
+            errors.append("missing scripts/apply_v1282_hardening.py")
+        if not (root / "scripts" / "apply_v1282_hardening.json").is_file():
+            errors.append("missing scripts/apply_v1282_hardening.json")
+        for marker in (
+            'STREAMFORGE_V1282_HARDENING_UPDATER',
+            '12.81|12.82',
+            'OLD_NODE_BLOB="2d9595392e713068cc4c0c8f5243ef55b4f5472b"',
+            'scripts/apply_v1282_hardening.py',
+            'STREAMFORGE_V1282_TEST_FAIL_AFTER_WRITE',
+            'Rolling back from',
+            'atomic_copy',
+        ):
+            if marker not in text:
+                errors.append(f"{updater.name} v12.82 contract missing {marker}")
+    elif node_live_charts_v1281:
         if 'cp -a "$SRC/." "$STAGE/"' in text:
             errors.append(f"{updater.name} v12.81 must not copy the entire tree")
         if re.search(r'systemctl[ \t]+(restart|reload)[ \t]+(nginx|streamforge-channel-supervisor)', text):

@@ -1,3 +1,8 @@
+{# STREAMFORGE_V1282_PHASE1_TEMPLATE_MARKERS_V1: v12.82 hardening touched this
+   template — destructive confirmation dialogs read their name through a data
+   attribute instead of inline string interpolation, so a category name cannot
+   break out of the script. The v12.82 updater skips the file when this marker
+   is present. #}
 {% extends "base.html" %}
 {% block title %}Categories · {{ branding.name }}{% endblock %}
 {% block heading %}<h1>Channel categories</h1><p>Create groups and assign channels during add, edit or import</p>{% endblock %}

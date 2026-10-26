@@ -29,7 +29,12 @@ jobs:
         run: |
           python3 scripts/test_v1277_node_headers.py
           python3 scripts/test_v1272_node_login.py
+      - name: Read the release version
+        id: version
+        shell: bash
+        run: echo "version=$(tr -d '[:space:]' < VERSION)" >> "$GITHUB_OUTPUT"
       - name: Test staged update and rollback
+        if: steps.version.outputs.version == '12.81'
         shell: bash
         run: |
           python3 scripts/test_v1281_updater.py > test.log 2>&1 && cat test.log || {

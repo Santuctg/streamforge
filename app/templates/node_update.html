@@ -1,3 +1,7 @@
+{# STREAMFORGE_V1282_PHASE1_TEMPLATE_MARKERS_V1: v12.82 hardening touched this
+   template — the confirmation dialog reads the node name through a data
+   attribute instead of inline string interpolation. The v12.82 updater skips
+   the file when this marker is present. #}
 {% extends "base.html" %}
 {% block title %}Update {{ node.name }} · {{ branding.name }}{% endblock %}
 {% block heading %}<h1>Update remote node</h1><p>Push the current Node Agent from the Main Panel</p>{% endblock %}

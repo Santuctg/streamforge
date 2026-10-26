@@ -1,3 +1,7 @@
+{# STREAMFORGE_V1282_PHASE1_TEMPLATE_MARKERS_V1: v12.82 hardening touched this
+   template — the destructive confirmation dialog reads the role name through a
+   data attribute instead of inline string interpolation. The v12.82 updater
+   skips the file when this marker is present. #}
 {% extends "base.html" %}
 {% block title %}Roles & Permissions · {{ branding.name }}{% endblock %}
 {% block heading %}<h1>Roles & Permissions</h1><p>Customize panel access for administrators and operators</p>{% endblock %}

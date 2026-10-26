@@ -1,0 +1,53 @@
+name: v12.82 Release Check
+on:
+  pull_request:
+    paths:
+      - VERSION
+      - node_agent/VERSION
+      - scripts/apply_v1282_hardening.py
+      - scripts/apply_v1282_hardening.json
+      - scripts/force_update_v1282.sh
+      - scripts/test_v1282_updater.py
+      - scripts/update.sh
+      - scripts/verify_release_updater_staging.py
+      - scripts/verify_v1282_patch_roundtrip.py
+      - release-notes/v12.82.md
+      - .github/workflows/v1282-release-check.yml
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install runtime dependencies
+        run: python3 -m pip install -q -r requirements.txt httpx
+      - name: Test staged update, rollback, anchor and version gates
+        shell: bash
+        run: |
+          python3 scripts/test_v1282_updater.py > test.log 2>&1 && cat test.log || {
+            tail -9 test.log | tac | while IFS= read -r line; do echo "::error title=test_v1282_updater.py::$line"; done
+            exit 1
+          }
+      - name: Hunks reproduce this release from the v12.81 sources
+        shell: bash
+        run: |
+          python3 scripts/verify_v1282_patch_roundtrip.py > test.log 2>&1 && cat test.log || {
+            tail -12 test.log | tac | while IFS= read -r line; do echo "::error title=verify_v1282_patch_roundtrip.py::$line"; done
+            exit 1
+          }
+      - name: Verify release staging and safe restart scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/verify_release_updater_staging.py
+          bash -n scripts/force_update_v1282.sh
+          bash -n scripts/update.sh
+          if [[ "$(tr -d '[:space:]' < VERSION)" == "12.82" ]]; then
+            grep -Fq 'force_update_v1282.sh' scripts/update.sh
+            test "$(tr -d '[:space:]' < node_agent/VERSION)" = "12.82"
+          fi
+          if grep -Eq 'systemctl[[:space:]]+(restart|reload)[[:space:]]+(nginx|streamforge-channel-supervisor)' scripts/force_update_v1282.sh; then exit 1; fi
+          grep -Fq 'streamforge-update --force /root/streamforge-12.82.zip' release-notes/v12.82.md
+          grep -Fq 'Roles & Permissions' release-notes/v12.82.md
+          git diff --check
