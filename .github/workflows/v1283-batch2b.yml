@@ -1,0 +1,65 @@
+name: v12.83 Phase-2 Batch 2B
+on:
+  pull_request:
+    paths:
+      - app/**
+      - deploy/**
+      - scripts/test_v1283_*.py
+      - scripts/negative_proof_v1283_*.py
+      - scripts/apply_v1283_hardening.*
+      - scripts/force_update_v1283.sh
+      - scripts/verify_release_updater_staging.py
+      - docs/**
+      - .github/workflows/v1283-batch2b.yml
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install Main runtime dependencies
+        run: python3 -m pip install -q -r requirements.txt httpx
+      - name: Batch 2B contract (rightmost client IP, verified Node TLS, secret-key hard fail)
+        shell: bash
+        run: |
+          python3 scripts/test_v1283_batch2b.py > test.log 2>&1 && cat test.log || {
+            tail -9 test.log | tac | while IFS= read -r line; do echo "::error title=test_v1283_batch2b.py::$line"; done
+            exit 1
+          }
+      - name: Every batch 2B fix is load-bearing (revert must fail the test)
+        shell: bash
+        run: |
+          python3 scripts/negative_proof_v1283_batch2b.py
+      - name: v12.83 updater: staged patch, Nginx real_ip, secret-key repair, rollback
+        shell: bash
+        run: |
+          python3 scripts/test_v1283_updater.py > updater.log 2>&1 && cat updater.log || {
+            tail -9 updater.log | tac | while IFS= read -r line; do echo "::error title=test_v1283_updater.py::$line"; done
+            exit 1
+          }
+      - name: Release patch round-trip and staging regression guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/verify_v1283_patch_roundtrip.py
+          python3 scripts/verify_release_updater_staging.py
+      - name: Neighbouring security and IP-guard contracts still hold
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/test_v1264_ip_guard.py
+          python3 scripts/test_v1265_ip_origin.py
+          python3 scripts/test_v1282_batch2a.py
+          python3 scripts/test_v1282_phase1_hardening.py
+          python3 scripts/test_v1276_security.py
+      - name: Syntax and whitespace checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m compileall -q app node_agent scripts
+          bash -n scripts/install.sh
+          bash -n scripts/force_update_v1283.sh
+          git diff --check origin/main...HEAD

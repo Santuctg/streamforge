@@ -1,3 +1,12 @@
+## 12.83 - 2026-10-27
+
+- Client identity is resolved from the **rightmost** `X-Forwarded-For` hop — the one local Nginx appends from the real socket — everywhere a viewer IP is derived (`app/client_ip.py`, shared by the access policy, load balancer, viewer tracking, session fingerprints and the login guard), gated on the loopback backend bind that Uvicorn cannot rewrite. Previously the leftmost (client-written) hop was trusted, so any viewer could choose any source IP with one forged header.
+- `deploy/nginx.conf` gains a real_ip block (`set_real_ip_from 127.0.0.1/::1`, `real_ip_recursive on`) so a forged chain can never move `$remote_addr`; CDN/internal-proxy ranges are added explicitly by the operator, and the updater patches the installed site, tests it with `nginx -t` and reloads it.
+- The per-node "Verify HTTPS certificate" option is removed: HTTPS to Remote Nodes always verifies its certificate (model column, form fields and the unverified SSL context dropped). Nodes with self-signed certificates must install trusted ones or use `http://` URLs.
+- A weak or missing `STREAMFORGE_SECRET_KEY` now refuses to start the Panel (the hard failure v12.82 promised for a later release), with the exact fix in the message; the updater repairs the key in `/etc/streamforge.env` (backed up) before restarting, so upgrades never fail to boot.
+- The v12.82 patch round-trip and updater test read their fixtures from the release tags, and the batch-2A secret-key check follows the new hard-fail contract.
+- Updater: `scripts/force_update_v1283.sh` patches the Main sources in place from `scripts/apply_v1283_hardening.json` (11 files) after a staged preflight, adds the new `app/client_ip.py` module, repairs the signing key, applies and reloads the Nginx real_ip site patch inside the rollback window, and restarts the Main HTTP workers; the channel supervisor and live streams keep running, and the unchanged Node Agent payload is only restored when an installed tree carries something else.
+
 ## 12.82 - 2026-10-27
 
 - Hardened the Panel's widest trust boundaries, in two reviewed batches with a regression test and a revert-based negative proof for every change.

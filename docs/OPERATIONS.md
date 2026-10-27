@@ -83,13 +83,15 @@ installed version:
    everyone to sign in again and re-enter saved GeoIP keys and Node SSH
    passwords. On v12.75 or older, **do not rotate it** — update first.
 3. Back up `/etc/streamforge.env` together with your database backups.
-4. **v12.82+ checks it at startup**: an empty value, the published development
-   default or anything shorter than 32 characters is written to the log as an
-   error (`STREAMFORGE_SECRET_KEY is missing or a known development value`).
-   A known value lets anyone forge Panel session cookies, so treat that error
-   as a real finding and set a random key, then restart the service. The
-   startup still succeeds in v12.82 — the hard failure arrives in a later
-   release, after every environment file has had time to be repaired.
+4. **v12.83+ refuses to start without a strong key**: an empty value, the
+   published development default or anything shorter than 32 characters stops
+   startup with the fix in the message (`app/config.py:secret_key_problem`).
+   A known value lets anyone forge Panel session cookies. The v12.83 updater
+   repairs a weak or missing `STREAMFORGE_SECRET_KEY` in `/etc/streamforge.env`
+   automatically before restarting (the original file is backed up under
+   `/var/backups/streamforge/`), so upgrading servers are never left failing to
+   start — but if you start the service by hand and see this error, set the key
+   yourself and restart.
 
 ```bash
 sudo cp -a /etc/streamforge.env /etc/streamforge.env.bak

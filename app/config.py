@@ -92,6 +92,9 @@ class Settings:
 
 settings = Settings()
 
+# STREAMFORGE_V1283_SECRET_KEY_HARD_FAIL_V1: v12.82 logged a weak signing key
+# at startup and promised the hard failure for a later release; v12.83 is that
+# release. The check lives here so tests and the updater share one definition.
 _SECRET_KEY_DEV_DEFAULT = "dev-change-me-now"
 _SECRET_KEY_MIN_LENGTH = 32
 
