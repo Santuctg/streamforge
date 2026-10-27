@@ -156,6 +156,10 @@ else:
             'OLD_NODE_BLOB="2d9595392e713068cc4c0c8f5243ef55b4f5472b"',
             'scripts/apply_v1282_hardening.py',
             'STREAMFORGE_V1282_TEST_FAIL_AFTER_WRITE',
+            'Restarting Main HTTP workers only (channel supervisor and streams keep running)',
+            'RESTARTED=1',
+            'systemctl restart streamforge',
+            'systemctl restart streamforge-public',
             'Rolling back from',
             'atomic_copy',
         ):

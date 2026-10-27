@@ -8,6 +8,7 @@ if (__import__("pathlib").Path(__file__).resolve().parents[1] / "VERSION").read_
 from pathlib import Path
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -16,6 +17,24 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts/force_update_v1282.sh"
 PATCH = json.loads((ROOT / "scripts/apply_v1282_hardening.json").read_text(encoding="utf-8"))
 PATCH_FILES = list(PATCH["files"])
+
+# STREAMFORGE_V1282_UPDATER_RESTARTS_MAIN_WORKERS_V1: patching the sources on
+# disk is not enough — the running workers keep serving the previous release
+# until they reload (the Panel showed v12.81 after a v12.82 update without
+# this). The restart must live inside the test-mode guard so tests never call
+# systemctl, and must not touch Nginx or the channel supervisor.
+SCRIPT_TEXT = SCRIPT.read_text(encoding="utf-8")
+assert re.search(
+    r'if \[\[ "\$TEST" != 1 \]\]; then\n  RESTARTED=1\n  log "Restarting Main HTTP workers',
+    SCRIPT_TEXT,
+), "restart block missing from the test-mode guard"
+# Exactly the two worker restart lines at block indentation, so neither can
+# be satisfied by the rollback's redirected copies or by each other.
+assert re.search(r"^  systemctl restart streamforge$", SCRIPT_TEXT, re.M), "streamforge restart missing"
+assert re.search(r"^  systemctl restart streamforge-public$", SCRIPT_TEXT, re.M), "streamforge-public restart missing"
+assert not re.search(
+    r"systemctl[ \t]+(restart|reload)[ \t]+(nginx|streamforge-channel-supervisor)", SCRIPT_TEXT
+), "updater must not restart Nginx or the channel supervisor"
 
 
 def v1281_source(relative: str) -> str:

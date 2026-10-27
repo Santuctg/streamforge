@@ -71,6 +71,7 @@ for file in "${FILES[@]}"; do
 done
 log "Backup created: $BACKUP"
 ROLLBACK=1
+RESTARTED=0
 rollback(){
   local rc="${1:-1}"
   trap - ERR
@@ -82,6 +83,12 @@ rollback(){
       cp -a "$BACKUP/$file" "$ROOT/$file" || true
     done
     find "$ROOT" -name '__pycache__' -type d -prune -exec rm -rf {} + 2>/dev/null || true
+    # Only reload the workers when they were already restarted once; a
+    # pre-write refusal must not disturb the running Panel.
+    if [[ "$RESTARTED" == "1" && "$TEST" != 1 ]]; then
+      systemctl restart streamforge >/dev/null 2>&1 || true
+      systemctl restart streamforge-public >/dev/null 2>&1 || true
+    fi
   fi
   exit "$rc"
 }
@@ -107,7 +114,20 @@ if [[ "${STREAMFORGE_V1282_TEST_FAIL_AFTER_WRITE:-0}" == "1" ]]; then
   rollback 1
 fi
 find "$ROOT" -name '__pycache__' -type d -prune -exec rm -rf {} + 2>/dev/null || true
+# STREAMFORGE_V1282_UPDATER_RESTARTS_MAIN_WORKERS_V1: patching the sources on
+# disk is not enough — the running Gunicorn workers keep serving the previous
+# release (and the previous security posture) until they reload, which is how
+# the Panel kept showing v12.81 after a v12.82 update. Restart only the Main
+# HTTP workers: the channel supervisor, Nginx and live streams keep running.
+if [[ "$TEST" != 1 ]]; then
+  RESTARTED=1
+  log "Restarting Main HTTP workers only (channel supervisor and streams keep running)"
+  systemctl restart streamforge
+  systemctl restart streamforge-public
+  systemctl is-active --quiet streamforge || rollback 1
+  systemctl is-active --quiet streamforge-public || rollback 1
+fi
 ROLLBACK=0
 trap - ERR
-log "Main sources updated in place; the channel supervisor and Nginx keep running."
+log "Main sources updated in place and Main HTTP workers restarted; the channel supervisor and Nginx keep running."
 log "Update Remote Nodes from the Panel: Node Updates."
