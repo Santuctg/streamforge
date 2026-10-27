@@ -33,7 +33,7 @@ jobs:
         shell: bash
         run: |
           python3 scripts/negative_proof_v1283_batch2b.py
-      - name: v12.83 updater: staged patch, Nginx real_ip, secret-key repair, rollback
+      - name: "v12.83 updater: staged patch, Nginx real_ip, secret-key repair, rollback"
         shell: bash
         run: |
           python3 scripts/test_v1283_updater.py > updater.log 2>&1 && cat updater.log || {
