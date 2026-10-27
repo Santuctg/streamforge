@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from .models import Channel, Node, StreamUser
 from .access_control import ip_matches, evaluate_access
+from .client_ip import forwarded_client_ip
 from .node_manager import node_controller, node_maintenance_active
 
 
@@ -23,9 +24,13 @@ _PREFIX_SPLIT_RE = re.compile(r"[\s,;]+")
 
 
 def client_ip(request: Request) -> str:
-    forwarded = request.headers.get("x-forwarded-for", "")
-    value = forwarded.split(",", 1)[0].strip() if forwarded else (request.client.host if request.client else "")
-    # X-Forwarded-For can contain a port in some proxy configurations.
+    # STREAMFORGE_V1283_RIGHTMOST_CLIENT_IP_V1: the leftmost X-Forwarded-For
+    # entry is whatever the client typed before Nginx; only the rightmost hop
+    # appended by the local Nginx is authoritative, and only from a loopback
+    # backend bind. Everything else falls back to the socket peer.
+    forwarded = forwarded_client_ip(request)
+    value = forwarded if forwarded else (request.client.host if request.client else "")
+    # The socket peer can still carry a port in some proxy configurations.
     if value.startswith("[") and "]" in value:
         value = value[1:value.index("]")]
     elif value.count(":") == 1 and "." in value:

@@ -701,12 +701,14 @@ class NodeController:
 
     @staticmethod
     def _context(node: Node, base_url: str = "") -> ssl.SSLContext | None:
+        # STREAMFORGE_V1283_NODE_TLS_ALWAYS_VERIFIED_V1: HTTPS to a Remote Node
+        # always verifies its certificate. The verify_tls opt-out (which let
+        # anyone on the path MITM node API traffic) is gone; self-signed node
+        # certificates must be replaced with trusted ones or served over http.
         target = (base_url or effective_node_url(node) or node.api_url or "").strip()
         if not target.lower().startswith("https://"):
             return None
-        if node.verify_tls:
-            return ssl.create_default_context()
-        return ssl._create_unverified_context()  # noqa: SLF001
+        return ssl.create_default_context()
 
     def _request(
         self,

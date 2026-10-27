@@ -37,12 +37,16 @@ assert not re.search(
 ), "updater must not restart Nginx or the channel supervisor"
 
 
+def tagged(relative: str, ref: str) -> bytes:
+    """File content straight from a release tag, so later branches stay proof."""
+    result = subprocess.run(["git", "show", f"{ref}:{relative}"], cwd=ROOT, capture_output=True)
+    assert result.returncode == 0, (relative, ref, "shallow clone?")
+    return result.stdout
+
+
 def v1281_source(relative: str) -> str:
-    """The repo file with every v12.82 hunk reverted (installed v12.81 content)."""
-    source = (ROOT / relative).read_text(encoding="utf-8")
-    for original, updated in reversed(PATCH["files"][relative]["hunks"]):
-        assert source.count(updated) == 1, (relative, updated[:60])
-        source = source.replace(updated, original)
+    """The installed v12.81 content, straight from the previous release tag."""
+    source = tagged(relative, "v12.81").decode("utf-8")
     assert PATCH["files"][relative]["marker"] not in source
     return source
 
@@ -79,7 +83,7 @@ with tempfile.TemporaryDirectory(prefix="sf-v1282-install-") as d:
     assert (app / "VERSION").read_text().strip() == "12.82"
     assert (app / "node_agent/VERSION").read_text().strip() == "12.82"
     for relative in PATCH_FILES:
-        assert (app / relative).read_bytes() == (ROOT / relative).read_bytes(), relative
+        assert (app / relative).read_bytes() == tagged(relative, "v12.82"), relative
         assert PATCH["files"][relative]["marker"] in (app / relative).read_text(encoding="utf-8"), relative
     # A second run on an already-updated tree changes nothing and succeeds.
     again = run(app, base / "backups")
@@ -110,7 +114,7 @@ with tempfile.TemporaryDirectory(prefix="sf-v1282-node-") as d:
     (app / "node_agent/app.py").write_text("# locally modified\n", encoding="utf-8")
     result = run(app, base / "backups")
     assert result.returncode == 0, result.stdout + result.stderr
-    assert (app / "node_agent/app.py").read_bytes() == (ROOT / "node_agent/app.py").read_bytes()
+    assert (app / "node_agent/app.py").read_bytes() == tagged("node_agent/app.py", "v12.82")
 
 with tempfile.TemporaryDirectory(prefix="sf-v1282-old-") as d:
     base = Path(d)

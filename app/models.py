@@ -169,7 +169,10 @@ class Node(Base):
     access_slug: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
     playlist_access_slug: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
     api_token: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    verify_tls: Mapped[bool] = mapped_column(Boolean, default=True)
+    # STREAMFORGE_V1283_NODE_TLS_ALWAYS_VERIFIED_V1: the verify_tls opt-out is
+    # removed; HTTPS to Remote Nodes is always certificate-verified. Older
+    # databases keep an unused verify_tls column (SQLite cannot drop it
+    # cheaply) that the ORM simply ignores.
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     status: Mapped[str] = mapped_column(String(30), default="unknown")
     # Last Node Agent version reported by the authenticated heartbeat or a

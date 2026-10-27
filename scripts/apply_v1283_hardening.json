@@ -1,0 +1,161 @@
+{
+ "version": "12.83",
+ "previous_version": "12.82",
+ "files": {
+  "app/access_control.py": {
+   "marker": "STREAMFORGE_V1283_RIGHTMOST_CLIENT_IP_V1",
+   "hunks": [
+    [
+     "from .config import settings\nfrom .geoip_config import load_geoip_settings\n\ntry:  # Optional at runtime; policies fail closed when an ASN list is configured.\n    import maxminddb  # type: ignore\nexcept Exception:  # pragma: no cover - optional dependency fallback\n    maxminddb = None\n\n_ASN_RE = re.compile(r\"^(?:AS)?(\\d+)$\", re.IGNORECASE)\n\n\n@dataclass(frozen=True)\nclass AccessDecision:\n    allowed: bool\n    client_ip: str\n    asn: int | None\n    reason: str = \"\"\n\n\ndef client_ip(request: Request) -> str:\n    peer = request.client.host if request.client else \"unknown\"\n    try:\n        peer_address = ipaddress.ip_address(peer)\n        trust_forwarded = peer_address.is_loopback\n    except ValueError:\n        trust_forwarded = False\n    forwarded = request.headers.get(\"x-forwarded-for\", \"\") if trust_forwarded else \"\"\n    if forwarded:\n        candidate = forwarded.split(\",\", 1)[0].strip()\n        try:\n            return str(ipaddress.ip_address(candidate))\n        except ValueError:\n            pass\n",
+     "from .client_ip import forwarded_client_ip\nfrom .config import settings\nfrom .geoip_config import load_geoip_settings\n\ntry:  # Optional at runtime; policies fail closed when an ASN list is configured.\n    import maxminddb  # type: ignore\nexcept Exception:  # pragma: no cover - optional dependency fallback\n    maxminddb = None\n\n_ASN_RE = re.compile(r\"^(?:AS)?(\\d+)$\", re.IGNORECASE)\n\n\n@dataclass(frozen=True)\nclass AccessDecision:\n    allowed: bool\n    client_ip: str\n    asn: int | None\n    reason: str = \"\"\n\n\ndef client_ip(request: Request) -> str:\n    # STREAMFORGE_V1283_RIGHTMOST_CLIENT_IP_V1: the leftmost X-Forwarded-For\n    # entry is client-supplied; only the rightmost hop (appended by local\n    # Nginx) identifies the real source, and only when the backend is bound to\n    # loopback. A direct public peer cannot forge a trusted forwarded value.\n    forwarded = forwarded_client_ip(request)\n    if forwarded:\n        return forwarded\n    peer = request.client.host if request.client else \"unknown\"\n"
+    ]
+   ]
+  },
+  "app/config.py": {
+   "marker": "STREAMFORGE_V1283_SECRET_KEY_HARD_FAIL_V1",
+   "hunks": [
+    [
+     "settings = Settings()\n",
+     "settings = Settings()\n\n# STREAMFORGE_V1283_SECRET_KEY_HARD_FAIL_V1: v12.82 logged a weak signing key\n# at startup and promised the hard failure for a later release; v12.83 is that\n# release. The check lives here so tests and the updater share one definition.\n_SECRET_KEY_DEV_DEFAULT = \"dev-change-me-now\"\n_SECRET_KEY_MIN_LENGTH = 32\n\n\ndef secret_key_problem(secret_key: str | None = None) -> str:\n    \"\"\"Non-empty with the operator-facing fix when the signing key is unusable.\n\n    STREAMFORGE_SECRET_KEY signs the Panel session cookies. The dataclass\n    default is a published development value, so a Panel running on it (or on\n    any short/empty key) lets anyone who reads the source forge an admin\n    session. v12.82 only logged this; v12.83 refuses to start.\n    \"\"\"\n    key = str(settings.secret_key if secret_key is None else (secret_key or \"\")).strip()\n    if key in {\"\", _SECRET_KEY_DEV_DEFAULT} or len(key) < _SECRET_KEY_MIN_LENGTH:\n        return (\n            \"STREAMFORGE_SECRET_KEY is missing, a published development value or \"\n            \"shorter than 32 characters; session cookies would be signed with a \"\n            \"public key. Set a random value (openssl rand -hex 32) in \"\n            \"/etc/streamforge.env and restart the service\"\n        )\n    return \"\"\n"
+    ]
+   ]
+  },
+  "app/load_balancer.py": {
+   "marker": "STREAMFORGE_V1283_RIGHTMOST_CLIENT_IP_V1",
+   "hunks": [
+    [
+     "from .node_manager import node_controller, node_maintenance_active\n\n\nclass NodeSelectionError(RuntimeError):\n    pass\n\n\n_PREFIX_SPLIT_RE = re.compile(r\"[\\s,;]+\")\n\n\ndef client_ip(request: Request) -> str:\n    forwarded = request.headers.get(\"x-forwarded-for\", \"\")\n    value = forwarded.split(\",\", 1)[0].strip() if forwarded else (request.client.host if request.client else \"\")\n    # X-Forwarded-For can contain a port in some proxy configurations.\n",
+     "from .client_ip import forwarded_client_ip\nfrom .node_manager import node_controller, node_maintenance_active\n\n\nclass NodeSelectionError(RuntimeError):\n    pass\n\n\n_PREFIX_SPLIT_RE = re.compile(r\"[\\s,;]+\")\n\n\ndef client_ip(request: Request) -> str:\n    # STREAMFORGE_V1283_RIGHTMOST_CLIENT_IP_V1: the leftmost X-Forwarded-For\n    # entry is whatever the client typed before Nginx; only the rightmost hop\n    # appended by the local Nginx is authoritative, and only from a loopback\n    # backend bind. Everything else falls back to the socket peer.\n    forwarded = forwarded_client_ip(request)\n    value = forwarded if forwarded else (request.client.host if request.client else \"\")\n    # The socket peer can still carry a port in some proxy configurations.\n"
+    ]
+   ]
+  },
+  "app/main.py": {
+   "marker": "STREAMFORGE_V1283_SECRET_KEY_HARD_FAIL_V1",
+   "hunks": [
+    [
+     "from .config import settings\n",
+     "from .config import settings, secret_key_problem\n"
+    ],
+    [
+     "from .audit_log import log_event, clear_logs, prune_logs\nfrom .access_control import evaluate_access, normalize_ip_rules, normalize_asn_rules, ip_matches, client_ip, asn_database_status, geo_details, clear_geo_cache\n",
+     "from .audit_log import log_event, clear_logs, prune_logs\nfrom .client_ip import forwarded_client_ip\nfrom .access_control import evaluate_access, normalize_ip_rules, normalize_asn_rules, ip_matches, client_ip, asn_database_status, geo_details, clear_geo_cache\n"
+    ],
+    [
+     "        forwarded = request.headers.get(\"x-forwarded-for\", \"\")\n        return forwarded.split(\",\", 1)[0].strip() if forwarded else (request.client.host if request.client else \"unknown\")\n",
+     "        # STREAMFORGE_V1283_RIGHTMOST_CLIENT_IP_V1: viewer-session fingerprints\n        # must key on the rightmost Nginx-appended hop, never on the\n        # client-supplied leftmost entry.\n        forwarded = forwarded_client_ip(request)\n        if forwarded:\n            return forwarded\n        return request.client.host if request.client else \"unknown\"\n"
+    ],
+    [
+     "        # STREAMFORGE_V1282_SECRET_KEY_WARN_V1: the dataclass default is a\n        # published development value. Anyone who knows it can forge signed\n        # session cookies, so a live Panel must never run on it silently. The\n        # hard failure lands in a later release, after every env file has had a\n        # chance to be repaired by the updater.\n        secret_key = str(settings.secret_key or \"\").strip()\n        if secret_key in {\"\", \"dev-change-me-now\"} or len(secret_key) < 32:\n            log_event(\n                \"STREAMFORGE_SECRET_KEY is missing or a known development value; \"\n                \"session cookies are signed with a public key. Set a random value \"\n                \"(openssl rand -hex 32) in /etc/streamforge.env and restart the service\",\n                scope=\"system\", level=\"error\",\n            )\n",
+     "        # STREAMFORGE_V1283_SECRET_KEY_HARD_FAIL_V1: v12.82 only logged this\n        # warning and promised the hard failure for a later release; this is\n        # that release. The signing key must exist before any session cookie\n        # can be issued, so a weak/dev key refuses to boot with the exact fix\n        # instead of silently enabling session forgery. Fresh installs always\n        # generate a strong key, and the v12.83 updater repairs a weak one in\n        # /etc/streamforge.env before the restart.\n        problem = secret_key_problem()\n        if problem:\n            raise RuntimeError(problem)\n"
+    ],
+    [
+     "    panel_asn_blacklist: str = Form(\"\"),\n    ip_whitelist: str = Form(\"\"),\n    ip_blacklist: str = Form(\"\"),\n    asn_whitelist: str = Form(\"\"),\n    asn_blacklist: str = Form(\"\"),\n    enabled: Optional[str] = Form(None),\n    verify_tls: Optional[str] = Form(None),\n    ssh_host: str = Form(\"\"),\n    ssh_port: int = Form(22),\n    ssh_user: str = Form(\"root\"),\n    ssh_password: str = Form(\"\"),\n    save_ssh_password: Optional[str] = Form(None),\n    agent_port: int = Form(0),\n",
+     "    panel_asn_blacklist: str = Form(\"\"),\n    ip_whitelist: str = Form(\"\"),\n    ip_blacklist: str = Form(\"\"),\n    asn_whitelist: str = Form(\"\"),\n    asn_blacklist: str = Form(\"\"),\n    enabled: Optional[str] = Form(None),\n    ssh_host: str = Form(\"\"),\n    ssh_port: int = Form(22),\n    ssh_user: str = Form(\"root\"),\n    ssh_password: str = Form(\"\"),\n    save_ssh_password: Optional[str] = Form(None),\n    agent_port: int = Form(0),\n"
+    ],
+    [
+     "        draft = type(\"NodeDraft\", (), {\"name\": cleaned_name, \"api_url\": api_url, \"client_prefixes\": client_prefixes, \"panel_ip_whitelist\": panel_ip_whitelist, \"panel_ip_blacklist\": panel_ip_blacklist, \"panel_asn_whitelist\": panel_asn_whitelist, \"panel_asn_blacklist\": panel_asn_blacklist, \"enabled\": as_bool(enabled), \"verify_tls\": as_bool(verify_tls), \"node_type\": \"remote\", \"id\": None, \"dns_name\": dns_name, \"dns_scheme\": dns_scheme, \"dns_only\": True, \"playlist_url\": playlist_url, \"playlist_dns_only\": True, \"api_urls\": api_url, \"playlist_urls\": playlist_url, \"access_slug\": access_slug, \"playlist_access_slug\": playlist_access_slug, \"local_channel_limit\": max(0, int(local_channel_limit or 0)), \"total_max_connections\": max(0, int(total_max_connections or 0)), \"node_viewer_session_timeout_seconds\": max(5, min(3600, int(node_viewer_session_timeout_seconds or 5))), \"node_hide_panel_hover_urls\": as_bool(node_hide_panel_hover_urls), \"sync_main_users\": as_bool(sync_main_users), \"logo_url\": logo_url})()\n        return render(request, \"node_form.html\", db, node=draft, error=str(exc), suggested_token=token)\n    try:\n        uploaded_logo = save_node_logo(logo_file)\n    except ValueError as exc:\n        draft = type(\"NodeDraft\", (), {\"name\": cleaned_name, \"api_url\": api_url, \"client_prefixes\": client_prefixes, \"panel_ip_whitelist\": panel_ip_whitelist, \"panel_ip_blacklist\": panel_ip_blacklist, \"panel_asn_whitelist\": panel_asn_whitelist, \"panel_asn_blacklist\": panel_asn_blacklist, \"enabled\": as_bool(enabled), \"verify_tls\": as_bool(verify_tls), \"node_type\": \"remote\", \"id\": None, \"dns_name\": dns_name, \"dns_scheme\": dns_scheme, \"dns_only\": True, \"playlist_url\": playlist_url, \"playlist_dns_only\": True, \"api_urls\": api_url, \"playlist_urls\": playlist_url, \"access_slug\": access_slug, \"playlist_access_slug\": playlist_access_slug, \"local_channel_limit\": max(0, int(local_channel_limit or 0)), \"total_max_connections\": max(0, int(total_max_connections or 0)), \"node_viewer_session_timeout_seconds\": max(5, min(3600, int(node_viewer_session_timeout_seconds or 5))), \"node_hide_panel_hover_urls\": as_bool(node_hide_panel_hover_urls), \"sync_main_users\": as_bool(sync_main_users), \"logo_url\": logo_url})()\n        return render(request, \"node_form.html\", db, node=draft, error=str(exc), suggested_token=token)\n    node = Node(\n        name=cleaned_name,\n        slug=unique_node_slug(db, cleaned_name),\n        node_type=\"remote\",\n        api_url=cleaned_url,\n        api_urls=\"\\n\".join(normalized_api_urls),\n        playlist_urls=\"\\n\".join(normalized_playlist_urls),\n        access_slug=normalized_access_slug,\n        playlist_access_slug=normalized_playlist_access_slug,\n        api_token=token,\n        enabled=as_bool(enabled),\n        verify_tls=as_bool(verify_tls),\n",
+     "        draft = type(\"NodeDraft\", (), {\"name\": cleaned_name, \"api_url\": api_url, \"client_prefixes\": client_prefixes, \"panel_ip_whitelist\": panel_ip_whitelist, \"panel_ip_blacklist\": panel_ip_blacklist, \"panel_asn_whitelist\": panel_asn_whitelist, \"panel_asn_blacklist\": panel_asn_blacklist, \"enabled\": as_bool(enabled), \"node_type\": \"remote\", \"id\": None, \"dns_name\": dns_name, \"dns_scheme\": dns_scheme, \"dns_only\": True, \"playlist_url\": playlist_url, \"playlist_dns_only\": True, \"api_urls\": api_url, \"playlist_urls\": playlist_url, \"access_slug\": access_slug, \"playlist_access_slug\": playlist_access_slug, \"local_channel_limit\": max(0, int(local_channel_limit or 0)), \"total_max_connections\": max(0, int(total_max_connections or 0)), \"node_viewer_session_timeout_seconds\": max(5, min(3600, int(node_viewer_session_timeout_seconds or 5))), \"node_hide_panel_hover_urls\": as_bool(node_hide_panel_hover_urls), \"sync_main_users\": as_bool(sync_main_users), \"logo_url\": logo_url})()\n        return render(request, \"node_form.html\", db, node=draft, error=str(exc), suggested_token=token)\n    try:\n        uploaded_logo = save_node_logo(logo_file)\n    except ValueError as exc:\n        draft = type(\"NodeDraft\", (), {\"name\": cleaned_name, \"api_url\": api_url, \"client_prefixes\": client_prefixes, \"panel_ip_whitelist\": panel_ip_whitelist, \"panel_ip_blacklist\": panel_ip_blacklist, \"panel_asn_whitelist\": panel_asn_whitelist, \"panel_asn_blacklist\": panel_asn_blacklist, \"enabled\": as_bool(enabled), \"node_type\": \"remote\", \"id\": None, \"dns_name\": dns_name, \"dns_scheme\": dns_scheme, \"dns_only\": True, \"playlist_url\": playlist_url, \"playlist_dns_only\": True, \"api_urls\": api_url, \"playlist_urls\": playlist_url, \"access_slug\": access_slug, \"playlist_access_slug\": playlist_access_slug, \"local_channel_limit\": max(0, int(local_channel_limit or 0)), \"total_max_connections\": max(0, int(total_max_connections or 0)), \"node_viewer_session_timeout_seconds\": max(5, min(3600, int(node_viewer_session_timeout_seconds or 5))), \"node_hide_panel_hover_urls\": as_bool(node_hide_panel_hover_urls), \"sync_main_users\": as_bool(sync_main_users), \"logo_url\": logo_url})()\n        return render(request, \"node_form.html\", db, node=draft, error=str(exc), suggested_token=token)\n    node = Node(\n        name=cleaned_name,\n        slug=unique_node_slug(db, cleaned_name),\n        node_type=\"remote\",\n        api_url=cleaned_url,\n        api_urls=\"\\n\".join(normalized_api_urls),\n        playlist_urls=\"\\n\".join(normalized_playlist_urls),\n        access_slug=normalized_access_slug,\n        playlist_access_slug=normalized_playlist_access_slug,\n        api_token=token,\n        enabled=as_bool(enabled),\n"
+    ],
+    [
+     "            \"verify_tls\": True,\n",
+     ""
+    ],
+    [
+     "    enabled: Optional[str] = Form(None),\n    verify_tls: Optional[str] = Form(None),\n    playlist_url: str = Form(...),\n",
+     "    enabled: Optional[str] = Form(None),\n    playlist_url: str = Form(...),\n"
+    ],
+    [
+     "        \"verify_tls\": as_bool(verify_tls),\n",
+     ""
+    ],
+    [
+     "        enabled=as_bool(enabled),\n        verify_tls=as_bool(verify_tls),\n        status=\"unknown\",\n",
+     "        enabled=as_bool(enabled),\n        status=\"unknown\",\n"
+    ],
+    [
+     "    verify_tls: Optional[str] = Form(None),\n    ssh_host: str = Form(\"\"),\n    ssh_port: int = Form(22),\n    ssh_user: str = Form(\"root\"),\n    ssh_password: str = Form(\"\"),\n    save_ssh_password: Optional[str] = Form(None),\n    clear_ssh_password: Optional[str] = Form(None),\n    agent_port: int = Form(0),\n    db: Session = Depends(get_db),\n):\n    if not current_admin(request, db):\n        return redirect_login()\n    node = db.get(Node, node_id)\n    if not node:\n        raise HTTPException(404)\n    enforce_node_editor_permission(request, db, node)\n    local_snapshot = None\n    if node.node_type == \"local\":\n        local_snapshot = {\n            field: getattr(node, field)\n            for field in (\n                \"name\", \"api_url\", \"api_urls\", \"playlist_url\", \"playlist_urls\",\n                \"access_slug\", \"playlist_access_slug\", \"logo_url\", \"enabled\",\n                \"verify_tls\", \"client_prefixes\", \"panel_ip_whitelist\", \"panel_ip_blacklist\",\n",
+     "    ssh_host: str = Form(\"\"),\n    ssh_port: int = Form(22),\n    ssh_user: str = Form(\"root\"),\n    ssh_password: str = Form(\"\"),\n    save_ssh_password: Optional[str] = Form(None),\n    clear_ssh_password: Optional[str] = Form(None),\n    agent_port: int = Form(0),\n    db: Session = Depends(get_db),\n):\n    if not current_admin(request, db):\n        return redirect_login()\n    node = db.get(Node, node_id)\n    if not node:\n        raise HTTPException(404)\n    enforce_node_editor_permission(request, db, node)\n    local_snapshot = None\n    if node.node_type == \"local\":\n        local_snapshot = {\n            field: getattr(node, field)\n            for field in (\n                \"name\", \"api_url\", \"api_urls\", \"playlist_url\", \"playlist_urls\",\n                \"access_slug\", \"playlist_access_slug\", \"logo_url\", \"enabled\",\n                \"client_prefixes\", \"panel_ip_whitelist\", \"panel_ip_blacklist\",\n"
+    ],
+    [
+     "    node.verify_tls = as_bool(verify_tls) if node.node_type != \"local\" else True\n",
+     ""
+    ]
+   ]
+  },
+  "app/models.py": {
+   "marker": "STREAMFORGE_V1283_NODE_TLS_ALWAYS_VERIFIED_V1",
+   "hunks": [
+    [
+     "    verify_tls: Mapped[bool] = mapped_column(Boolean, default=True)\n",
+     "    # STREAMFORGE_V1283_NODE_TLS_ALWAYS_VERIFIED_V1: the verify_tls opt-out is\n    # removed; HTTPS to Remote Nodes is always certificate-verified. Older\n    # databases keep an unused verify_tls column (SQLite cannot drop it\n    # cheaply) that the ORM simply ignores.\n"
+    ]
+   ]
+  },
+  "app/node_manager.py": {
+   "marker": "STREAMFORGE_V1283_NODE_TLS_ALWAYS_VERIFIED_V1",
+   "hunks": [
+    [
+     "        target = (base_url or effective_node_url(node) or node.api_url or \"\").strip()\n        if not target.lower().startswith(\"https://\"):\n            return None\n        if node.verify_tls:\n            return ssl.create_default_context()\n        return ssl._create_unverified_context()  # noqa: SLF001\n",
+     "        # STREAMFORGE_V1283_NODE_TLS_ALWAYS_VERIFIED_V1: HTTPS to a Remote Node\n        # always verifies its certificate. The verify_tls opt-out (which let\n        # anyone on the path MITM node API traffic) is gone; self-signed node\n        # certificates must be replaced with trusted ones or served over http.\n        target = (base_url or effective_node_url(node) or node.api_url or \"\").strip()\n        if not target.lower().startswith(\"https://\"):\n            return None\n        return ssl.create_default_context()\n"
+    ]
+   ]
+  },
+  "app/panel_login_guard.py": {
+   "marker": "STREAMFORGE_V1283_RIGHTMOST_CLIENT_IP_V1",
+   "hunks": [
+    [
+     "from pathlib import Path\n\n",
+     "from pathlib import Path\n\nfrom .client_ip import forwarded_hops\n\n"
+    ],
+    [
+     "        return normalize_client_ip(header.split(\",\")[-1])\n",
+     "        # STREAMFORGE_V1283_RIGHTMOST_CLIENT_IP_V1: shared hop parsing strips\n        # ports/brackets; the rightmost entry stays the selection.\n        hops = forwarded_hops(header)\n        if not hops:\n            raise LoginGuardUnavailable(\"Empty Panel forwarded IP chain\")\n        return normalize_client_ip(hops[-1])\n"
+    ]
+   ]
+  },
+  "app/templates/node_form.html": {
+   "marker": "STREAMFORGE_V1283_NODE_TLS_ALWAYS_VERIFIED_V1",
+   "hunks": [
+    [
+     "    <input type=\"hidden\" name=\"verify_tls\" value=\"on\">\n",
+     ""
+    ],
+    [
+     "      <label class=\"check\"><input type=\"checkbox\" name=\"verify_tls\" {% if not node or node.verify_tls %}checked{% endif %}><span>Verify HTTPS certificate</span></label>\n",
+     "      <!-- STREAMFORGE_V1283_NODE_TLS_ALWAYS_VERIFIED_V1: the \"Verify HTTPS\n           certificate\" option is removed; HTTPS to Remote Nodes is always\n           certificate-verified. -->\n"
+    ]
+   ]
+  },
+  "app/templates/node_install.html": {
+   "marker": "STREAMFORGE_V1283_NODE_TLS_ALWAYS_VERIFIED_V1",
+   "hunks": [
+    [
+     "    <label class=\"check\"><input type=\"checkbox\" name=\"verify_tls\" {% if form_data.verify_tls is not defined or form_data.verify_tls %}checked{% endif %}><span>Verify HTTPS certificate</span></label>\n",
+     "    <!-- STREAMFORGE_V1283_NODE_TLS_ALWAYS_VERIFIED_V1: the \"Verify HTTPS\n         certificate\" option is removed; HTTPS to Remote Nodes is always\n         certificate-verified. -->\n"
+    ]
+   ]
+  },
+  "app/viewer_tracking.py": {
+   "marker": "STREAMFORGE_V1283_RIGHTMOST_CLIENT_IP_V1",
+   "hunks": [
+    [
+     "\nfrom .redis_state import redis_state\n",
+     "\nfrom .client_ip import forwarded_client_ip\nfrom .redis_state import redis_state\n"
+    ],
+    [
+     "        forwarded = request.headers.get(\"x-forwarded-for\", \"\")\n        if forwarded:\n            return forwarded.split(\",\", 1)[0].strip()\n",
+     "        # STREAMFORGE_V1283_RIGHTMOST_CLIENT_IP_V1: counts key on the\n        # Nginx-appended rightmost hop, never the spoofable leftmost entry.\n        forwarded = forwarded_client_ip(request)\n        if forwarded:\n            return forwarded\n"
+    ]
+   ]
+  },
+  "deploy/nginx.conf": {
+   "marker": "STREAMFORGE_V1283_NGINX_REAL_IP_V1",
+   "hunks": [
+    [
+     "    default 0;\n}\n\nupstream streamforge_main_backend {\n",
+     "    default 0;\n}\n\n# STREAMFORGE_V1283_NGINX_REAL_IP_V1: rewrite $remote_addr from the connecting\n# peer's X-Forwarded-For chain ONLY for trusted proxies, then keep\n# real_ip_recursive so a chain of trusted hops resolves to the true client.\n# The default trust list is loopback only: a viewer connecting to Nginx\n# directly (public or LAN) is never trusted, so their spoofed X-Forwarded-For\n# cannot move $remote_addr and the rightmost hop Nginx appends stays the real\n# client. When a CDN or an internal proxy sits in front of this Nginx, add\n# exactly that proxy's ranges here (never 0.0.0.0/0) so the rightmost hop\n# keeps pointing at the actual client.\nset_real_ip_from 127.0.0.1;\nset_real_ip_from ::1;\nreal_ip_recursive on;\n\nupstream streamforge_main_backend {\n"
+    ]
+   ]
+  }
+ }
+}

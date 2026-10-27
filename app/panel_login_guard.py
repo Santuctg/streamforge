@@ -16,6 +16,8 @@ import time
 from contextlib import closing
 from pathlib import Path
 
+from .client_ip import forwarded_hops
+
 GUARD_DB_ENV = "STREAMFORGE_PANEL_LOGIN_GUARD_DB"
 GUARD_DB_DEFAULT = "/var/lib/streamforge/panel-login-guard.sqlite3"
 FAILED_ATTEMPTS = 5
@@ -63,7 +65,12 @@ def main_panel_client_ip(request) -> str:
         if not on_loopback_backend:
             # Do not accept forged proxy headers on publicly bound backends.
             raise LoginGuardUnavailable("Panel forwarded IP requires loopback backend")
-        return normalize_client_ip(header.split(",")[-1])
+        # STREAMFORGE_V1283_RIGHTMOST_CLIENT_IP_V1: shared hop parsing strips
+        # ports/brackets; the rightmost entry stays the selection.
+        hops = forwarded_hops(header)
+        if not hops:
+            raise LoginGuardUnavailable("Empty Panel forwarded IP chain")
+        return normalize_client_ip(hops[-1])
     return peer
 
 

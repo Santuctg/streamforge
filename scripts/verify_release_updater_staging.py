@@ -38,6 +38,8 @@ else:
     # STREAMFORGE_RELEASE_NODE_LIVE_CHARTS_V1281:
     # STREAMFORGE_RELEASE_HARDENING_V1282:
     hardening_v1282 = "STREAMFORGE_V1282_HARDENING_UPDATER" in text
+    # STREAMFORGE_RELEASE_HARDENING_V1283:
+    hardening_v1283 = "STREAMFORGE_V1283_HARDENING_UPDATER" in text
     node_live_charts_v1281 = "STREAMFORGE_V1281_NODE_LIVE_CHARTS_UPDATER" in text
     # STREAMFORGE_RELEASE_LIVE_CHARTS_V1280:
     live_charts_v1280 = "STREAMFORGE_V1280_LIVE_CHARTS_UPDATER" in text
@@ -141,7 +143,38 @@ else:
         None,
     )
 
-    if hardening_v1282:
+    if hardening_v1283:
+        if 'cp -a "$SRC/." "$STAGE/"' in text:
+            errors.append(f"{updater.name} v12.83 must not copy the entire tree")
+        # A reload is required for the real_ip site patch; a restart of Nginx
+        # or the channel supervisor is never acceptable.
+        if re.search(r'systemctl[ \t]+restart[ \t]+(nginx|streamforge-channel-supervisor)', text):
+            errors.append(f"{updater.name} v12.83 must not restart Nginx or the channel supervisor")
+        if not (root / "scripts" / "apply_v1283_hardening.py").is_file():
+            errors.append("missing scripts/apply_v1283_hardening.py")
+        if not (root / "scripts" / "apply_v1283_hardening.json").is_file():
+            errors.append("missing scripts/apply_v1283_hardening.json")
+        for marker in (
+            'STREAMFORGE_V1283_HARDENING_UPDATER',
+            '12.82|12.83',
+            'OLD_NODE_BLOB="2d9595392e713068cc4c0c8f5243ef55b4f5472b"',
+            'scripts/apply_v1283_hardening.py',
+            'STREAMFORGE_V1283_TEST_FAIL_AFTER_WRITE',
+            'STREAMFORGE_V1283_SECRET_KEY_ENV_REPAIR_V1',
+            'STREAMFORGE_V1283_NEW_CLIENT_IP_MODULE',
+            'STREAMFORGE_V1283_NGINX_REAL_IP_V1',
+            'nginx -t',
+            'systemctl reload nginx',
+            'Restarting Main HTTP workers only (channel supervisor and streams keep running)',
+            'RESTARTED=1',
+            'systemctl restart streamforge',
+            'systemctl restart streamforge-public',
+            'Rolling back from',
+            'atomic_copy',
+        ):
+            if marker not in text:
+                errors.append(f"{updater.name} v12.83 contract missing {marker}")
+    elif hardening_v1282:
         if 'cp -a "$SRC/." "$STAGE/"' in text:
             errors.append(f"{updater.name} v12.82 must not copy the entire tree")
         if re.search(r'systemctl[ \t]+(restart|reload)[ \t]+(nginx|streamforge-channel-supervisor)', text):

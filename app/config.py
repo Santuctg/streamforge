@@ -91,3 +91,28 @@ class Settings:
 
 
 settings = Settings()
+
+# STREAMFORGE_V1283_SECRET_KEY_HARD_FAIL_V1: v12.82 logged a weak signing key
+# at startup and promised the hard failure for a later release; v12.83 is that
+# release. The check lives here so tests and the updater share one definition.
+_SECRET_KEY_DEV_DEFAULT = "dev-change-me-now"
+_SECRET_KEY_MIN_LENGTH = 32
+
+
+def secret_key_problem(secret_key: str | None = None) -> str:
+    """Non-empty with the operator-facing fix when the signing key is unusable.
+
+    STREAMFORGE_SECRET_KEY signs the Panel session cookies. The dataclass
+    default is a published development value, so a Panel running on it (or on
+    any short/empty key) lets anyone who reads the source forge an admin
+    session. v12.82 only logged this; v12.83 refuses to start.
+    """
+    key = str(settings.secret_key if secret_key is None else (secret_key or "")).strip()
+    if key in {"", _SECRET_KEY_DEV_DEFAULT} or len(key) < _SECRET_KEY_MIN_LENGTH:
+        return (
+            "STREAMFORGE_SECRET_KEY is missing, a published development value or "
+            "shorter than 32 characters; session cookies would be signed with a "
+            "public key. Set a random value (openssl rand -hex 32) in "
+            "/etc/streamforge.env and restart the service"
+        )
+    return ""
