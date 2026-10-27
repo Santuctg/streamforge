@@ -83,6 +83,13 @@ installed version:
    everyone to sign in again and re-enter saved GeoIP keys and Node SSH
    passwords. On v12.75 or older, **do not rotate it** — update first.
 3. Back up `/etc/streamforge.env` together with your database backups.
+4. **v12.82+ checks it at startup**: an empty value, the published development
+   default or anything shorter than 32 characters is written to the log as an
+   error (`STREAMFORGE_SECRET_KEY is missing or a known development value`).
+   A known value lets anyone forge Panel session cookies, so treat that error
+   as a real finding and set a random key, then restart the service. The
+   startup still succeeds in v12.82 — the hard failure arrives in a later
+   release, after every environment file has had time to be repaired.
 
 ```bash
 sudo cp -a /etc/streamforge.env /etc/streamforge.env.bak
@@ -109,8 +116,10 @@ new key was active must be entered again.
 - [ ] Remote Nodes updated from **Node Updates** to the Main version
 - [ ] `STREAMFORGE_SECRET_KEY` is a long random value and has never been shared
 - [ ] Panel served over HTTPS (session cookie is `Secure` on HTTPS since v12.75); optionally `STREAMFORGE_HSTS_MAX_AGE` when every port of the domain uses HTTPS
-- [ ] Staff use least-privilege roles; Super Admin limited to owners
+- [ ] Staff use least-privilege roles; Super Admin limited to owners; `sessions.kill` (v12.82+) only for roles that may disconnect viewers
+- [ ] Channel sources are transport URLs — `STREAMFORGE_ALLOW_LOCAL_FILE_SOURCES`/`STREAMFORGE_SOURCE_SCHEME_ALLOWLIST` unset unless deliberately used (v12.82+)
 - [ ] Panel access restricted by IP/ASN where possible
+- [ ] Node API token rotated from **Nodes → Regenerate API token** (v12.82+) if it may have been exposed
 - [ ] Backups go off-server (SMB / SSH / Google Drive) **with a backup passphrase set** (v12.76+), and the passphrase is stored safely elsewhere
 - [ ] A second SSH session is open before changing access rules or updating
 

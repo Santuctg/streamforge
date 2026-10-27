@@ -1,0 +1,40 @@
+name: v12.82 Phase-1 Hardening
+on:
+  pull_request:
+    paths:
+      - app/**
+      - scripts/install.sh
+      - scripts/test_v1282_*.py
+      - .github/workflows/v1282-phase1-hardening.yml
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install Main runtime dependencies
+        run: python3 -m pip install -q -r requirements.txt httpx
+      - name: Vault fallback, SMB sanitize, fail-closed backup encryption, confirm XSS, installer vault key
+        shell: bash
+        run: |
+          python3 scripts/test_v1282_phase1_hardening.py > test.log 2>&1 && cat test.log || {
+            tail -9 test.log | tac | while IFS= read -r line; do echo "::error title=test_v1282_phase1_hardening.py::$line"; done
+            exit 1
+          }
+      - name: Password policy, vault and installer contracts still hold
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/test_v1277_password_policy.py
+          python3 scripts/test_v1263_vault_security.py
+          python3 scripts/verify_panel_credential_vault_v1263.py
+      - name: Syntax and whitespace checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m compileall -q app node_agent scripts
+          bash -n scripts/install.sh
+          git diff --check origin/main...HEAD

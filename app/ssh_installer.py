@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 import os
 import posixpath
+import re
 import secrets
 import shlex
 import socket
@@ -322,17 +323,39 @@ def run_node_admin_command_over_ssh(
     username: str,
     password: str,
     action: str,
+    node_token: str = "",
 ) -> SSHInstallResult:
     """Run one allow-listed Node administration action over saved SSH access."""
     commands = {
         "service_restart": "nohup sh -c 'sleep 1; systemctl restart streamforge-node' >/dev/null 2>&1 &",
         "reboot": "nohup sh -c 'sleep 1; systemctl reboot' >/dev/null 2>&1 &",
     }
-    command_body = commands.get(str(action or "").strip())
-    host = str(host or "").strip()
-    username = str(username or "").strip()
+    action_key = str(action or "").strip()
+    command_body = commands.get(action_key)
+    if action_key == "token_rotate":
+        # STREAMFORGE_V1282_NODE_TOKEN_ROTATE_V1: the Node reads its API token
+        # from /etc/streamforge-node.env at start-up, so rotation is "rewrite
+        # the one line, then restart". The token is minted by the Panel with
+        # secrets.token_urlsafe() and this character class excludes every sed
+        # and shell metacharacter (the pipe is the sed delimiter), so nothing
+        # in it can escape the single-quoted expression.
+        token = str(node_token or "")
+        if not re.fullmatch(r"[A-Za-z0-9._~-]{32,128}", token):
+            raise SSHInstallError("Refusing to rotate: the generated API token is not a plain token value")
+        line = f"STREAMFORGE_NODE_TOKEN={token}"
+        command_body = (
+            "set -e; "
+            "test -f /etc/streamforge-node.env; "
+            "grep -q '^STREAMFORGE_NODE_TOKEN=' /etc/streamforge-node.env; "
+            f"sed -i 's|^STREAMFORGE_NODE_TOKEN=.*$|{line}|' /etc/streamforge-node.env; "
+            f"grep -Fqx {shlex.quote(line)} /etc/streamforge-node.env; "
+            "chmod 0640 /etc/streamforge-node.env; "
+            "systemctl restart streamforge-node"
+        )
     if not command_body:
         raise SSHInstallError("Unsupported Node administration action")
+    host = str(host or "").strip()
+    username = str(username or "").strip()
     if not host or not username or not password:
         raise SSHInstallError("Saved SSH host, username and password are required")
     if not 1 <= int(port) <= 65535:

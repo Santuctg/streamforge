@@ -17,6 +17,8 @@ PERMISSION_GROUPS: "OrderedDict[str, list[tuple[str, str, str]]]" = OrderedDict(
             [
                 ("dashboard.view", "View dashboard", "Open the overview page and see channel/user totals."),
                 ("system_metrics.view", "View server metrics", "See live CPU, memory, network and uptime data."),
+                # STREAMFORGE_V1282_SESSION_KILL_PERMISSION_V1:
+                ("sessions.kill", "Kill viewer sessions", "Disconnect any online viewer session from the Live sessions page. Previously this followed dashboard.view, so a read-only Overview role could stop every stream."),
             ],
         ),
         (
@@ -125,6 +127,7 @@ SUPERUSER_PERMISSION = "*"
 
 PERMISSION_DEPENDENCIES: dict[str, set[str]] = {
     "system_metrics.view": {"dashboard.view"},
+    "sessions.kill": {"dashboard.view"},
     "main_access.view": {"nodes.view"},
     "main_access.edit": {"main_access.view", "nodes.view"},
     "settings.edit": {"settings.view"},

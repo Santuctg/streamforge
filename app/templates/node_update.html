@@ -1,3 +1,7 @@
+{# STREAMFORGE_V1282_PHASE1_TEMPLATE_MARKERS_V1: v12.82 hardening touched this
+   template — the confirmation dialog reads the node name through a data
+   attribute instead of inline string interpolation. The v12.82 updater skips
+   the file when this marker is present. #}
 {% extends "base.html" %}
 {% block title %}Update {{ node.name }} · {{ branding.name }}{% endblock %}
 {% block heading %}<h1>Update remote node</h1><p>Push the current Node Agent from the Main Panel</p>{% endblock %}
@@ -27,7 +31,7 @@
   <div class="panel-head"><div><h2>Automatic update</h2><p>Port 80 is the default. When saved SSH credentials exist, Main Server automatically uses them for the one-time systemd listener migration; otherwise the API updater is used.</p></div></div>
   <div class="node-update-body">
     <div class="node-update-summary"><b>{{ node.name }}</b><span class="mono">{{ node.api_url }}</span><small>The update runs as a background job and this page displays its live state.</small></div>
-    <form method="post" action="/nodes/{{ node.id }}/update/api" data-node-update-trigger onsubmit="return confirm('Update and restart {{ node.name }} now?')"><button class="button primary">Update node</button></form>
+    <form method="post" action="/nodes/{{ node.id }}/update/api" data-node-update-trigger data-confirm-name="{{ node.name }}" onsubmit="return confirm('Update and restart ' + this.getAttribute('data-confirm-name') + ' now?')"><button class="button primary">Update node</button></form>
   </div>
 </section>
 <section class="panel form-section">

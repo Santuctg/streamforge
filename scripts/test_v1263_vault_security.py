@@ -3,8 +3,13 @@
 from __future__ import annotations
 import os
 import json
+import sys
 import tempfile
 from contextlib import contextmanager
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from cryptography.fernet import Fernet
 from fastapi import FastAPI
 from fastapi.testclient import TestClient

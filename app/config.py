@@ -70,6 +70,24 @@ class Settings:
     redis_timeout_ms: int = max(50, min(2000, int(os.getenv("STREAMFORGE_REDIS_TIMEOUT_MS", "150"))))
     redis_touch_interval_ms: int = max(250, min(5000, int(os.getenv("STREAMFORGE_REDIS_TOUCH_INTERVAL_MS", "1000"))))
     redis_failure_backoff_seconds: int = max(1, min(60, int(os.getenv("STREAMFORGE_REDIS_FAILURE_BACKOFF_SECONDS", "5"))))
+    # STREAMFORGE_V1282_SOURCE_SCHEME_GUARD_V1: FFmpeg/ffprobe accept far more
+    # than transport URLs — file:, concat: and lavfi-style inputs let anyone
+    # who can edit a channel read host files through a probe or a live stream.
+    # Only transport schemes are passed on; exotic but legitimate schemes can
+    # be re-enabled explicitly instead of being guessed at.
+    source_scheme_allowlist: frozenset[str] = frozenset(
+        {
+            "http", "https", "rtmp", "rtmps", "rtsp", "rtsps", "rtp", "udp",
+            "tcp", "srt", "mmsh", "mmst", "ws", "wss",
+        }
+    ) | frozenset(
+        item.strip().lower()
+        for item in os.getenv("STREAMFORGE_SOURCE_SCHEME_ALLOWLIST", "").split(",")
+        if item.strip()
+    )
+    # A scheme-less local path is still a file read; keep it opt-in so the
+    # upgrade cannot silently start refusing existing local recordings.
+    allow_local_file_sources: bool = os.getenv("STREAMFORGE_ALLOW_LOCAL_FILE_SOURCES", "0").strip().lower() in {"1", "true", "yes", "on"}
 
 
 settings = Settings()

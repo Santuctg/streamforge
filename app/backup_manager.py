@@ -35,6 +35,16 @@ BACKUP_ENCRYPTION_FILE = Path("/var/lib/streamforge/backup-encryption.json")
 BACKUP_PASSPHRASE_MIN_LENGTH = 12
 
 
+def _backup_include_env_enabled() -> bool:
+    """True when the runtime env snapshot is written into a backup archive.
+
+    STREAMFORGE_V1282_BACKUP_ENV_OPTOUT_V1: opt-out switch for the
+    STREAMFORGE_* snapshot (see the note at the write site). Read live instead
+    of through Settings() so an override set after import still applies.
+    """
+    return os.getenv("STREAMFORGE_BACKUP_INCLUDE_ENV", "1").strip().lower() in {"1", "true", "yes", "on"}
+
+
 def _normalize_schedule_time(value: Any) -> str:
     """Return a strict server-local HH:MM backup time."""
     text = str(value or "00:00").strip()
@@ -85,6 +95,25 @@ def backup_encryption_enabled() -> bool:
     return bool(backup_encryption_passphrase())
 
 
+# STREAMFORGE_V1282_BACKUP_ENCRYPTION_FAIL_CLOSED: the lenient reader above
+# returns "" for both "encryption never configured" and "configured but the
+# key/passphrase can no longer be read". Uploading with the latter case
+# silently sent plaintext archives containing the full environment snapshot.
+# Restore and display code stay lenient; only delivery to a destination is
+# strict.
+def required_backup_encryption_passphrase() -> str:
+    if not BACKUP_ENCRYPTION_FILE.exists():
+        return ""
+    passphrase = backup_encryption_passphrase()
+    if not passphrase:
+        raise RuntimeError(
+            "Backup encryption is configured but its passphrase could not be read; "
+            "refusing to upload an unencrypted archive. Re-enter it under "
+            "Backups → Backup encryption or clear it to send archives in plaintext."
+        )
+    return passphrase
+
+
 def save_backup_encryption_passphrase(passphrase: str) -> None:
     value = str(passphrase or "")
     if len(value) < BACKUP_PASSPHRASE_MIN_LENGTH:
@@ -118,13 +147,39 @@ def prepare_restore_archive(path: Path, passphrase: str = "") -> bool:
     return True
 
 
+# STREAMFORGE_V1282_SMB_SANITIZE: smbclient parses the complete "-c" argument
+# string itself — ";" separates commands and "!" runs a local shell command —
+# while _smb_quote() only escapes double quotes. A destination, username or
+# domain carrying any of those characters would therefore execute on the Main
+# Server as the StreamForge service account on the next backup. Credentials go
+# into a "-A" file instead, so only line breaks are dangerous there.
+_SMB_FORBIDDEN_CHARS = re.compile(r"[\x00-\x1f;!\"]")
+_SMB_FORBIDDEN_CREDENTIAL_CHARS = re.compile(r"[\x00-\x1f\x7f]")
+
+
+def _reject_smb_text(value: Any, label: str) -> str:
+    text = str(value or "")
+    if _SMB_FORBIDDEN_CHARS.search(text):
+        raise ValueError(f"{label} must not contain quotes, semicolons, '!' or control characters")
+    return text
+
+
+def _reject_smb_credentials(value: Any, label: str) -> str:
+    text = str(value or "")
+    if _SMB_FORBIDDEN_CREDENTIAL_CHARS.search(text):
+        raise ValueError(f"{label} must not contain line breaks or control characters")
+    return text
+
+
 def _write_smb_auth_file(username: str, password: str, domain: str = "") -> Path:
     BACKUP_SMB_AUTH_ROOT.mkdir(parents=True, exist_ok=True)
     os.chmod(BACKUP_SMB_AUTH_ROOT, 0o700)
     path = BACKUP_SMB_AUTH_ROOT / f"auth-{uuid.uuid4().hex}.conf"
+    username = _reject_smb_credentials(username, "SMB username")
+    password = _reject_smb_credentials(password, "SMB password")
     lines = [f"username = {username}", f"password = {password}"]
     if str(domain or "").strip():
-        lines.append(f"domain = {str(domain).strip()}")
+        lines.append("domain = " + _reject_smb_credentials(domain.strip(), "SMB domain"))
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     os.chmod(path, 0o600)
     return path
@@ -991,6 +1046,9 @@ def _upload_sftp(
 
 def _parse_smb_destination(destination: str) -> tuple[str, str, str]:
     value = str(destination or "").strip().replace("\\", "/")
+    # STREAMFORGE_V1282_SMB_SANITIZE: reject before the value is split or
+    # handed to smbclient as a "-c" command string.
+    _reject_smb_text(value, "SMB destination")
     if value.startswith("smb://"):
         parsed = urllib.parse.urlparse(value)
         host = parsed.hostname or ""
@@ -1358,12 +1416,26 @@ def _archive() -> Path:
 
     # /etc/streamforge.env is root-only by design. The running service already
     # has its effective STREAMFORGE_* values, so preserve those directly.
+    # STREAMFORGE_V1282_BACKUP_ENV_OPTOUT_V1: this snapshot is what lets a
+    # disaster restore on a fresh host keep working — SSH passwords, saved
+    # Panel passwords and the backup passphrase are all encrypted with the
+    # keys it carries — so it stays in the archive unless the operator opts
+    # out and plans to re-key after every restore. The switch is read from the
+    # live environment on purpose: Settings() freezes every value at its first
+    # import, and this module is imported before a test or CLI sets its own.
+    include_env = _backup_include_env_enabled()
     env_lines = []
-    for key in sorted(os.environ):
-        if key.startswith("STREAMFORGE_"):
-            value = str(os.environ.get(key, "")).replace("\n", "\\n")
-            env_lines.append(f"{key}={value}")
+    if include_env:
+        for key in sorted(os.environ):
+            if key.startswith("STREAMFORGE_"):
+                value = str(os.environ.get(key, "")).replace("\n", "\\n")
+                env_lines.append(f"{key}={value}")
     env_payload = ("\n".join(env_lines) + "\n").encode("utf-8")
+    env_manifest_line = (
+        "etc/streamforge.env (runtime STREAMFORGE_* snapshot)"
+        if include_env
+        else "excluded by STREAMFORGE_BACKUP_INCLUDE_ENV=0"
+    )
 
     main_assets = _logo_asset_files(logo_root, "streamforge-assets/main-logo")
     if node_logo_root == logo_root:
@@ -1402,11 +1474,12 @@ def _archive() -> Path:
             for path, arcname in all_assets:
                 tar.add(path, arcname=arcname, recursive=False)
 
-            env_info = tarfile.TarInfo(name="etc/streamforge.env")
-            env_info.size = len(env_payload)
-            env_info.mode = 0o600
-            env_info.mtime = int(time.time())
-            tar.addfile(env_info, io.BytesIO(env_payload))
+            if include_env:
+                env_info = tarfile.TarInfo(name="etc/streamforge.env")
+                env_info.size = len(env_payload)
+                env_info.mode = 0o600
+                env_info.mtime = int(time.time())
+                tar.addfile(env_info, io.BytesIO(env_payload))
 
             inventory_info = tarfile.TarInfo(name="streamforge-assets/ASSET-MANIFEST.json")
             inventory_info.size = len(asset_inventory_payload)
@@ -1418,7 +1491,7 @@ def _archive() -> Path:
                 "StreamForge Main backup\n"
                 f"created_utc={stamp}\n"
                 "database=var/lib/streamforge/streamforge.db\n"
-                "environment=etc/streamforge.env (runtime STREAMFORGE_* snapshot)\n"
+                f"environment={env_manifest_line}\n"
                 "assets_complete=1\n"
                 f"main_logo_files={len(main_assets)}\n"
                 f"node_logo_files={len(node_assets) if node_logo_root != logo_root else len(main_assets)}\n"
@@ -1477,7 +1550,9 @@ def run_target(target_id: str) -> dict[str, Any]:
     retained_archive = archive
     outgoing_dir: Path | None = None
     try:
-        passphrase = backup_encryption_passphrase()
+        # STREAMFORGE_V1282_BACKUP_ENCRYPTION_FAIL_CLOSED: strict read, see
+        # required_backup_encryption_passphrase().
+        passphrase = required_backup_encryption_passphrase()
         if passphrase:
             # Same file name at the destination, so listing, rotation and
             # restore keep working; the content starts with the SFBKENC1 header.

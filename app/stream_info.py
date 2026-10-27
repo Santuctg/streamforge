@@ -172,7 +172,18 @@ def probe_stream(target: str | Path, timeout: int | None = None) -> dict[str, An
         "-show_streams",
         "-of", "json",
     ]
-    cmd += build_input_args(resolved_target)
+    try:
+        cmd += build_input_args(resolved_target)
+    except ValueError as exc:
+        # STREAMFORGE_V1282_SOURCE_SCHEME_GUARD_V1: report a refused input like
+        # any other probe failure instead of raising out of the Source Scan /
+        # stream Info route.
+        return {
+            "ok": False,
+            "error": str(exc),
+            "stage": "input",
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+        }
     captured_at = datetime.now(timezone.utc).isoformat()
     try:
         result = subprocess.run(

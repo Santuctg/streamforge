@@ -1,3 +1,16 @@
+## 12.82 - 2026-10-27
+
+- Hardened the Panel's widest trust boundaries, in two reviewed batches with a regression test and a revert-based negative proof for every change.
+- Channel sources must be transport URLs: `ensure_safe_input_target()` refuses `file:`, `concat:`, `lavfi:`, `ftp:` and local paths at save time and inside `build_input_args()`, so no FFmpeg or ffprobe path can read host files or play them out as a stream (`STREAMFORGE_SOURCE_SCHEME_ALLOWLIST` / `STREAMFORGE_ALLOW_LOCAL_FILE_SOURCES` opt in).
+- Killing a viewer session now needs the new `sessions.kill` permission instead of `dashboard.view`, and the Panel route writes an audit entry; roles that had `dashboard.view` before the split receive the permission once, under an `AppSetting` marker, so deliberate revocations survive restarts.
+- Node API token rotation: **Nodes → Regenerate API token** mints a token, pushes it to `/etc/streamforge-node.env` over saved SSH (charset-restricted, verified, agent restarted) and stores it only after the push succeeds (`STREAMFORGE_V1282_NODE_TOKEN_ROTATE_V1`).
+- Backup archives keep the runtime `STREAMFORGE_*` environment snapshot by default (a disaster restore needs those keys); `STREAMFORGE_BACKUP_INCLUDE_ENV=0` drops it and the manifest records the exclusion.
+- A missing or published development `STREAMFORGE_SECRET_KEY` is reported as an error at startup; the hard failure is deferred to a later release.
+- Fresh installs now generate `STREAMFORGE_PANEL_PASSWORD_VAULT_KEY`, and the four password-bearing writes fall back to hash-only storage when it is absent, so the installation default password can always be rotated.
+- smbclient destinations and credentials are validated before use: `;`/`!` in a destination or a line break in the `-A` file can no longer execute commands on the Main Server during a backup.
+- Fixed `permission_denied_handler` rendering the access-denied page without the shared template context (a 500 instead of the 403 page) and the XSS reachable through category, role, node and update confirmation dialogs.
+- Updater: `scripts/force_update_v1282.sh` patches the Main sources in place from `scripts/apply_v1282_hardening.json` after a staged preflight, keeps the channel supervisor and Nginx running, and restores the unchanged Node Agent payload only when an installed tree carries something else.
+
 ## 12.48 - 2026-10-14
 
 - Fixed the inherited updater's relay-map preflight to accept the composite `$status:$uri` map introduced for path-aware log filtering.

@@ -1,3 +1,7 @@
+{# STREAMFORGE_V1282_PHASE1_TEMPLATE_MARKERS_V1: v12.82 hardening touched this
+   template — the destructive confirmation dialog reads the role name through a
+   data attribute instead of inline string interpolation. The v12.82 updater
+   skips the file when this marker is present. #}
 {% extends "base.html" %}
 {% block title %}Roles & Permissions · {{ branding.name }}{% endblock %}
 {% block heading %}<h1>Roles & Permissions</h1><p>Customize panel access for administrators and operators</p>{% endblock %}
@@ -25,7 +29,7 @@
       <div class="role-actions actions">
         {% if not row.role.is_system %}
           {% if can('roles.edit') and (is_super_admin or admin.role_id != row.role.id) %}<a class="button small" href="/roles/{{ row.role.id }}/edit">Edit</a>{% endif %}
-          {% if can('roles.delete') and (is_super_admin or admin.role_id != row.role.id) %}<form method="post" action="/roles/{{ row.role.id }}/delete" onsubmit="return confirm('Delete role {{ row.role.name }}?')"><button class="button ghost-danger small">Delete</button></form>{% endif %}
+          {% if can('roles.delete') and (is_super_admin or admin.role_id != row.role.id) %}<form method="post" action="/roles/{{ row.role.id }}/delete" data-confirm-name="{{ row.role.name }}" onsubmit="return confirm('Delete role ' + this.getAttribute('data-confirm-name') + '?')"><button class="button ghost-danger small">Delete</button></form>{% endif %}
         {% elif row.role.is_system %}<span class="muted-tag">Locked</span>{% endif %}
       </div>
     </article>

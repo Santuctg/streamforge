@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Mapping
 from urllib.parse import parse_qsl, urlsplit
@@ -33,6 +34,42 @@ def split_extended_url(raw_target: str | Path) -> tuple[str, dict[str, str]]:
     return base.strip(), headers
 
 
+_SCHEME_RE = re.compile(r"^([A-Za-z][A-Za-z0-9+.\-]*):")
+
+
+def ensure_safe_input_target(raw_target: str | Path) -> str:
+    """Reject input targets that are not transport URLs.
+
+    STREAMFORGE_V1282_SOURCE_SCHEME_GUARD_V1: FFmpeg treats every "scheme:" as
+    its own protocol handler, so a channel source such as
+    ``file:///etc/streamforge.env`` or a concat/subfile recipe is opened by
+    ffprobe and by the encoder itself. A panel role that may only manage
+    channels could then read host secrets — locally through ffprobe output, or
+    by playing them out as a live stream. Only transport schemes are accepted;
+    the base URL (before the ``|User-Agent=...`` IPTV option suffix) is
+    validated and returned.
+    """
+    base, _headers = split_extended_url(raw_target)
+    text = str(base).strip()
+    match = _SCHEME_RE.match(text)
+    if not match:
+        if settings.allow_local_file_sources:
+            return text
+        if text[:1] in {"/", ".", "~"}:
+            raise ValueError(
+                "Local file sources are disabled; set STREAMFORGE_ALLOW_LOCAL_FILE_SOURCES=1 to allow them"
+            )
+        # A bare domain/IP without a scheme keeps its historical meaning.
+        return text
+    scheme = match.group(1).lower()
+    if scheme in settings.source_scheme_allowlist:
+        return text
+    raise ValueError(
+        f"Unsupported source scheme '{scheme}:'; only transport URLs are accepted "
+        "(set STREAMFORGE_SOURCE_SCHEME_ALLOWLIST to add it deliberately)"
+    )
+
+
 def is_http_target(target: str | Path) -> bool:
     base, _ = split_extended_url(target)
     return urlsplit(base).scheme.lower() in {"http", "https"}
@@ -54,6 +91,9 @@ def build_input_args(target: str | Path, *, realtime_hls: bool = False, youtube_
     pace completed HLS segments at wall-clock rate without slowing ffprobe.
     """
     base, supplied_headers = split_extended_url(target)
+    # STREAMFORGE_V1282_SOURCE_SCHEME_GUARD_V1: one choke point for playback
+    # and every ffprobe path (Source Scan, stream Info, failover probing).
+    ensure_safe_input_target(target)
     scheme = urlsplit(base).scheme.lower()
     args: list[str] = []
 

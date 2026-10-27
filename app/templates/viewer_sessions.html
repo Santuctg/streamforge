@@ -1,3 +1,6 @@
+{# STREAMFORGE_V1282_SESSION_KILL_UI_V1: v12.82 gates the Kill control behind
+   the sessions.kill permission, including the rows the live refresh builds.
+   The v12.82 updater skips the file when this marker is present. #}
 {% extends "base.html" %}
 {% block title %}Live sessions · {{ branding.name }}{% endblock %}
 {% block heading %}<h1>Live sessions</h1><p>Active playback sessions seen during the last 45 seconds</p>{% endblock %}
@@ -36,7 +39,7 @@
     <label>Delivery<select name="delivery" data-live-delivery-filter><option value="">All deliveries</option>{% for option in delivery_options %}<option value="{{ option.key }}" {% if selected_delivery == option.key %}selected{% endif %}>{{ option.label }}</option>{% endfor %}</select></label>
     {% if selected_user or selected_node_id or selected_channel_id or selected_delivery %}<a class="button" href="{{ request.scope.get('root_path', '') }}/viewer-sessions">Clear</a>{% endif %}
   </form>
-  <div class="table-wrap session-table-wrap"><table class="session-table">
+  <div class="table-wrap session-table-wrap"><table class="session-table"{% if can('sessions.kill') %} data-can-kill="1"{% endif %}>
     <colgroup><col class="session-col-user"><col class="session-col-ip"><col class="session-col-network"><col class="session-col-country"><col class="session-col-channel"><col class="session-col-node"><col class="session-col-delivery"><col class="session-col-age"><col class="session-col-activity"><col class="session-col-client"><col class="session-col-action"></colgroup>
     <thead><tr><th>User / Session</th><th>IP address</th><th>Business / ASN</th><th>Country</th><th>Channel</th><th>Node</th><th>Delivery</th><th>Session age</th><th>Last activity</th><th>Client</th><th>Action</th></tr></thead>
     <tbody data-live-session-body>
@@ -52,7 +55,7 @@
         <td class="mono nowrap">{{ human_duration(item.duration_seconds) }}</td>
         <td><b>{{ human_duration(item.idle_seconds) }} ago</b><small>{{ format_local_time(item.last_seen_at) }}</small></td>
         <td class="session-user-agent" title="{{ item.user_agent }}">{{ item.user_agent or 'Unknown client' }}</td>
-        <td><form method="post" action="/viewer-sessions/kill" onsubmit="return confirm('Kill this online session now?')"><input type="hidden" name="session_id" value="{{ item.session_id }}"><input type="hidden" name="source_key" value="{{ item.source_key }}"><input type="hidden" name="user_id" value="{{ item.user_id or '' }}"><input type="hidden" name="node_id" value="{{ item.node_id or '' }}"><button class="button danger compact" type="submit">Kill</button></form></td>
+        <td>{% if can('sessions.kill') %}<form method="post" action="/viewer-sessions/kill" onsubmit="return confirm('Kill this online session now?')"><input type="hidden" name="session_id" value="{{ item.session_id }}"><input type="hidden" name="source_key" value="{{ item.source_key }}"><input type="hidden" name="user_id" value="{{ item.user_id or '' }}"><input type="hidden" name="node_id" value="{{ item.node_id or '' }}"><button class="button danger compact" type="submit">Kill</button></form>{% else %}<span class="muted-tag" title="Missing sessions.kill permission">No access</span>{% endif %}</td>
       </tr>
     {% else %}<tr><td colspan="11" class="empty">{{ 'Loading live session details…' if details_pending else 'No active sessions match this filter.' }}</td></tr>{% endfor %}
     </tbody>
@@ -156,6 +159,9 @@
   const nodeFilter = document.querySelector('[data-live-node-filter]');
   const channelFilter = document.querySelector('[data-live-channel-filter]');
   const deliveryFilter = document.querySelector('[data-live-delivery-filter]');
+  // STREAMFORGE_V1282_SESSION_KILL_PERMISSION_V1: rows rendered by the 2-second
+  // refresh must honour the same permission as the server-rendered table.
+  const canKill = Boolean(document.querySelector('.session-table[data-can-kill]'));
   if (!status || !select || !summary || !body) return;
 
   // STREAMFORGE_MAIN_LIVE_SESSION_AUTO_FILTER_JS_V47:
@@ -261,6 +267,12 @@
     tr.append(clientTd);
 
     const actionTd = document.createElement('td');
+    // STREAMFORGE_V1282_SESSION_KILL_PERMISSION_V1: the live refresh builds its
+    // own row, so the server-side permission flag has to travel with it.
+    if (!canKill) {
+      tr.append(actionTd);
+      return tr;
+    }
     const form = document.createElement('form');
     form.method = 'post';
     const panelRoot = String(window.STREAMFORGE_APP_ROOT || '').replace(/\/+$/, '');

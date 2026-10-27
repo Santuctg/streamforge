@@ -1,3 +1,8 @@
+{# STREAMFORGE_V1282_PHASE1_TEMPLATE_MARKERS_V1: v12.82 hardening touched this
+   template — destructive confirmation dialogs read their name through a data
+   attribute instead of inline string interpolation, so a category name cannot
+   break out of the script. The v12.82 updater skips the file when this marker
+   is present. #}
 {% extends "base.html" %}
 {% block title %}Categories · {{ branding.name }}{% endblock %}
 {% block heading %}<h1>Channel categories</h1><p>Create groups and assign channels during add, edit or import</p>{% endblock %}
@@ -28,7 +33,7 @@
           <div class="category-actions">
             <a class="button small" href="/categories/{{ category.id }}/channels">Channels</a>
             {% if can('categories.edit') %}<button class="button small" type="button" data-category-rename-open data-category-id="{{ category.id }}" data-category-name="{{ category.name }}">Rename</button>{% endif %}
-            {% if can('categories.delete') %}<form method="post" action="/categories/{{ category.id }}/delete" onsubmit="return confirm('Delete category {{ category.name }}? Channels will become Uncategorized.')"><button class="button ghost-danger small" type="submit">Delete</button></form>{% endif %}
+            {% if can('categories.delete') %}<form method="post" action="/categories/{{ category.id }}/delete" data-confirm-name="{{ category.name }}" onsubmit="return confirm('Delete category ' + this.getAttribute('data-confirm-name') + '? Channels will become Uncategorized.')"><button class="button ghost-danger small" type="submit">Delete</button></form>{% endif %}
           </div>
         </article>
         {% else %}<div class="empty">No categories yet. Add the first category from the form.</div>{% endfor %}
