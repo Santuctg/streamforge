@@ -108,7 +108,6 @@
 
     <input type="hidden" name="api_token" value="">
     <input type="hidden" name="enabled" value="on">
-    <input type="hidden" name="verify_tls" value="on">
     {% else %}
     <div class="wide node-connection-compact-row">
       <label>Name
@@ -140,7 +139,6 @@
     </div>
 
     <div class="wide node-connection-options-row">
-      <label class="check"><input type="checkbox" name="verify_tls" {% if not node or node.verify_tls %}checked{% endif %}><span>Verify HTTPS certificate</span></label>
       <label class="check"><input type="checkbox" name="save_ssh_password"><span>Encrypt and save new SSH password</span></label>
       {% if node and node.ssh_password_enc %}
       <label class="check saved-password-remove"><input type="checkbox" name="clear_ssh_password"><span>Remove saved SSH password</span></label>

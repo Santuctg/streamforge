@@ -105,7 +105,6 @@
 
     <label>API token<input name="api_token" value="{{ form_data.api_token or suggested_token }}" required><small class="field-help">The same token is installed remotely and saved in this Node record.</small></label>
     <label class="check"><input type="checkbox" name="enabled" {% if form_data.enabled is not defined or form_data.enabled %}checked{% endif %}><span>Enabled</span></label>
-    <label class="check"><input type="checkbox" name="verify_tls" {% if form_data.verify_tls is not defined or form_data.verify_tls %}checked{% endif %}><span>Verify HTTPS certificate</span></label>
 
     <label>SSH host<input name="ssh_host" value="{{ form_data.ssh_host or '' }}" placeholder="192.168.253.30" required></label>
     <label>SSH port<input type="number" name="ssh_port" min="1" max="65535" value="{{ form_data.ssh_port or 22 }}" required></label>

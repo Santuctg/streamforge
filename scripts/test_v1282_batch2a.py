@@ -103,16 +103,26 @@ def check_source_scheme_guard() -> None:
 
 
 def check_secret_key_warning() -> None:
-    """A published development signing key must be announced at startup."""
+    """v12.83: a published development signing key refuses to start the Panel.
+
+    v12.82 only logged this at startup and promised the hard failure for a
+    later release; Batch 2B (v12.83) is that release, so the contract is now
+    the refusal itself, with the exact fix in the message.
+    """
+    from app.config import secret_key_problem
+
+    assert secret_key_problem("dev-change-me-now")
+    assert secret_key_problem("")
+    assert secret_key_problem("x" * 31)
+    assert not secret_key_problem("x" * 64)
+    problem = secret_key_problem("dev-change-me-now")
+    assert "/etc/streamforge.env" in problem and "openssl rand -hex 32" in problem
     source = (ROOT / "app" / "main.py").read_text(encoding="utf-8")
-    assert "STREAMFORGE_SECRET_KEY is missing or a known development value; " in source
-    assert "session cookies are signed with a public key" in source
-    assert 'if secret_key in {"", "dev-change-me-now"} or len(secret_key) < 32:' in source
-    # It is an error-level event, not a warning that could be missed.
-    assert 'scope="system", level="error"' in source
-    # The warning sits in the startup block, next to the vault warning.
+    assert "secret_key_problem()" in source
+    assert "raise RuntimeError(problem)" in source
+    # The hard failure sits in the startup block, next to the vault warning.
     assert source.index("STREAMFORGE_VAULT_OPTIONAL_V1282") < source.index(
-        "STREAMFORGE_V1282_SECRET_KEY_WARN_V1"
+        "STREAMFORGE_V1283_SECRET_KEY_HARD_FAIL_V1"
     )
 
 

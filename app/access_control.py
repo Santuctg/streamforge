@@ -14,6 +14,7 @@ from typing import Any
 
 from fastapi import Request
 
+from .client_ip import forwarded_client_ip
 from .config import settings
 from .geoip_config import load_geoip_settings
 
@@ -34,19 +35,14 @@ class AccessDecision:
 
 
 def client_ip(request: Request) -> str:
-    peer = request.client.host if request.client else "unknown"
-    try:
-        peer_address = ipaddress.ip_address(peer)
-        trust_forwarded = peer_address.is_loopback
-    except ValueError:
-        trust_forwarded = False
-    forwarded = request.headers.get("x-forwarded-for", "") if trust_forwarded else ""
+    # STREAMFORGE_V1283_RIGHTMOST_CLIENT_IP_V1: the leftmost X-Forwarded-For
+    # entry is client-supplied; only the rightmost hop (appended by local
+    # Nginx) identifies the real source, and only when the backend is bound to
+    # loopback. A direct public peer cannot forge a trusted forwarded value.
+    forwarded = forwarded_client_ip(request)
     if forwarded:
-        candidate = forwarded.split(",", 1)[0].strip()
-        try:
-            return str(ipaddress.ip_address(candidate))
-        except ValueError:
-            pass
+        return forwarded
+    peer = request.client.host if request.client else "unknown"
     try:
         return str(ipaddress.ip_address(peer))
     except ValueError:

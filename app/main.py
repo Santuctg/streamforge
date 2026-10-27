@@ -39,7 +39,7 @@ from sqlalchemy.orm import Session, object_session, selectinload
 from starlette.middleware.sessions import SessionMiddleware
 
 from .auth import PASSWORD_CHANGE_REQUIRED_SESSION_KEY, current_admin, hash_password, panel_password_policy_error, stamp_admin_session, verify_password
-from .config import settings
+from .config import settings, secret_key_problem
 from .db import Base, SessionLocal, engine, ensure_runtime_schema, get_db
 from .ffmpeg import stream_manager
 from .node_manager import NodeError, ensure_local_node, node_controller, normalize_node_url, effective_node_url, channel_input_urls, channel_source_program_ids, set_node_maintenance
@@ -77,6 +77,7 @@ from .panel_login_guard import (
     ip_locked, record_ip_failure, clear_ip_failures,
 )
 from .audit_log import log_event, clear_logs, prune_logs
+from .client_ip import forwarded_client_ip
 from .access_control import evaluate_access, normalize_ip_rules, normalize_asn_rules, ip_matches, client_ip, asn_database_status, geo_details, clear_geo_cache
 from .playback_keys import issue_playback_key, issue_playback_keys, verify_playback_key
 from .geoip_config import load_geoip_settings, save_geoip_settings, run_maxmind_update
@@ -690,8 +691,13 @@ return 1
 
     @staticmethod
     def _client_ip(request: Request) -> str:
-        forwarded = request.headers.get("x-forwarded-for", "")
-        return forwarded.split(",", 1)[0].strip() if forwarded else (request.client.host if request.client else "unknown")
+        # STREAMFORGE_V1283_RIGHTMOST_CLIENT_IP_V1: viewer-session fingerprints
+        # must key on the rightmost Nginx-appended hop, never on the
+        # client-supplied leftmost entry.
+        forwarded = forwarded_client_ip(request)
+        if forwarded:
+            return forwarded
+        return request.client.host if request.client else "unknown"
 
     def session_id(self, request: Request, explicit: str = "") -> str:
         value = (
@@ -5194,19 +5200,16 @@ async def lifespan(_app: FastAPI):
                 "panel passwords are stored as hashes only and cannot be revealed",
                 scope="system", level="warning",
             )
-        # STREAMFORGE_V1282_SECRET_KEY_WARN_V1: the dataclass default is a
-        # published development value. Anyone who knows it can forge signed
-        # session cookies, so a live Panel must never run on it silently. The
-        # hard failure lands in a later release, after every env file has had a
-        # chance to be repaired by the updater.
-        secret_key = str(settings.secret_key or "").strip()
-        if secret_key in {"", "dev-change-me-now"} or len(secret_key) < 32:
-            log_event(
-                "STREAMFORGE_SECRET_KEY is missing or a known development value; "
-                "session cookies are signed with a public key. Set a random value "
-                "(openssl rand -hex 32) in /etc/streamforge.env and restart the service",
-                scope="system", level="error",
-            )
+        # STREAMFORGE_V1283_SECRET_KEY_HARD_FAIL_V1: v12.82 only logged this
+        # warning and promised the hard failure for a later release; this is
+        # that release. The signing key must exist before any session cookie
+        # can be issued, so a weak/dev key refuses to boot with the exact fix
+        # instead of silently enabling session forgery. Fresh installs always
+        # generate a strong key, and the v12.83 updater repairs a weak one in
+        # /etc/streamforge.env before the restart.
+        problem = secret_key_problem()
+        if problem:
+            raise RuntimeError(problem)
         existing = db.scalar(select(AdminUser).where(AdminUser.username == settings.admin_user))
         # STREAMFORGE_ADMIN_SEED_FRESH_INSTALL_ONLY:
         # Seed the env-configured admin only on a fresh install. Re-creating it
@@ -8599,7 +8602,6 @@ def node_create(
     asn_whitelist: str = Form(""),
     asn_blacklist: str = Form(""),
     enabled: Optional[str] = Form(None),
-    verify_tls: Optional[str] = Form(None),
     ssh_host: str = Form(""),
     ssh_port: int = Form(22),
     ssh_user: str = Form("root"),
@@ -8647,12 +8649,12 @@ def node_create(
         if conflict:
             raise ValueError(conflict)
     except ValueError as exc:
-        draft = type("NodeDraft", (), {"name": cleaned_name, "api_url": api_url, "client_prefixes": client_prefixes, "panel_ip_whitelist": panel_ip_whitelist, "panel_ip_blacklist": panel_ip_blacklist, "panel_asn_whitelist": panel_asn_whitelist, "panel_asn_blacklist": panel_asn_blacklist, "enabled": as_bool(enabled), "verify_tls": as_bool(verify_tls), "node_type": "remote", "id": None, "dns_name": dns_name, "dns_scheme": dns_scheme, "dns_only": True, "playlist_url": playlist_url, "playlist_dns_only": True, "api_urls": api_url, "playlist_urls": playlist_url, "access_slug": access_slug, "playlist_access_slug": playlist_access_slug, "local_channel_limit": max(0, int(local_channel_limit or 0)), "total_max_connections": max(0, int(total_max_connections or 0)), "node_viewer_session_timeout_seconds": max(5, min(3600, int(node_viewer_session_timeout_seconds or 5))), "node_hide_panel_hover_urls": as_bool(node_hide_panel_hover_urls), "sync_main_users": as_bool(sync_main_users), "logo_url": logo_url})()
+        draft = type("NodeDraft", (), {"name": cleaned_name, "api_url": api_url, "client_prefixes": client_prefixes, "panel_ip_whitelist": panel_ip_whitelist, "panel_ip_blacklist": panel_ip_blacklist, "panel_asn_whitelist": panel_asn_whitelist, "panel_asn_blacklist": panel_asn_blacklist, "enabled": as_bool(enabled), "node_type": "remote", "id": None, "dns_name": dns_name, "dns_scheme": dns_scheme, "dns_only": True, "playlist_url": playlist_url, "playlist_dns_only": True, "api_urls": api_url, "playlist_urls": playlist_url, "access_slug": access_slug, "playlist_access_slug": playlist_access_slug, "local_channel_limit": max(0, int(local_channel_limit or 0)), "total_max_connections": max(0, int(total_max_connections or 0)), "node_viewer_session_timeout_seconds": max(5, min(3600, int(node_viewer_session_timeout_seconds or 5))), "node_hide_panel_hover_urls": as_bool(node_hide_panel_hover_urls), "sync_main_users": as_bool(sync_main_users), "logo_url": logo_url})()
         return render(request, "node_form.html", db, node=draft, error=str(exc), suggested_token=token)
     try:
         uploaded_logo = save_node_logo(logo_file)
     except ValueError as exc:
-        draft = type("NodeDraft", (), {"name": cleaned_name, "api_url": api_url, "client_prefixes": client_prefixes, "panel_ip_whitelist": panel_ip_whitelist, "panel_ip_blacklist": panel_ip_blacklist, "panel_asn_whitelist": panel_asn_whitelist, "panel_asn_blacklist": panel_asn_blacklist, "enabled": as_bool(enabled), "verify_tls": as_bool(verify_tls), "node_type": "remote", "id": None, "dns_name": dns_name, "dns_scheme": dns_scheme, "dns_only": True, "playlist_url": playlist_url, "playlist_dns_only": True, "api_urls": api_url, "playlist_urls": playlist_url, "access_slug": access_slug, "playlist_access_slug": playlist_access_slug, "local_channel_limit": max(0, int(local_channel_limit or 0)), "total_max_connections": max(0, int(total_max_connections or 0)), "node_viewer_session_timeout_seconds": max(5, min(3600, int(node_viewer_session_timeout_seconds or 5))), "node_hide_panel_hover_urls": as_bool(node_hide_panel_hover_urls), "sync_main_users": as_bool(sync_main_users), "logo_url": logo_url})()
+        draft = type("NodeDraft", (), {"name": cleaned_name, "api_url": api_url, "client_prefixes": client_prefixes, "panel_ip_whitelist": panel_ip_whitelist, "panel_ip_blacklist": panel_ip_blacklist, "panel_asn_whitelist": panel_asn_whitelist, "panel_asn_blacklist": panel_asn_blacklist, "enabled": as_bool(enabled), "node_type": "remote", "id": None, "dns_name": dns_name, "dns_scheme": dns_scheme, "dns_only": True, "playlist_url": playlist_url, "playlist_dns_only": True, "api_urls": api_url, "playlist_urls": playlist_url, "access_slug": access_slug, "playlist_access_slug": playlist_access_slug, "local_channel_limit": max(0, int(local_channel_limit or 0)), "total_max_connections": max(0, int(total_max_connections or 0)), "node_viewer_session_timeout_seconds": max(5, min(3600, int(node_viewer_session_timeout_seconds or 5))), "node_hide_panel_hover_urls": as_bool(node_hide_panel_hover_urls), "sync_main_users": as_bool(sync_main_users), "logo_url": logo_url})()
         return render(request, "node_form.html", db, node=draft, error=str(exc), suggested_token=token)
     node = Node(
         name=cleaned_name,
@@ -8665,7 +8667,6 @@ def node_create(
         playlist_access_slug=normalized_playlist_access_slug,
         api_token=token,
         enabled=as_bool(enabled),
-        verify_tls=as_bool(verify_tls),
         client_prefixes=normalized_prefixes,
         panel_ip_whitelist=normalized_panel_ip_whitelist or None,
         panel_ip_blacklist=normalized_panel_ip_blacklist or None,
@@ -8717,7 +8718,6 @@ def node_install_page(request: Request, db: Session = Depends(get_db)):
         install_job_id=secrets.token_urlsafe(18),
         form_data={
             "enabled": True,
-            "verify_tls": True,
             "api_url": "",
             "playlist_url": "",
             "node_viewer_session_timeout_seconds": 5,
@@ -8797,7 +8797,6 @@ def node_install_submit(
     api_url: str = Form(...),
     api_token: str = Form(""),
     enabled: Optional[str] = Form(None),
-    verify_tls: Optional[str] = Form(None),
     playlist_url: str = Form(...),
     local_channel_limit: int = Form(0),
     total_max_connections: int = Form(0),
@@ -8842,7 +8841,6 @@ def node_install_submit(
         "api_url": api_url,
         "api_token": api_token.strip(),
         "enabled": as_bool(enabled),
-        "verify_tls": as_bool(verify_tls),
         "playlist_url": playlist_url,
         "local_channel_limit": max(0, int(local_channel_limit or 0)),
         "total_max_connections": max(0, int(total_max_connections or 0)),
@@ -8967,7 +8965,6 @@ def node_install_submit(
         playlist_access_slug=normalized_playlist_access_slug or None,
         api_token=token,
         enabled=as_bool(enabled),
-        verify_tls=as_bool(verify_tls),
         status="unknown",
         client_prefixes=normalized_prefixes,
         panel_ip_whitelist=normalized_panel_ip_whitelist or None,
@@ -9194,7 +9191,6 @@ def node_update(
     asn_whitelist: str = Form(""),
     asn_blacklist: str = Form(""),
     enabled: Optional[str] = Form(None),
-    verify_tls: Optional[str] = Form(None),
     ssh_host: str = Form(""),
     ssh_port: int = Form(22),
     ssh_user: str = Form("root"),
@@ -9217,7 +9213,7 @@ def node_update(
             for field in (
                 "name", "api_url", "api_urls", "playlist_url", "playlist_urls",
                 "access_slug", "playlist_access_slug", "logo_url", "enabled",
-                "verify_tls", "client_prefixes", "panel_ip_whitelist", "panel_ip_blacklist",
+                "client_prefixes", "panel_ip_whitelist", "panel_ip_blacklist",
                 "panel_asn_whitelist", "panel_asn_blacklist", "ip_whitelist", "ip_blacklist",
                 "asn_whitelist", "asn_blacklist", "dns_name", "dns_scheme",
                 "dns_only", "playlist_dns_only", "agent_port", "playlist_port",
@@ -9318,7 +9314,6 @@ def node_update(
     if node.node_type != "local" and api_token.strip():
         node.api_token = api_token.strip()
     node.enabled = True if node.node_type == "local" else as_bool(enabled)
-    node.verify_tls = as_bool(verify_tls) if node.node_type != "local" else True
     node.client_prefixes = normalized_prefixes
     node.panel_ip_whitelist = normalized_panel_ip_whitelist or None
     node.panel_ip_blacklist = normalized_panel_ip_blacklist or None

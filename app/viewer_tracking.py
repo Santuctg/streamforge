@@ -10,6 +10,7 @@ from dataclasses import dataclass
 
 from fastapi import Request
 
+from .client_ip import forwarded_client_ip
 from .redis_state import redis_state
 
 _SESSION_RE = re.compile(r"[^A-Za-z0-9._~-]+")
@@ -116,9 +117,11 @@ return generation
 
     @staticmethod
     def client_ip(request: Request) -> str:
-        forwarded = request.headers.get("x-forwarded-for", "")
+        # STREAMFORGE_V1283_RIGHTMOST_CLIENT_IP_V1: counts key on the
+        # Nginx-appended rightmost hop, never the spoofable leftmost entry.
+        forwarded = forwarded_client_ip(request)
         if forwarded:
-            return forwarded.split(",", 1)[0].strip()
+            return forwarded
         return request.client.host if request.client else "unknown"
 
     @staticmethod
