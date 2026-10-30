@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""v12.83 patch round-trip: v12.82 sources + hunks == this release, exactly.
+"""Historical round-trip: v12.82 sources + hunks == tagged v12.83, exactly.
 
 The updater patches installed trees in place from
 scripts/apply_v1283_hardening.json, so every hunk must be anchored uniquely in
-the previous release and applying all of them must reproduce the committed
-files byte-for-byte.
+the previous release and applying all of them must reproduce the tagged
+release byte-for-byte, not later development sources. New changes have their
+own patch round-trip (test_role_manager_patch.py).
 """
 from __future__ import annotations
 
@@ -35,7 +36,14 @@ for relative, spec in patch["files"].items():
         failures.append(f"{relative}: cannot read {PREVIOUS} (shallow clone?)")
         continue
     old = head.stdout
-    new = (ROOT / relative).read_text(encoding="utf-8")
+    release = subprocess.run(
+        ["git", "show", f"v12.83:{relative}"], cwd=ROOT,
+        capture_output=True, text=True,
+    )
+    if release.returncode != 0:
+        failures.append(f"{relative}: cannot read v12.83 (fetch release tags)")
+        continue
+    new = release.stdout
     if spec["marker"] in old:
         failures.append(f"{relative}: v12.83 marker already present in {PREVIOUS}")
     if spec["marker"] not in new:

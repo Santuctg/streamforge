@@ -106,8 +106,8 @@ PERMISSION_GROUPS: "OrderedDict[str, list[tuple[str, str, str]]]" = OrderedDict(
                 ("panel_users.edit", "Edit panel users", "Edit username, password, status, access locations and role for visible non-Super Admin accounts."),
                 ("panel_users.delete", "Remove panel users", "Delete visible non-Super Admin panel accounts."),
                 # STREAMFORGE_V1263_VAULT_RBAC: only a Super Admin can grant these privileged keys.
-                ("panel_users.password_reveal", "Reveal saved passwords", "View opt-in encrypted credentials for panel users in your access scope; requires own-password verification and audit."),
-                ("panel_users.password_vault_manage", "Save passwords in vault", "Opt in to encrypted storage on Panel User create or password reset (also requires create/edit permission)."),
+                ("panel_users.password_reveal", "Reveal saved passwords", "View saved encrypted credentials for panel users in your access scope when the vault is enabled; requires own-password verification and audit."),
+                ("panel_users.password_vault_manage", "Legacy vault-management flag", "Retained for compatibility; does not control password saving. When the vault is enabled, passwords are saved automatically on create/reset. Reveal is controlled separately."),
                 ("roles.view", "View roles", "See role definitions at or below your own permission level."),
                 ("roles.create", "Add roles", "Create custom roles using only permissions you already have."),
                 ("roles.edit", "Edit roles", "Edit visible custom roles at or below your own permission level."),

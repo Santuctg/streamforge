@@ -112,7 +112,9 @@ with tempfile.TemporaryDirectory(prefix="sf-v1283-install-") as d:
     assert (app / "VERSION").read_text().strip() == "12.83"
     assert (app / "node_agent/VERSION").read_text().strip() == "12.83"
     for relative in PATCH_FILES:
-        assert (app / relative).read_bytes() == (ROOT / relative).read_bytes(), relative
+        # Historical updater: compare with the published release, not pending
+        # runtime fixes on the working branch.
+        assert (app / relative).read_text(encoding="utf-8") == tagged(relative, "v12.83"), relative
         assert PATCH["files"][relative]["marker"] in (app / relative).read_text(encoding="utf-8"), relative
     for relative in NEW_FILES:
         assert (app / relative).read_bytes() == (ROOT / relative).read_bytes(), relative

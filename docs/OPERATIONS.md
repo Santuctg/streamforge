@@ -88,15 +88,18 @@ installed version:
    startup with the fix in the message (`app/config.py:secret_key_problem`).
    A known value lets anyone forge Panel session cookies. The v12.83 updater
    repairs a weak or missing `STREAMFORGE_SECRET_KEY` in `/etc/streamforge.env`
-   automatically before restarting (the original file is backed up under
-   `/var/backups/streamforge/`), so upgrading servers are never left failing to
-   start — but if you start the service by hand and see this error, set the key
-   yourself and restart.
+   automatically before restarting when that env file exists (the original
+   file is backed up under `/var/backups/streamforge/`). If the entire file is
+   absent, or a custom service environment overrides it, repair the service
+   configuration yourself. Rotation also has the effects listed above.
+   To repair a missing key entry as well as a weak existing one:
 
 ```bash
 sudo cp -a /etc/streamforge.env /etc/streamforge.env.bak
-NEW=$(openssl rand -hex 32)
-sudo sed -i "s/^STREAMFORGE_SECRET_KEY=.*/STREAMFORGE_SECRET_KEY=$NEW/" /etc/streamforge.env
+openssl rand -hex 32
+sudoedit /etc/streamforge.env
+# Add or replace STREAMFORGE_SECRET_KEY=<generated value>; keep one entry only.
+# Keep the value private; do not share terminal screenshots containing it.
 sudo systemctl restart streamforge streamforge-public
 ```
 
@@ -115,7 +118,9 @@ new key was active must be entered again.
 ## 🔒 Security checklist
 
 - [ ] `admin` deleted after creating your own Super Admin; every Panel password has 12+ characters (enforced at login from v12.77)
-- [ ] Remote Nodes updated from **Node Updates** to the Main version
+- [ ] Remote Nodes updated when a release changes the agent runtime (v12.83/v12.84 do not)
+- [ ] Remote Node HTTPS certificates trusted and matching their URLs (mandatory from v12.83)
+- [ ] Any CDN/internal proxy has explicit trusted real_ip ranges in Nginx; never trust all addresses
 - [ ] `STREAMFORGE_SECRET_KEY` is a long random value and has never been shared
 - [ ] Panel served over HTTPS (session cookie is `Secure` on HTTPS since v12.75); optionally `STREAMFORGE_HSTS_MAX_AGE` when every port of the domain uses HTTPS
 - [ ] Staff use least-privilege roles; Super Admin limited to owners; `sessions.kill` (v12.82+) only for roles that may disconnect viewers

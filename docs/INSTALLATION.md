@@ -26,7 +26,7 @@ smbclient and the yt-dlp runtime used for YouTube Live.
 
 ```bash
 cd /root
-VERSION=12.81
+VERSION=12.84
 curl -fL -o streamforge-$VERSION.zip \
   https://github.com/Santuctg/streamforge/releases/download/v$VERSION/streamforge-$VERSION.zip
 sha256sum streamforge-$VERSION.zip      # compare with the hash you were given
@@ -96,8 +96,10 @@ sudo streamforge-update --force /root/streamforge-$VERSION.zip
   release notes say otherwise.
 - A successful run ends with **`SUCCESS: ...`**.
 
-Updating Main updates only the **bundled** Node Agent. Push it to your Remote
-Nodes afterwards from **Node Updates**.
+Updating Main updates the **bundled** Node Agent. Push it to Remote Nodes
+when the release changes the agent runtime. v12.83 uses the same agent payload
+as v12.82; v12.84 preserves that payload too. Neither v12.83 nor v12.84 needs
+a Remote Node update.
 
 ---
 
@@ -118,19 +120,72 @@ the Panel and confirm that channels are running and Nodes are online.
 
 ## ↩️ 5. Roll back an upgrade manually
 
-The updater rolls back by itself when a step fails. To undo a *successful*
-upgrade, restore the files from its backup directory:
+The updater rolls back by itself when a guarded step fails. Undoing a
+*successful* upgrade is release-specific: do not restore just `main.py` and
+the VERSION files, because mixed-version Python modules can prevent startup.
+Keep a second SSH session open and inspect the exact backup first:
 
 ```bash
-B=$(ls -d /var/backups/streamforge/v<version>-* | tail -1)
-ls -R "$B"                                   # restore exactly these files
-sudo cp -a "$B/app/main.py"        /opt/streamforge/app/main.py
-sudo cp -a "$B/VERSION"            /opt/streamforge/VERSION
-sudo cp -a "$B/node_agent/VERSION" /opt/streamforge/node_agent/VERSION
-sudo systemctl restart streamforge streamforge-public
+sudo ls -ld /var/backups/streamforge/v1283-*
+# Select the backup from the update you intend to undo (not a later reinstall).
+sudo find /var/backups/streamforge/v1283-YYYYMMDD-HHMMSS -type f
 ```
 
+For v12.83, the backup contains the changed application modules/templates,
+`deploy/nginx.conf`, both VERSION files, the bundled `node_agent/app.py`, and
+copies named `streamforge.env` and `nginx-site` when those external files
+existed. Restore **all** backed-up runtime files to their corresponding
+installed paths, not the entire backup directory blindly. The external copies
+belong at `/etc/streamforge.env` and `/etc/nginx/sites-available/streamforge`.
+Restore `app/client_ip.py` if backed up; otherwise it was newly added by this
+release and should be removed only after confirming that fact. Restore file
+ownership/modes too, test with `sudo nginx -t`, reload Nginx, then restart and
+verify `streamforge` and `streamforge-public`.
+
+Do not blindly restore an old env file after later credential changes: doing
+so can invalidate sessions or encrypted credentials. Use the updater's
+`rollback()` implementation and the matching release notes as the complete
+file manifest. If any backup file is missing or you cannot identify the
+correct backup, stop and recover with a verified full backup instead.
+
 ---
+
+## 🔐 After upgrading to v12.84
+
+- Requires Main v12.83 (or v12.84 for reinstall); update older servers in order.
+- Settings-only and Backups-only roles now land on their allowed page instead
+  of `/no-access`. Other permission checks and role hierarchy are unchanged.
+- Role create/edit/delete actions now record the actor, role and permission
+  changes in the auth audit log. The legacy vault-management flag is labelled
+  accurately; automatic encrypted password saving has not changed.
+- The updater changes `app/main.py`, `app/permissions.py` and both VERSION
+  files, and repairs `node_agent/app.py` only if it differs from the pinned
+  payload. Backups are under `/var/backups/streamforge/v1284-<timestamp>-<suffix>/`.
+  A manual rollback must restore all five backed-up files with their original
+  modes/ownership, clear the changed modules' stale bytecode and restart the
+  two Main workers—not just restore `main.py`. No env/Nginx files are changed
+  by this release. Remote Nodes and the channel supervisor need no restart.
+
+## 🔐 After upgrading to v12.83
+
+- Requires Main v12.82 (or v12.83 for reinstall).
+- **Remote Node HTTPS certificates are always verified.** Replace self-signed,
+  expired or name-mismatched certificates with trusted, matching certificates
+  before upgrading. HTTP is an unencrypted alternative only on networks where
+  that risk is acceptable; it is not a TLS workaround for public networks.
+- **Client IP uses the rightmost Nginx-appended X-Forwarded-For hop.** Behind
+  a CDN/internal proxy, add only its trusted address ranges to
+  `set_real_ip_from` in `/etc/nginx/sites-available/streamforge`; never trust
+  `0.0.0.0/0` or `::/0`. Keep `real_ip_recursive on;`, then run
+  `sudo nginx -t && sudo systemctl reload nginx`. Direct viewers must not be
+  trusted as proxies. Recheck the directives after Panel URL/listener changes.
+- **Weak signing keys now stop startup.** The updater repairs weak/missing
+  key entries in an existing `/etc/streamforge.env` before restarting. An
+  absent env file or a custom service environment still needs operator repair.
+  Key rotation logs users out and requires re-entry of saved GeoIP/SSH secrets;
+  see [Secret key rules](OPERATIONS.md#-secret-key-rules).
+- The updater tests and gracefully reloads Nginx; it does not restart the
+  channel supervisor. The Remote Node runtime is unchanged from v12.82.
 
 ## 🔐 After upgrading to v12.82
 

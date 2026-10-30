@@ -143,7 +143,29 @@ else:
         None,
     )
 
-    if hardening_v1283:
+    if "STREAMFORGE_V1284_ROLE_MANAGER_UPDATER" in text:
+        for marker in (
+            '12.83|12.84',
+            'OLD_NODE_BLOB="2d9595392e713068cc4c0c8f5243ef55b4f5472b"',
+            'scripts/apply_role_manager_fix.py',
+            'role patch preflight failed',
+            'STREAMFORGE_V1284_TEST_FAIL_AFTER_WRITE',
+            'ROLLBACK=1',
+            'RESTARTED=1',
+            'systemctl restart streamforge',
+            'systemctl restart streamforge-public',
+            'systemctl is-active --quiet streamforge',
+            'systemctl is-active --quiet streamforge-public',
+            'Rolling back from',
+            'atomic_copy',
+        ):
+            if marker not in text:
+                errors.append(f"{updater.name} v12.84 contract missing {marker}")
+        if re.search(r'systemctl[ \t]+(restart|reload)[ \t]+(nginx|streamforge-channel-supervisor)', text):
+            errors.append(f"{updater.name} v12.84 must not restart Nginx or the channel supervisor")
+        if not (root / "scripts/apply_role_manager_fix.py").is_file():
+            errors.append("missing role patcher")
+    elif hardening_v1283:
         if 'cp -a "$SRC/." "$STAGE/"' in text:
             errors.append(f"{updater.name} v12.83 must not copy the entire tree")
         # A reload is required for the real_ip site patch; a restart of Nginx

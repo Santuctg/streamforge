@@ -508,6 +508,9 @@ def first_allowed_path(admin: AdminUser) -> str:
         ("panel_users.view", "/admin-users"),
         ("roles.view", "/roles"),
         ("logs.view", "/logs"),
+        # Settings-only and backup-only operators still need a landing page.
+        ("settings.view", "/system/branding"),
+        ("backups.view", "/system/backups"),
     ]
     for permission, path in candidates:
         if has_permission(admin, permission):
@@ -13112,6 +13115,9 @@ def role_create(
     )
     db.add(role)
     db.commit()
+    log_event("Panel role created", scope="auth", actor=actor.username,
+              details={"role_id": role.id, "role_name": role.name,
+                       "permissions": sorted(decode_permissions(role.permissions))})
     sensitive = {"panel_users.password_reveal", "panel_users.password_vault_manage"}
     if sensitive & set(decode_permissions(role.permissions)):
         log_event("Vault permissions granted to role", scope="auth", actor=actor.username,
@@ -13190,12 +13196,19 @@ def role_update(
             permission_groups=permission_groups_for_role_editor(actor),
             error="Role name already exists.",
         )
+    old_name = role.name
     role.name = cleaned_name
     role.description = description.strip() or None
     sensitive = {"panel_users.password_reveal", "panel_users.password_vault_manage"}
     old_sensitive = sensitive & set(decode_permissions(role.permissions))
     role.permissions = encode_permissions(submitted_permissions & allowed_permissions)
     db.commit()
+    updated_permissions = set(decode_permissions(role.permissions))
+    log_event("Panel role updated", scope="auth", actor=actor.username,
+              details={"role_id": role.id, "role_name": role.name,
+                       "previous_name": old_name,
+                       "granted": sorted(updated_permissions - existing_permissions),
+                       "revoked": sorted(existing_permissions - updated_permissions)})
     new_sensitive = sensitive & set(decode_permissions(role.permissions))
     if old_sensitive != new_sensitive:
         log_event("Vault role permissions changed", scope="auth", actor=actor.username,
@@ -13219,8 +13232,11 @@ def role_delete(role_id: int, request: Request, db: Session = Depends(get_db)):
         return panel_admin_redirect("/roles", error="The built-in Super Admin role cannot be deleted.")
     if role.panel_users:
         return panel_admin_redirect("/roles", error="Move all panel users to another role before deleting this role.")
+    deleted_role = {"role_id": role.id, "role_name": role.name,
+                    "permissions": sorted(decode_permissions(role.permissions))}
     db.delete(role)
     db.commit()
+    log_event("Panel role deleted", scope="auth", actor=actor.username, details=deleted_role)
     return panel_admin_redirect("/roles", message="Role deleted")
 
 

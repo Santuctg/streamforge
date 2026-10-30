@@ -124,6 +124,12 @@ on the Node and paste the same value into **Edit Node**.
 **Maintenance**: a Node in maintenance is skipped when choosing where to send
 viewers.
 
+**HTTPS certificates (v12.83+)**: Remote Node HTTPS always verifies the
+certificate; the bypass checkbox has been removed. Use a trusted certificate
+matching the Node URL. HTTP sends control traffic without TLS and should only
+be considered on a trusted network. The v12.83 agent payload is unchanged from
+v12.82, so this release does not require updating Remote Nodes.
+
 ---
 
 ## 👥 Users & playlists
@@ -153,6 +159,10 @@ The **Viewer sessions** page shows live sessions and lets you end one.
 
 - **Panel access** — allow/deny Panel and API access by IP/CIDR and ASN. If
   you lock yourself out: `sudo streamforge resetpanelaccess`.
+- **Proxies (v12.83+)** — Main resolves the rightmost Nginx-appended client IP.
+  If a CDN/internal proxy fronts Nginx, configure only its exact trusted ranges
+  in `set_real_ip_from`, keep `real_ip_recursive on`, and test/reload Nginx.
+  Never trust every address. See [v12.83 upgrade notes](INSTALLATION.md#-after-upgrading-to-v1283).
 - **Node playback policy** — per-Node IP/ASN rules for who may play from it.
 - **GeoIP** — country/ASN lookups, configured per server under **Nodes →
   (server) → GeoIP**: IPinfo, MaxMind, or IPinfo-first automatic fallback.
@@ -173,8 +183,16 @@ The **Viewer sessions** page shows live sessions and lets you end one.
 ## 🔐 Panel users & roles
 
 - **Roles & Permissions** — build roles from fine-grained permissions
-  (`channels.*`, `nodes.*`, `users.*`, `logs.*`, `backups.*`,
-  `settings.edit`, …). **Super Admin** is built in and unrestricted.
+  (`channels.*`, `nodes.*`, `stream_users.*`, `logs.*`, `backups.*`,
+  `settings.edit`, …); these are permission families, not wildcard values you
+  can assign. **Super Admin** is built in and unrestricted.
+- Non-Super Admins can grant only permissions they already hold and cannot
+  edit/delete their own assigned role or manage roles above their permission
+  ceiling. Built-in roles are locked; assigned roles cannot be deleted until
+  their accounts have been moved. Action permissions include required view
+  permissions automatically.
+- Role create/update/delete actions are recorded in the auth audit log;
+  updates include granted/revoked permissions and the previous role name.
 - **Killing a viewer session** (**Live sessions → Kill**) requires
   `sessions.kill` (v12.82+), not just `dashboard.view`. Roles that already
   had `dashboard.view` were granted it automatically once, so nothing stops
@@ -195,6 +213,12 @@ The **Viewer sessions** page shows live sessions and lets you end one.
   the installer (since v12.82). If that key is ever missing the Panel falls
   back to hash-only passwords instead of refusing the save, logs a warning at
   startup, and only **Show saved password** is unavailable.
+- **Vault permissions** — `panel_users.password_reveal` controls reveal,
+  subject to reauthentication and target hierarchy. The historical
+  `panel_users.password_vault_manage` flag is retained for compatibility; it
+  does **not** disable automatic encrypted saving. Only Super Admins may grant
+  these sensitive flags. Granting ordinary create/edit access already allows
+  password creation/reset; it does not grant password reveal.
 - Forgot the admin password? `sudo streamforge resetuser`.
 
 ---

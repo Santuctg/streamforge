@@ -1,0 +1,49 @@
+name: Role Manager and documentation
+on:
+  pull_request:
+    paths:
+      - app/main.py
+      - app/permissions.py
+      - app/templates/role*.html
+      - docs/**
+      - README.md
+      - VERSION
+      - scripts/*role_manager*.py
+      - scripts/test_documentation.py
+      - scripts/*v1284*.py
+      - scripts/force_update_v1284.sh
+      - scripts/update.sh
+      - .github/workflows/role-manager-docs.yml
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test dependencies
+        run: python -m pip install -r requirements.txt httpx
+      - name: Role behavior and release patch round-trip
+        run: |
+          python scripts/test_role_manager.py
+          python scripts/test_role_manager_patch.py
+          python scripts/test_v1284_updater.py
+          python scripts/verify_v1284_patch_roundtrip.py
+          python scripts/verify_release_updater_staging.py
+          python scripts/verify_panel_credential_vault_v1263.py
+          bash -n scripts/force_update_v1284.sh scripts/update.sh
+      - name: Documentation contracts
+        run: python scripts/test_documentation.py
+      - name: Neighbouring security behavior
+        run: |
+          python scripts/test_v1263_vault_security.py
+          python scripts/test_v1277_password_policy.py
+          python scripts/test_v1282_phase1_hardening.py
+          python scripts/test_v1283_batch2b.py
+      - name: Whitespace check
+        run: git diff --check origin/main...HEAD

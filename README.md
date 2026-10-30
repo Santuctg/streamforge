@@ -11,14 +11,19 @@
 >
 > **Typical use:** One **Main Server** encodes every channel once; several **Remote Nodes** in other data centres relay those channels and serve the viewers, with per-user connection limits, IP/ASN access policies and automatic node selection.
 
-**Current release:** [v12.83](https://github.com/Santuctg/streamforge/releases/tag/v12.83) · **Deployment:** Linux host with systemd, Nginx and FFmpeg · **Docker image:** not provided.
+**Current release:** [v12.84](https://github.com/Santuctg/streamforge/releases/tag/v12.84) · **Deployment:** Linux host with systemd, Nginx and FFmpeg · **Docker image:** not provided.
+
+**v12.84:** fixes Settings/Backups-only role login, adds role mutation audit
+logs, clarifies vault permissions and corrects operator documentation.
+Requires Main v12.83; Remote Nodes need no update.
 
 > **v12.83 upgrade notes:** HTTPS connections to Remote Nodes now always verify
 > certificates; replace self-signed or name-mismatched certificates before
 > upgrading, or use `http://` where appropriate. If a CDN or internal proxy is
 > in front of Nginx, add only its exact ranges to `set_real_ip_from`—never
-> `0.0.0.0/0`. The updater repairs a weak `STREAMFORGE_SECRET_KEY` before
-> restarting the services.
+> `0.0.0.0/0`. The updater repairs a weak `STREAMFORGE_SECRET_KEY` entry in an
+> existing env file before restarting; missing/custom service configuration
+> needs operator repair. See the [upgrade guide](docs/INSTALLATION.md#-after-upgrading-to-v1283).
 
 ---
 
@@ -124,16 +129,16 @@ Download `streamforge-X.YY.zip` from **[Releases](https://github.com/Santuctg/st
 
 ```bash
 cd /root
-curl -fL -o streamforge-12.83.zip \
-  https://github.com/Santuctg/streamforge/releases/download/v12.83/streamforge-12.83.zip
-sha256sum streamforge-12.83.zip
+curl -fL -o streamforge-12.84.zip \
+  https://github.com/Santuctg/streamforge/releases/download/v12.84/streamforge-12.84.zip
+sha256sum streamforge-12.84.zip
 ```
 
 ### 2a. Fresh install (new server only)
 
 ```bash
-unzip -q streamforge-12.83.zip -d /root
-sudo bash /root/streamforge-12.83/scripts/install.sh
+unzip -q streamforge-12.84.zip -d /root
+sudo bash /root/streamforge-12.84/scripts/install.sh
 ```
 
 Open `http://SERVER_IP` and sign in as **`admin` / `ChangeMe123!`**. The Panel then requires a new password of at least 12 characters before anything else.
@@ -141,7 +146,7 @@ Open `http://SERVER_IP` and sign in as **`admin` / `ChangeMe123!`**. The Panel t
 ### 2b. Upgrade an existing server
 
 ```bash
-sudo streamforge-update --force /root/streamforge-12.83.zip
+sudo streamforge-update --force /root/streamforge-12.84.zip
 ```
 
 Releases are applied **in order** — each updater accepts only the previous version and rolls back automatically on failure. **Never run `install.sh` on an existing server.**

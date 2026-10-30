@@ -1,3 +1,11 @@
+## 12.84 - 2026-10-30
+
+- Fixed login landing pages for roles that can access only Settings or Backups; their existing permissions now lead to the allowed page instead of `/no-access`.
+- Added auth audit events for successful role creation, editing and deletion, including actor, role identity and granted/revoked permission keys. Denied changes do not log success; hierarchy, built-in and own-role protections remain enforced.
+- Clarified the legacy vault-management permission: it does not control automatic encrypted password saving. Password reveal remains a separate, reauthenticated permission. No password-storage behavior was changed.
+- Corrected installation versions, incomplete rollback guidance, TLS/realip/signing-key instructions and testing documentation; added documentation and Role Manager regression tests.
+- The v12.84 updater requires v12.83 or v12.84, preflights exact-text role patches over two runtime files, backs up all touched files, preserves installed file metadata and rolls back failed writes/restarts. It restarts only the two Main HTTP services; Nginx, the channel supervisor, env and database schema are unchanged. Remote Node runtime is byte-identical to v12.83 and needs no update.
+
 ## 12.83 - 2026-10-27
 
 - Client identity is resolved from the **rightmost** `X-Forwarded-For` hop — the one local Nginx appends from the real socket — everywhere a viewer IP is derived (`app/client_ip.py`, shared by the access policy, load balancer, viewer tracking, session fingerprints and the login guard), gated on the loopback backend bind that Uvicorn cannot rewrite. Previously the leftmost (client-written) hop was trusted, so any viewer could choose any source IP with one forged header.
