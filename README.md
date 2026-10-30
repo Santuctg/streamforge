@@ -11,8 +11,6 @@
 >
 > **Typical use:** One **Main Server** encodes every channel once; several **Remote Nodes** in other data centres relay those channels and serve the viewers, with per-user connection limits, IP/ASN access policies and automatic node selection.
 
-**Current release:** [v12.84](https://github.com/Santuctg/streamforge/releases/tag/v12.84) · **Deployment:** Linux host with systemd, Nginx and FFmpeg · **Docker image:** not provided.
-
 **v12.84:** fixes Settings/Backups-only role login, adds role mutation audit
 logs, clarifies vault permissions and corrects operator documentation.
 Requires Main v12.83; Remote Nodes need no update.
