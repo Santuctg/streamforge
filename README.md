@@ -17,8 +17,9 @@
 > certificates; replace self-signed or name-mismatched certificates before
 > upgrading, or use `http://` where appropriate. If a CDN or internal proxy is
 > in front of Nginx, add only its exact ranges to `set_real_ip_from`—never
-> `0.0.0.0/0`. The updater repairs a weak `STREAMFORGE_SECRET_KEY` before
-> restarting the services.
+> `0.0.0.0/0`. The updater repairs a weak `STREAMFORGE_SECRET_KEY` entry in an
+> existing env file before restarting; missing/custom service configuration
+> needs operator repair. See the [upgrade guide](docs/INSTALLATION.md#-after-upgrading-to-v1283).
 
 ---
 

@@ -93,10 +93,18 @@ Therefore:
    `TestClient` (it is not in `requirements.txt`).
 9. **Release notes** `release-notes/vX.YY.md`: what changed, what is
    untouched, required installed version, and the exact line
-   `streamforge-update --force /root/streamforge-X.YY.zip` (checked by CI).
+    `streamforge-update --force /root/streamforge-X.YY.zip` (checked by CI).
+    Update README and the installation/API guides too: download version,
+    current test commands, breaking-change instructions and complete rollback
+    guidance. Do not describe a partial `main.py` restore as a full rollback.
 10. Open a PR, wait for **all** checks, then merge; confirm the
-    *Publish StreamForge Release* run succeeded, download the ZIP, and run the
-    new updater test from inside the extracted ZIP.
+    *Publish StreamForge Release* run succeeded, download and verify the ZIP,
+    and smoke-test its updater against a disposable previous-release fixture.
+
+Validate workflow YAML before pushing (quote step names containing `: `).
+Round-trip and updater tests that read git tags need a full checkout, not just
+an extracted source ZIP. Do not mistake missing fixture tags for a package
+failure; run those tests in the matching release checkout with tags fetched.
 
 ---
 
@@ -123,6 +131,16 @@ republish them into the Nginx static cache `/var/cache/streamforge/main-static`
 with `scripts/sync_main_static_cache.py`, as v12.79 does: Nginx serves
 `/static/` from that cache, not from `/opt/streamforge`.
 `verify_release_updater_staging.py` refuses an updater that skips it.
+
+### Pending Role Manager fixes (not yet released)
+
+`scripts/apply_role_manager_fix.py` patches staged v12.83 `app/main.py` and
+`app/permissions.py`; `scripts/test_role_manager_patch.py` proves byte-for-byte
+parity with the working tree, idempotence and anchor refusal. It is **not** a
+standalone production updater. A next-release updater must call it inside its
+staging/backup/rollback window, install both changed files and restart the
+Main workers. VERSION and the published v12.83 hunks remain unchanged until
+that release is assembled. Do not run the patcher directly on a live server.
 
 > ⚠️ Some workflows contain steps guarded by
 > `if: github.event_name == 'push' && github.ref == ...` that commit and push
