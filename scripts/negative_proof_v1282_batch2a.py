@@ -47,10 +47,10 @@ CASES = [
         'return True',
     ),
     (
-        "secret-key startup warning",
+        "secret-key startup hard fail",
         "app/main.py",
-        'if secret_key in {"", "dev-change-me-now"} or len(secret_key) < 32:',
-        'if False and secret_key in {"", "dev-change-me-now"} or len(secret_key) < 32 and False:',
+        'raise RuntimeError(problem)',
+        'pass  # disabled secret-key refusal',
     ),
     (
         "access-denied page context",

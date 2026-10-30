@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Published v12.83 + pending role hunks must reproduce the working tree."""
+"""Published v12.83 + v12.84 role hunks must reproduce the working tree."""
 from pathlib import Path
 import subprocess
 import tempfile

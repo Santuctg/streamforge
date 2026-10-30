@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Patch a staged v12.83 tree for the pending Role Manager fix.
+"""Patch a staged v12.83 tree for the v12.84 Role Manager fix.
 
-This is a next-release building block, NOT a production updater. It does not
+This is a release building block, NOT a production updater. It does not
 back up files, set VERSION or restart workers. Keep published v12.83 hunks
 immutable; a release updater must stage, back up and apply this patch itself.
 """

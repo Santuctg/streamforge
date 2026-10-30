@@ -40,7 +40,7 @@ policy of the serving Node. Rejections are written to the **Client log**.
 | Endpoint | Purpose |
 | --- | --- |
 | `GET /health` | Returns `ok` (header `X-StreamForge-Process-Role: control` or `public`) |
-| `GET /version` | Returns the running Main version, e.g. `12.83` |
+| `GET /version` | Returns the running Main version, e.g. `12.84` |
 | `GET /relay/{relay_key}/{slug}/index.m3u8` (+ segments) | HLS relay pulled by Remote Nodes; the HMAC relay key authorises it |
 
 Local checks on the Main Server:
@@ -76,15 +76,20 @@ python3 -m venv .venv
 python3 -m pip install -r requirements.txt httpx   # httpx is needed by TestClient tests
 export PYTHONPATH=.
 
-# current published release (12.83)
+# current release (12.84)
+python3 scripts/test_role_manager.py
+python3 scripts/test_role_manager_patch.py
+python3 scripts/test_documentation.py
+python3 scripts/test_v1284_updater.py
+python3 scripts/verify_v1284_patch_roundtrip.py
+python3 scripts/verify_release_updater_staging.py
+
+# v12.83 security behavior and historical release checks
 python3 scripts/test_v1283_batch2b.py
 python3 scripts/negative_proof_v1283_batch2b.py
 python3 scripts/test_v1283_updater.py
 python3 scripts/verify_v1283_patch_roundtrip.py
 python3 scripts/verify_release_updater_staging.py
-
-# Role Manager development regression
-python3 scripts/test_role_manager.py
 
 # neighbouring/historical feature checks (some are version-gated)
 python3 scripts/test_v1281_node_live_charts.py
@@ -120,8 +125,8 @@ Notes:
   failures; do not treat a skip as behavioral coverage. Release round-trip
   tests require the release tags (`git fetch --tags` in a git clone).
   Historical v12.82/v12.83 round-trips compare release tags, not newer source
-  files. Pending runtime changes need their own patcher/round-trip as well
-  (`test_role_manager_patch.py` for the Role Manager fixes).
+  files. New runtime changes need their own patcher/round-trip as well
+  (`test_role_manager_patch.py` for the v12.84 Role Manager fixes).
 - Revert-based negative proofs temporarily edit tracked source files. Run
   them serially in a disposable clean checkout, not alongside other tests or
   on an installed production tree.

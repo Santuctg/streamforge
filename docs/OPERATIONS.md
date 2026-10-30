@@ -118,7 +118,7 @@ new key was active must be entered again.
 ## 🔒 Security checklist
 
 - [ ] `admin` deleted after creating your own Super Admin; every Panel password has 12+ characters (enforced at login from v12.77)
-- [ ] Remote Nodes updated when a release changes the agent runtime (v12.83 does not)
+- [ ] Remote Nodes updated when a release changes the agent runtime (v12.83/v12.84 do not)
 - [ ] Remote Node HTTPS certificates trusted and matching their URLs (mandatory from v12.83)
 - [ ] Any CDN/internal proxy has explicit trusted real_ip ranges in Nginx; never trust all addresses
 - [ ] `STREAMFORGE_SECRET_KEY` is a long random value and has never been shared

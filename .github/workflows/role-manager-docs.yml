@@ -10,6 +10,9 @@ on:
       - VERSION
       - scripts/*role_manager*.py
       - scripts/test_documentation.py
+      - scripts/*v1284*.py
+      - scripts/force_update_v1284.sh
+      - scripts/update.sh
       - .github/workflows/role-manager-docs.yml
 jobs:
   verify:
@@ -25,10 +28,15 @@ jobs:
           python-version: '3.12'
       - name: Install test dependencies
         run: python -m pip install -r requirements.txt httpx
-      - name: Role behavior and pending patch round-trip
+      - name: Role behavior and release patch round-trip
         run: |
           python scripts/test_role_manager.py
           python scripts/test_role_manager_patch.py
+          python scripts/test_v1284_updater.py
+          python scripts/verify_v1284_patch_roundtrip.py
+          python scripts/verify_release_updater_staging.py
+          python scripts/verify_panel_credential_vault_v1263.py
+          bash -n scripts/force_update_v1284.sh scripts/update.sh
       - name: Documentation contracts
         run: python scripts/test_documentation.py
       - name: Neighbouring security behavior

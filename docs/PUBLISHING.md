@@ -132,15 +132,26 @@ with `scripts/sync_main_static_cache.py`, as v12.79 does: Nginx serves
 `/static/` from that cache, not from `/opt/streamforge`.
 `verify_release_updater_staging.py` refuses an updater that skips it.
 
-### Pending Role Manager fixes (not yet released)
+### v12.84 Role Manager release
 
 `scripts/apply_role_manager_fix.py` patches staged v12.83 `app/main.py` and
 `app/permissions.py`; `scripts/test_role_manager_patch.py` proves byte-for-byte
 parity with the working tree, idempotence and anchor refusal. It is **not** a
-standalone production updater. A next-release updater must call it inside its
-staging/backup/rollback window, install both changed files and restart the
-Main workers. VERSION and the published v12.83 hunks remain unchanged until
-that release is assembled. Do not run the patcher directly on a live server.
+standalone production updater. `force_update_v1284.sh` calls it inside its
+staging/backup/rollback window, installs both changed files and restarts the
+Main workers. The published v12.83 hunks remain unchanged. Do not run the
+patcher directly on a live server; use the release updater.
+
+After downloading/extracting the v12.84 ZIP, run from the matching git checkout
+with tags fetched:
+
+```bash
+STREAMFORGE_V1284_PACKAGE_ROOT=/path/to/extracted/streamforge-12.84 \
+  PYTHONPATH=. python3 scripts/test_v1284_updater.py
+```
+
+This tests the extracted package's updater against v12.83 tag fixtures,
+including a reinstall and controlled rollback, without touching an install.
 
 > ⚠️ Some workflows contain steps guarded by
 > `if: github.event_name == 'push' && github.ref == ...` that commit and push
