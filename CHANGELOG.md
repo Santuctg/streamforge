@@ -265,3 +265,4 @@ fix: naive datetime comparison for SQLite expires_at
 fix: updater
 rebuild
 rebuild
+rebuild2
