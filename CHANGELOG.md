@@ -251,3 +251,4 @@ rebuild3
 rebuild4
 rebuild
 rebuild5
+fix: naive datetime comparison for SQLite expires_at
