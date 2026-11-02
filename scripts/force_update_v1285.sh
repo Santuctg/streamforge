@@ -30,7 +30,9 @@ trap cleanup EXIT
 STAGE="$STAGING/tree"
 for file in "${FILES[@]}"; do
   mkdir -p "$STAGE/$(dirname "$file")"
-  cp -a "$ROOT/$file" "$STAGE/$file"
+  # Copy from package source ($SRC), NOT from installed root ($ROOT),
+  # so updated templates like node_form.html are staged fresh.
+  cp -a "$SRC/$file" "$STAGE/$file"
 done
 # The Node payload is unchanged; repair drift using the pinned release bytes.
 cp -a "$SRC/node_agent/app.py" "$STAGE/node_agent/app.py"
