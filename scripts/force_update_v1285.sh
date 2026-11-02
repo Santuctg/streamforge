@@ -33,7 +33,7 @@ for file in "${FILES[@]}"; do
   cp -a "$ROOT/$file" "$STAGE/$file"
 done
 # Preflight: run the migration script in test mode against a temp DB path to verify it works.
-STREAMFORGE_DATABASE_URL="sqlite:////tmp/sf-v1285-preflight.db" python3 "$SRC/scripts/migrate_node_expiry.py" || die "migration preflight failed"
+STREAMFORGE_DATABASE_URL="sqlite:////tmp/sf-v1285-preflight.db" PYTHONPATH="$SRC" python3 "$SRC/scripts/migrate_node_expiry.py" || die "migration preflight failed"
 rm -f /tmp/sf-v1285-preflight.db
 # The Node payload is unchanged; repair drift using the pinned release bytes.
 cp -a "$SRC/node_agent/app.py" "$STAGE/node_agent/app.py"
@@ -97,7 +97,7 @@ for file in "${FILES[@]}"; do
 done
 # Run the migration on the live database to add the expires_at column.
 if [[ "$TEST" != 1 ]]; then
-  python3 "$SRC/scripts/migrate_node_expiry.py" || die "live migration failed"
+  PYTHONPATH="$SRC" python3 "$SRC/scripts/migrate_node_expiry.py" || die "live migration failed"
 fi
 if [[ "${STREAMFORGE_V1285_TEST_FAIL_AFTER_WRITE:-0}" == 1 ]]; then
   log "Controlled failure after write"

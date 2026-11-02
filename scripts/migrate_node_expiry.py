@@ -4,7 +4,13 @@
 Usage:
     python scripts/migrate_node_expiry.py
 """
+import sys
 from pathlib import Path
+
+# Ensure the package root (parent of scripts/) is on sys.path so `app` imports
+# work when this script is run from an extracted ZIP temp directory.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from sqlalchemy import text
 from app.db import SessionLocal
 
