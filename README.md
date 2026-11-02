@@ -11,9 +11,10 @@
 >
 > **Typical use:** One **Main Server** encodes every channel once; several **Remote Nodes** in other data centres relay those channels and serve the viewers, with per-user connection limits, IP/ASN access policies and automatic node selection.
 
-**v12.84:** fixes Settings/Backups-only role login, adds role mutation audit
-logs, clarifies vault permissions and corrects operator documentation.
-Requires Main v12.83; Remote Nodes need no update.
+**v12.85:** adds Node subscription expiry date (`expires_at`) with shortcut
+buttons (`+1 month`, `+2 months`, `Unlimited (∞)`) on the Add/Edit Node form,
+plus `scripts/migrate_node_expiry.py` to add the column (idempotent).
+Requires Main v12.84; Remote Nodes need no update.
 
 > **v12.83 upgrade notes:** HTTPS connections to Remote Nodes now always verify
 > certificates; replace self-signed or name-mismatched certificates before
@@ -127,16 +128,16 @@ Download `streamforge-X.YY.zip` from **[Releases](https://github.com/Santuctg/st
 
 ```bash
 cd /root
-curl -fL -o streamforge-12.84.zip \
-  https://github.com/Santuctg/streamforge/releases/download/v12.84/streamforge-12.84.zip
-sha256sum streamforge-12.84.zip
+curl -fL -o streamforge-12.85.zip \
+  https://github.com/Santuctg/streamforge/releases/download/v12.85/streamforge-12.85.zip
+sha256sum streamforge-12.85.zip
 ```
 
 ### 2a. Fresh install (new server only)
 
 ```bash
-unzip -q streamforge-12.84.zip -d /root
-sudo bash /root/streamforge-12.84/scripts/install.sh
+unzip -q streamforge-12.85.zip -d /root
+sudo bash /root/streamforge-12.85/scripts/install.sh
 ```
 
 Open `http://SERVER_IP` and sign in as **`admin` / `ChangeMe123!`**. The Panel then requires a new password of at least 12 characters before anything else.
@@ -144,7 +145,7 @@ Open `http://SERVER_IP` and sign in as **`admin` / `ChangeMe123!`**. The Panel t
 ### 2b. Upgrade an existing server
 
 ```bash
-sudo streamforge-update --force /root/streamforge-12.84.zip
+sudo streamforge-update --force /root/streamforge-12.85.zip
 ```
 
 Releases are applied **in order** — each updater accepts only the previous version and rolls back automatically on failure. **Never run `install.sh` on an existing server.**
