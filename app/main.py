@@ -7988,7 +7988,7 @@ def nodes_page(
         node_public_urls={item.id: node_public_base(item) for item in nodes},
         node_panel_urls={item.id: effective_node_url(item).strip().rstrip("/") for item in nodes},
         app_version=APP_VERSION,
-        now=datetime.now(timezone.utc),
+        now=datetime.utcnow(),
     )
 
 
