@@ -11,8 +11,8 @@
 >
 > **Typical use:** One **Main Server** encodes every channel once; several **Remote Nodes** in other data centres relay those channels and serve the viewers, with per-user connection limits, IP/ASN access policies and automatic node selection.
 
-**v12.86:** Node expiry date shown on dashboard with 'Expired' badge for past-due nodes and 'Unlimited' for nodes without expiry. Fixes update to show expiry field correctly in Node edit form.
-Requires Main v12.85; Remote Nodes need no update.
+**v12.87:** Node expiry date shown on Main Panel dashboard with expired node count and color-coded status.
+Requires Main v12.86; Remote Nodes need no update.
 
 > **v12.83 upgrade notes:** HTTPS connections to Remote Nodes now always verify
 > certificates; replace self-signed or name-mismatched certificates before
@@ -126,16 +126,16 @@ Download `streamforge-X.YY.zip` from **[Releases](https://github.com/Santuctg/st
 
 ```bash
 cd /root
-curl -fL -o streamforge-12.86.zip \
-  https://github.com/Santuctg/streamforge/releases/download/v12.86/streamforge-12.86.zip
-sha256sum streamforge-12.86.zip
+curl -fL -o streamforge-12.87.zip \
+  https://github.com/Santuctg/streamforge/releases/download/v12.87/streamforge-12.87.zip
+sha256sum streamforge-12.87.zip
 ```
 
 ### 2a. Fresh install (new server only)
 
 ```bash
-unzip -q streamforge-12.86.zip -d /root
-sudo bash /root/streamforge-12.86/scripts/install.sh
+unzip -q streamforge-12.87.zip -d /root
+sudo bash /root/streamforge-12.87/scripts/install.sh
 ```
 
 Open `http://SERVER_IP` and sign in as **`admin` / `ChangeMe123!`**. The Panel then requires a new password of at least 12 characters before anything else.
@@ -143,7 +143,7 @@ Open `http://SERVER_IP` and sign in as **`admin` / `ChangeMe123!`**. The Panel t
 ### 2b. Upgrade an existing server
 
 ```bash
-sudo streamforge-update --force /root/streamforge-12.86.zip
+sudo streamforge-update --force /root/streamforge-12.87.zip
 ```
 
 Releases are applied **in order** — each updater accepts only the previous version and rolls back automatically on failure. **Never run `install.sh` on an existing server.**

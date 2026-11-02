@@ -1,3 +1,8 @@
+## 12.87 - 2026-11-03
+
+- Node expiry date now shown on Main Panel dashboard (`/`) with expired node count and color-coded status.
+- Both VERSION files bumped to 12.87. Remote Node runtime payload unchanged — Remote Nodes need no update for v12.87.
+
 ## 12.86 - 2026-11-03
 
 - Node expiry date now shown on Nodes dashboard (`/nodes`) card with 'Expired' badge for past-due nodes and 'Unlimited' for nodes without expiry.

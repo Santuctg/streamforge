@@ -40,7 +40,7 @@ policy of the serving Node. Rejections are written to the **Client log**.
 | Endpoint | Purpose |
 | --- | --- |
 | `GET /health` | Returns `ok` (header `X-StreamForge-Process-Role: control` or `public`) |
-| `GET /version` | Returns the running Main version, e.g. `12.86` |
+| `GET /version` | Returns the running Main version, e.g. `12.87` |
 | `GET /relay/{relay_key}/{slug}/index.m3u8` (+ segments) | HLS relay pulled by Remote Nodes; the HMAC relay key authorises it |
 
 Local checks on the Main Server:
