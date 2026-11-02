@@ -6817,19 +6817,6 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         select(func.count(Node.id)).where(or_(Node.node_type == "local", Node.status == "online"))
     ) or 0)
 
-    # Dashboard node expiry summary for display
-    from datetime import datetime as _dt
-    dashboard_node_expiry: dict[int, object] = {}
-    for nd in db.scalars(select(Node).where(Node.expires_at.is_not(None)).order_by(Node.expires_at)).all():
-        expiry = nd.expires_at
-        if expiry.tzinfo is None:
-            expiry = expiry.replace(tzinfo=timezone.utc)
-        dashboard_node_expiry[int(nd.id)] = {
-            "name": nd.name,
-            "expires_at": expiry,
-            "expired": expiry <= datetime.now(timezone.utc),
-        }
-
     viewer_stats = collect_viewer_counts_fast(db)
     playlist_public_base = main_playlist_public_base(db, request)
     dashboard_http_outputs = {
@@ -6853,7 +6840,6 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         total_bitrate=total_bitrate,
         node_count=node_count,
         online_node_count=online_node_count,
-        dashboard_node_expiry=dashboard_node_expiry,
         system_metrics=system_metrics.snapshot(),
     )
 
