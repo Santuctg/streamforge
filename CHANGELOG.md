@@ -237,3 +237,4 @@
 - Added `STREAMFORGE_NODE_DIRECT_STREAM_SINGLE_READY_V1210`: direct stream lookup matches the requested stream before any readiness validation.
 - Added `STREAMFORGE_NODE_DIRECT_STREAM_HLS_FAST_READY_V1210`: direct playback checks only the selected channel's local HLS freshness and avoids a supervisor RPC in the request hot path.
 - Preserved all v12.9 Node Playlist User expiry edit support and earlier StreamForge fixes/settings/data.
+
