@@ -4,6 +4,7 @@
 - Node form (`/nodes/new`, `/nodes/{id}/edit`) gains an expiry date-time picker with shortcut buttons: `+1 month`, `+2 months`, `Unlimited (∞)`.
 - New migration script `scripts/migrate_node_expiry.py` adds the `expires_at` column to the `nodes` table (idempotent).
 - Both VERSION files bumped to 12.85. Remote Node runtime payload unchanged — Remote Nodes need no update for v12.85.
+- Fixed `scripts/update.sh` to point to `scripts/force_update_v1285.sh` (was incorrectly pointing to v12.84 updater). New staged updater runs `scripts/migrate_node_expiry.py` live migration and restarts only Main workers.
 
 ## 12.84 - 2026-10-30
 
