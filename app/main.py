@@ -8611,6 +8611,7 @@ def node_create(
     ssh_password: str = Form(""),
     save_ssh_password: Optional[str] = Form(None),
     agent_port: int = Form(0),
+    expires_at: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
     if not current_admin(request, db):
@@ -8695,6 +8696,7 @@ def node_create(
         ssh_password_enc=encrypt_secret(ssh_password) if as_bool(save_ssh_password) else None,
         agent_port=panel_listener_port,
         status="unknown",
+        expires_at=normalize_expiry(expires_at),
     )
     db.add(node)
     db.flush()
@@ -9201,6 +9203,7 @@ def node_update(
     save_ssh_password: Optional[str] = Form(None),
     clear_ssh_password: Optional[str] = Form(None),
     agent_port: int = Form(0),
+    expires_at: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
     if not current_admin(request, db):
@@ -9360,6 +9363,7 @@ def node_update(
             node.ssh_password_enc = encrypt_secret(ssh_password)
     else:
         node.agent_port = max(1, min(65535, panel_public_port))
+    node.expires_at = normalize_expiry(expires_at)
     node.status = "online" if node.node_type == "local" else "unknown"
     node.last_error = None
     db.commit()

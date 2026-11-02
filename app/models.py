@@ -214,6 +214,10 @@ class Node(Base):
     asn_whitelist: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     asn_blacklist: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     last_seen_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Node subscription expiry date. When set and in the past, the Node is
+    # treated as expired: playback/channel access is blocked until the date is
+    # extended or cleared (unlimited). Leave NULL for unlimited (no expiry).
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     last_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)

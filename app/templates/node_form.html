@@ -38,6 +38,14 @@
 @media(max-width:1500px){.node-five-options-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:900px){.node-five-options-grid{grid-template-columns:1fr}}
 
+/* STREAMFORGE_NODE_SUBSCRIPTION_EXPIRY_V2400_STYLE */
+.node-expiry-section{margin-top:10px}
+.node-expiry-shortcuts{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
+.node-expiry-shortcut{background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:6px 12px;border-radius:8px;font-size:12px;cursor:pointer;white-space:nowrap}
+.node-expiry-shortcut:hover{background:var(--surface-2);border-color:var(--accent)}
+.node-expiry-shortcut.node-expiry-clear{background:rgba(255,150,159,.1);border-color:rgba(255,150,159,.34);color:#ff969f}
+.node-expiry-shortcut.node-expiry-clear:hover{background:rgba(255,150,159,.2)}
+.node-expiry-section input[type="datetime-local"]{width:100%}
 
 /* STREAMFORGE_NODE_OPTION_TRUE_VERTICAL_CENTER_V2300 */
 .node-five-options-grid>.node-option-card.node-option-check{
@@ -263,6 +271,19 @@
     <input type="hidden" name="sync_main_users" value="">
     {% endif %}
 
+    <!-- STREAMFORGE_NODE_SUBSCRIPTION_EXPIRY_V2400 -->
+    <div class="wide node-expiry-section">
+      <label>Node subscription expiry
+        <input type="datetime-local" name="expires_at" value="{{ node.expires_at.strftime('%Y-%m-%dT%H:%M') if node and node.expires_at else '' }}">
+        <div class="node-expiry-shortcuts">
+          <button type="button" class="node-expiry-shortcut" data-offset="+1 month">+1 month</button>
+          <button type="button" class="node-expiry-shortcut" data-offset="+2 months">+2 months</button>
+          <button type="button" class="node-expiry-shortcut node-expiry-clear" data-offset="clear">Unlimited (∞)</button>
+        </div>
+        <small class="field-help">Set when this Node subscription expires. Playback is blocked after expiry until extended or cleared. Leave empty for unlimited (no expiry).</small>
+      </label>
+    </div>
+
     <label class="wide">Strict client IP prefixes
       <textarea name="client_prefixes" rows="5" placeholder="10.20.0.0/16&#10;192.168.50.0/24&#10;2001:db8:10::/48">{{ node.client_prefixes or '' if node else '' }}</textarea>
       <small class="field-help">One CIDR per line. A matching client prefers this server first. If it is offline or not playback-ready, StreamForge automatically falls back to another eligible assigned Node.</small>
@@ -474,6 +495,33 @@
         button.disabled = false; button.textContent = old;
       }
     }
+  });
+})();
+
+// STREAMFORGE_NODE_SUBSCRIPTION_EXPIRY_V2400_JS
+(() => {
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  const minNow = now.toISOString().slice(0, 16);
+  const field = document.querySelector('input[name="expires_at"]');
+  if (!field) return;
+  field.min = minNow;
+  document.querySelectorAll('.node-expiry-shortcut').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const offset = btn.dataset.offset || '';
+      if (offset === 'clear') {
+        field.value = '';
+        return;
+      }
+      const base = field.value || minNow;
+      const d = new Date(base + ':00');
+      const m = offset.match(/^\+(\d+) months?$/);
+      if (m) {
+        const months = parseInt(m[1], 10);
+        d.setMonth(d.getMonth() + months);
+      }
+      field.value = d.toISOString().slice(0, 16);
+    });
   });
 })();
 </script>

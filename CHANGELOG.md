@@ -1,3 +1,10 @@
+## 12.85 - 2026-11-03
+
+- Added Node subscription expiry date (`expires_at`) to Remote Nodes. Playback/channel access is blocked after expiry until the date is extended or cleared (unlimited). Leave empty for no expiry.
+- Node form (`/nodes/new`, `/nodes/{id}/edit`) gains an expiry date-time picker with shortcut buttons: `+1 month`, `+2 months`, `Unlimited (∞)`.
+- New migration script `scripts/migrate_node_expiry.py` adds the `expires_at` column to the `nodes` table (idempotent).
+- Both VERSION files bumped to 12.85. Remote Node runtime payload unchanged — Remote Nodes need no update for v12.85.
+
 ## 12.84 - 2026-10-30
 
 - Fixed login landing pages for roles that can access only Settings or Backups; their existing permissions now lead to the allowed page instead of `/no-access`.
