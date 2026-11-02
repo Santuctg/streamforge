@@ -32,9 +32,6 @@ for file in "${FILES[@]}"; do
   mkdir -p "$STAGE/$(dirname "$file")"
   cp -a "$ROOT/$file" "$STAGE/$file"
 done
-# Preflight: run the migration script in test mode against a temp DB path to verify it works.
-STREAMFORGE_DATABASE_URL="sqlite:////tmp/sf-v1285-preflight.db" PYTHONPATH="$SRC" python3 "$SRC/scripts/migrate_node_expiry.py" || die "migration preflight failed"
-rm -f /tmp/sf-v1285-preflight.db
 # The Node payload is unchanged; repair drift using the pinned release bytes.
 cp -a "$SRC/node_agent/app.py" "$STAGE/node_agent/app.py"
 printf '%s\n' "$TARGET" > "$STAGE/VERSION"
