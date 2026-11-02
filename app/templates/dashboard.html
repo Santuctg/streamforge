@@ -13,6 +13,23 @@
   <article class="stat"><span>Total output</span><strong id="total-bitrate">{% if total_bitrate >= 1024 %}{{ "%.2f"|format(total_bitrate / 1024) }} Mb/s{% else %}{{ total_bitrate }} kb/s{% endif %}</strong><small>current FFmpeg bitrate</small></article>
   <article class="stat"><span>Engine</span><strong class="good">Ready</strong><small>FFmpeg process manager</small></article>
   <article class="stat"><span>System uptime</span><strong data-system-uptime>{{ human_duration(system_metrics.uptime_seconds) }}</strong><small>Main server host uptime</small></article>
+  {% if dashboard_node_expiry %}
+  <article class="stat"><span>Node expiry</span>
+    {% set expiring_soon = namespace(count=0) %}
+    {% for nid, info in dashboard_node_expiry.items() %}
+      {% if info.expired %}
+        {% set expiring_soon.count = expiring_soon.count + 1 %}
+      {% endif %}
+    {% endfor %}
+    <strong class="{% if expiring_soon.count > 0 %}node-expired{% else %}node-expiry-active{% endif %}">
+      {% if expiring_soon.count > 0 %}
+        {{ expiring_soon.count }} expired
+      {% else %}
+        All active
+      {% endif %}
+    </strong><small>{{ dashboard_node_expiry|length }} node(s) with expiry</small>
+  </article>
+  {% endif %}
 </section>
 
 {% if can('system_metrics.view') %}<section class="system-resource-grid" data-system-metrics data-endpoint="{{ app_root }}/system-metrics.json">
@@ -113,5 +130,6 @@
 {% endblock %}
 {% block scripts %}
 <style>/* STREAMFORGE_MAIN_DASHBOARD_LEGEND_VALUES_V1278 */.metrics-legend [data-legend-value]{margin-left:4px;color:#e6eef7;font-variant-numeric:tabular-nums}.metrics-legend [data-legend-value]:empty{display:none}</style>
+<style>/* STREAMFORGE_DASHBOARD_NODE_EXPIRY_V2402 */.node-expired{color:#ff969f;font-weight:700}.node-expiry-active{color:#74dfaf}</style>
 <script src="/static/dashboard.js?v={{ app_version }}"></script>
 {% endblock %}
