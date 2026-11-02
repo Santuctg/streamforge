@@ -2,6 +2,7 @@
 
 - Node expiry date now shown on Nodes dashboard (`/nodes`) card with 'Expired' badge for past-due nodes and 'Unlimited' for nodes without expiry.
 - Fixed `force_update_v1285.sh` to stage updated templates from package source (`$SRC`) instead of installed root (`$ROOT`), so expiry date field appears correctly after update.
+- Fixed `scripts/update.sh` to point to `force_update_v1286.sh` (was incorrectly pointing to v12.85 updater).
 - Both VERSION files bumped to 12.86. Remote Node runtime payload unchanged — Remote Nodes need no update for v12.86.
 
 ## 12.85 - 2026-11-03
