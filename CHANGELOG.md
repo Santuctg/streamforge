@@ -1,3 +1,8 @@
+## 12.97 - 2026-11-03
+
+- Main dashboard Nodes card now says **All nodes online** when no Nodes are offline and **All nodes active** when none are expired. Nonzero offline/expired counts remain aligned left/right; zero Nodes show neither status label.
+- New updater `scripts/force_update_v1297.sh`; both VERSION files bumped to 12.97. Node Agent behavior is unchanged.
+
 ## 12.96 - 2026-11-03
 
 - Node Web Player expired page now uses the requested copy, shows `Expired: <Bangladesh date/time> · EXPIRED`, and displays the Node logo beneath the notice when configured.
