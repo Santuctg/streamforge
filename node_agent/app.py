@@ -16124,6 +16124,38 @@ def _node_webplayer_theme_css(request: Request | None = None) -> str:
 
 def _node_web_page(user: NodeUserConfig | None, request: Request, error: str = "") -> str:
     prefix = _node_web_prefix(request)
+    # STREAMFORGE_NODE_WEBPLAYER_SUBSCRIPTION_EXPIRED_V1294: expiry is a
+    # subscription-wide state, so show a dedicated public-facing page rather
+    # than login/player content while the Node is locked.
+    expiry_reason = manager.node_expiry_lock_reason()
+    if expiry_reason:
+        expiry_display, _expiry_class = manager.node_expiry_bd_display()
+        web_brand = _node_webplayer_brand(request) or {}
+        node_name, _node_logo = _node_identity_snapshot()
+        brand_name = str(web_brand.get("name") or node_name or "Node").strip()
+        return (
+            '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+            '<meta name="viewport" content="width=device-width,initial-scale=1">'
+            '<title>Subscription Expired</title><style>'
+            'html,body{min-height:100%;margin:0}body{display:grid;place-items:center;padding:24px;'
+            'box-sizing:border-box;background:linear-gradient(145deg,#09111b,#111923);'
+            'color:#f4f7fb;font:16px system-ui,-apple-system,Segoe UI,sans-serif;text-align:center}'
+            '.expired-card{width:min(560px,100%);box-sizing:border-box;padding:38px 30px;border-radius:20px;'
+            'background:#151f2b;border:1px solid #623b43;box-shadow:0 24px 70px rgba(0,0,0,.38)}'
+            '.expired-icon{font-size:42px;margin-bottom:12px}.expired-card h1{margin:0 0 12px;'
+            'font-size:28px;color:#ff6575}.expired-card p{margin:0;color:#c8d1dc;line-height:1.65}'
+            '.expired-date{display:inline-block;margin-top:18px;padding:9px 13px;border-radius:10px;'
+            'background:#321f25;border:1px solid #75424b;color:#ff7b88;font-weight:800}'
+            '.expired-brand{margin-top:20px;color:#8e9caf;font-size:13px}'
+            '</style></head><body><main class="expired-card">'
+            '<div class="expired-icon" aria-hidden="true">&#128176;</div>'
+            '<h1>Subscription Expired</h1>'
+            '<p>This Node subscription has expired. The Web Player is unavailable until payment is made. '
+            'Once payment is received and the subscription is extended, access will resume automatically.</p>'
+            '<div class="expired-date">Expired: ' + html.escape(expiry_display) + '</div>'
+            '<div class="expired-brand">' + html.escape(brand_name) + '</div>'
+            '</main></body></html>'
+        )
     # STREAMFORGE_NODE_AUTO_LOGIN_HIDE_SIGNOUT_V2226:
     controls = _node_webplayer_effective_controls(request)
     logout_html = "" if controls["login_mode"] == "auto" else (
