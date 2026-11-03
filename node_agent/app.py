@@ -16124,15 +16124,26 @@ def _node_webplayer_theme_css(request: Request | None = None) -> str:
 
 def _node_web_page(user: NodeUserConfig | None, request: Request, error: str = "") -> str:
     prefix = _node_web_prefix(request)
-    # STREAMFORGE_NODE_WEBPLAYER_SUBSCRIPTION_EXPIRED_V1294: expiry is a
+    # STREAMFORGE_NODE_WEBPLAYER_SUBSCRIPTION_EXPIRED_V1294:
+    # STREAMFORGE_NODE_WEBPLAYER_EXPIRED_BRANDING_V1296: expiry is a
     # subscription-wide state, so show a dedicated public-facing page rather
     # than login/player content while the Node is locked.
     expiry_reason = manager.node_expiry_lock_reason()
     if expiry_reason:
         expiry_display, _expiry_class = manager.node_expiry_bd_display()
         web_brand = _node_webplayer_brand(request) or {}
-        node_name, _node_logo = _node_identity_snapshot()
+        node_name, node_logo = _node_identity_snapshot()
         brand_name = str(web_brand.get("name") or node_name or "Node").strip()
+        has_logo = bool(
+            str(web_brand.get("logo_url") or "").strip()
+            or str(web_brand.get("logo_asset") or "").strip()
+            or node_logo.startswith("/node-logos/")
+        )
+        logo_html = (
+            '<img class="expired-logo" src="' + html.escape(prefix.rstrip("/") + "/web-player/logo", quote=True)
+            + '" alt="' + html.escape(brand_name, quote=True) + ' logo" loading="eager" onerror="this.remove()">'
+            if has_logo else ""
+        )
         return (
             '<!doctype html><html lang="en"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1">'
@@ -16146,14 +16157,16 @@ def _node_web_page(user: NodeUserConfig | None, request: Request, error: str = "
             'font-size:28px;color:#ff6575}.expired-card p{margin:0;color:#c8d1dc;line-height:1.65}'
             '.expired-date{display:inline-block;margin-top:18px;padding:9px 13px;border-radius:10px;'
             'background:#321f25;border:1px solid #75424b;color:#ff7b88;font-weight:800}'
-            '.expired-brand{margin-top:20px;color:#8e9caf;font-size:13px}'
+            '.expired-brand{margin-top:22px;color:#8e9caf;font-size:13px}'
+            '.expired-logo{display:block;width:auto;height:auto;max-width:min(190px,70%);max-height:72px;'
+            'object-fit:contain;margin:0 auto 8px}'
             '</style></head><body><main class="expired-card">'
             '<div class="expired-icon" aria-hidden="true">&#128176;</div>'
             '<h1>Subscription Expired</h1>'
-            '<p>This Node subscription has expired. The Web Player is unavailable until payment is made. '
-            'Once payment is received and the subscription is extended, access will resume automatically.</p>'
+            '<p>This subscription has expired. The Web Player is unavailable until payment is made. '
+            'Once payment is received, access will resume automatically.</p>'
             '<div class="expired-date">Expired: ' + html.escape(expiry_display) + '</div>'
-            '<div class="expired-brand">' + html.escape(brand_name) + '</div>'
+            '<div class="expired-brand">' + logo_html + html.escape(brand_name) + '</div>'
             '</main></body></html>'
         )
     # STREAMFORGE_NODE_AUTO_LOGIN_HIDE_SIGNOUT_V2226:
