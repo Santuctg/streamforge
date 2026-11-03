@@ -29,7 +29,7 @@ import time
 from collections import deque
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -139,6 +139,13 @@ PANEL_CACHE_SECONDS = max(2, int(os.getenv("STREAMFORGE_NODE_PANEL_CACHE_SECONDS
 # STREAMFORGE_NODE_PERIODIC_MAIN_HEARTBEAT_V1139: keep Main liveness and targeted queue delivery
 # independent of Node panel/user traffic. The control service owns exactly one lightweight sender.
 NODE_MAIN_HEARTBEAT_INTERVAL_SECONDS = max(5, min(60, int(os.getenv("STREAMFORGE_NODE_MAIN_HEARTBEAT_INTERVAL_SECONDS", "15"))))
+# STREAMFORGE_NODE_EXPIRY_SERVICE_LOCK_V1290: Bangladesh time (UTC+6, no DST)
+# drives the Node dashboard expiry display, and expiry enforcement stops every
+# channel once the subscription lapses until Main extends or clears it.
+BANGLADESH_TZ = timezone(timedelta(hours=6), "Asia/Dhaka")
+NODE_EXPIRY_ENFORCEMENT_INTERVAL_SECONDS = max(
+    10, min(300, int(os.getenv("STREAMFORGE_NODE_EXPIRY_ENFORCEMENT_INTERVAL_SECONDS", "30")))
+)
 # STREAMFORGE_NODE_PUBLIC_SHARED_PANEL_CONNECTIVITY_V1210:
 # Public playback workers must never synchronously call Main just to decide if
 # Node user authentication is allowed. The single control worker publishes its
@@ -1231,6 +1238,10 @@ class AgentManager:
         # STREAMFORGE_NODE_EXPIRY_HEARTBEAT_V1289: Main-owned subscription
         # expiry for this Node, synchronized through the heartbeat response.
         self.node_expires_at = ""
+        # STREAMFORGE_NODE_EXPIRY_SERVICE_LOCK_V1290: when True the subscription
+        # lapsed and all channels were stopped until Main extends/clears it.
+        self._expiry_lock_active = False
+        self._expiry_enforce_lock = threading.Lock()
         self.node_logo_url = ""
         self.independent_mode = False
         self.local_channel_limit = 0
@@ -4196,7 +4207,135 @@ class AgentManager:
             scope="settings",
             details=f"expires_at={cleaned or 'unlimited'}",
         )
+        # STREAMFORGE_NODE_EXPIRY_SERVICE_LOCK_V1290: a changed expiry may mean
+        # the service lock must engage or release immediately.
+        if NODE_MODE != "public":
+            self.enforce_node_expiry()
         return True
+
+    # STREAMFORGE_NODE_EXPIRY_SERVICE_LOCK_V1290: Bangladesh time (UTC+6) with a
+    # 12-hour clock is the operator-facing subscription display everywhere on
+    # the Node dashboard.
+    def node_expiry_bd_display(self) -> tuple[str, str]:
+        """Return ``(display, css_class)`` for the Node dashboard expiry card."""
+        raw = str(self.node_expires_at or "").strip()
+        if not raw:
+            return "Unlimited", "node-expiry-card-active"
+        try:
+            parsed_expiry = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        except ValueError:
+            return raw, "node-expiry-card-expired"
+        if parsed_expiry.tzinfo is None:
+            parsed_expiry = parsed_expiry.replace(tzinfo=timezone.utc)
+        expiry_bd = parsed_expiry.astimezone(BANGLADESH_TZ).strftime("%d %b %Y %I:%M %p")
+        if parsed_expiry <= datetime.now(timezone.utc):
+            return expiry_bd + " · EXPIRED", "node-expiry-card-expired"
+        return expiry_bd, "node-expiry-card-active"
+
+    def node_expiry_lock_reason(self) -> str:
+        """Return a lock reason once the subscription is past its expiry (UTC)."""
+        raw = str(self.node_expires_at or "").strip()
+        if not raw:
+            return ""
+        try:
+            parsed_expiry = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        except ValueError:
+            # A corrupt Main value must not brick the Node service.
+            return ""
+        if parsed_expiry.tzinfo is None:
+            parsed_expiry = parsed_expiry.replace(tzinfo=timezone.utc)
+        if parsed_expiry <= datetime.now(timezone.utc):
+            return "Node subscription expired"
+        return ""
+
+    def _expiry_restore_settings(self) -> dict[str, bool]:
+        try:
+            saved = _node_operations_settings().get("expiry_restore_desired") or {}
+            return {str(key): bool(value) for key, value in saved.items()}
+        except (OSError, ValueError, TypeError, AttributeError):
+            return {}
+
+    def _persist_expiry_restore(self, restore: dict[str, bool]) -> None:
+        settings_data = _node_operations_settings()
+        settings_data["expiry_restore_desired"] = restore
+        OPERATIONS_SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        temporary = OPERATIONS_SETTINGS_FILE.with_suffix(".tmp")
+        temporary.write_text(json.dumps(settings_data, separators=(",", ":")), encoding="utf-8")
+        temporary.replace(OPERATIONS_SETTINGS_FILE)
+
+    def enforce_node_expiry(self) -> str:
+        """Enforce the subscription state on channel capacity.
+
+        STREAMFORGE_NODE_EXPIRY_SERVICE_LOCK_V1290: once the expiry passes,
+        every desired-running channel is stopped with the proven Stop-panel
+        path (which persists ``desired_running=False`` and kills FFmpeg).
+        When Main extends or clears the expiry, channels that were running
+        before the lock resume automatically. Idempotent and safe to call from
+        the heartbeat receiver and the enforcement loop.
+        """
+        with self._expiry_enforce_lock:
+            reason = self.node_expiry_lock_reason()
+            if reason:
+                with self.lock:
+                    try:
+                        targets = {
+                            key for key, rt in self.channels.items()
+                            if bool(rt.desired_running)
+                        }
+                    except Exception:
+                        targets = set()
+                if self._expiry_lock_active and not targets:
+                    return "locked"
+                restore = {**self._expiry_restore_settings(), **{key: True for key in targets}}
+                try:
+                    self._persist_expiry_restore(restore)
+                except (OSError, ValueError, TypeError):
+                    pass
+                for key in targets:
+                    try:
+                        self.stop(key)
+                    except Exception:
+                        pass
+                with self.lock:
+                    self._expiry_lock_active = True
+                self.log(
+                    "Node subscription expired; channels stopped for enforcement",
+                    scope="settings",
+                    level="warning",
+                    details=f"stopped={len(targets)}; details={reason}",
+                )
+                return "locked"
+            restore = self._expiry_restore_settings()
+            locked = self._expiry_lock_active
+            if not locked and not restore:
+                return ""
+            try:
+                self._persist_expiry_restore({})
+            except (OSError, ValueError, TypeError):
+                pass
+            rows: list[tuple[str, ChannelConfig]] = []
+            with self.lock:
+                for key, desired in restore.items():
+                    rt = self.channels.get(key)
+                    if rt and desired and not bool(rt.desired_running):
+                        rt.desired_running = True
+                        rt.intentional_stop = False
+                        rows.append((key, rt.config))
+                self._expiry_lock_active = False
+            resumed = 0
+            for key, config in rows:
+                try:
+                    self.start(key, config)
+                    resumed += 1
+                except Exception:
+                    pass
+            if locked or rows:
+                self.log(
+                    "Node subscription active; expired lock released",
+                    scope="settings",
+                    details=f"resumed={resumed}",
+                )
+            return "resumed" if resumed else ""
 
     def sync_panel_users(self, payload: PanelUserSyncPayload) -> dict[str, Any]:
         with self.lock:
@@ -4995,6 +5134,12 @@ class AgentManager:
 
     def start(self, key: str, config: ChannelConfig) -> dict[str, Any]:
         key = self.safe_key(key)
+        # STREAMFORGE_NODE_EXPIRY_SERVICE_LOCK_V1290: a lapsed subscription must
+        # refuse starts on both the control worker and beneath the delegated
+        # supervisor path, so lazy/panel/API starts cannot bypass the lock.
+        if self.node_expiry_lock_reason():
+            return {"key": key, "status": "expired", "alive": False,
+                    "error": "Node subscription expired. Renew on Main Server to resume."}
         if not NODE_CHANNEL_OWNER and NODE_DEDICATED_CHANNEL_SUPERVISOR:
             return self._delegate_channel_command("start", key, config, timeout=15.0)
         if key != config.key:
@@ -7644,28 +7789,22 @@ def _panel_page(user: PanelAccessUser, message: str = "") -> str:
     message_html = f'<div class="ok">{html.escape(message)}</div>' if message else ""
     rows_html = "".join(rows) if rows else '<tr><td colspan="12" class="empty">No live channels are running.</td></tr>'
     total_live_users = int(viewer_stats.get("total_users", 0) or 0)
-    # STREAMFORGE_NODE_EXPIRY_HEARTBEAT_V1289: subscription expiry card on the
-    # Node dashboard. Value arrives through the Main heartbeat response; empty
-    # means the subscription is unlimited.
-    expiry_raw = str(getattr(manager, "node_expires_at", "") or "").strip()
-    expiry_display = "Unlimited"
-    expiry_class = "node-expiry-card-active"
-    if expiry_raw:
-        try:
-            parsed_expiry = datetime.fromisoformat(expiry_raw.replace("Z", "+00:00"))
-            if parsed_expiry.tzinfo is None:
-                parsed_expiry = parsed_expiry.replace(tzinfo=timezone.utc)
-            expiry_display = parsed_expiry.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-            if parsed_expiry <= datetime.now(timezone.utc):
-                expiry_class = "node-expiry-card-expired"
-                expiry_display += " · EXPIRED"
-        except ValueError:
-            expiry_display = expiry_raw
-            expiry_class = "node-expiry-card-expired"
+    # STREAMFORGE_NODE_EXPIRY_HEARTBEAT_V1289 / STREAMFORGE_NODE_EXPIRY_SERVICE_LOCK_V1290:
+    # subscription expiry card (Bangladesh time, 12-hour clock, EXPIRED marker)
+    # plus a banner whenever the expiry service lock keeps channels stopped.
+    expiry_display, expiry_class = manager.node_expiry_bd_display()
+    expiry_banner = ""
+    if manager.node_expiry_lock_reason():
+        expiry_banner = (
+            '<div class="error" style="display:block;padding:10px 14px;border-radius:10px;'
+            'background:#3a1f24;color:#ffd7db;border:1px solid #a15460;font-weight:700">'
+            '&#9888; Node subscription expired — all channels stopped. '
+            'Extend or clear the expiry on the Main Server (Nodes &#8594; Edit) to resume automatically.</div>'
+        )
     channel_colgroup = '''<colgroup>
 <col class="node-col-id"><col class="node-col-channel"><col class="node-col-server"><col class="node-col-online"><col class="node-col-status"><col class="node-col-controls"><col class="node-col-stream"><col class="node-col-video"><col class="node-col-audio"><col class="node-col-speed"><col class="node-col-fps"><col class="node-col-more">
 </colgroup>'''
-    content = f'''{message_html}
+    content = f'''{message_html}{expiry_banner}
 <section class="cards">
   <a class="card" href="/panel/sessions"><span>Live users</span><b data-live-users>{total_live_users}</b><small>Click to view sessions</small></a>
   <div class="card"><span>Download</span><b data-network-download>{metrics.get('network_download_mbps', 0):.2f} Mb/s</b><small>{html.escape(str(metrics.get('network_interface') or ''))}</small></div>
@@ -9158,6 +9297,23 @@ def _node_main_heartbeat_loop() -> None:
         time.sleep(float(NODE_MAIN_HEARTBEAT_INTERVAL_SECONDS))
 
 
+def _node_expiry_enforcement_loop() -> None:
+    """STREAMFORGE_NODE_EXPIRY_SERVICE_LOCK_V1290: the control worker owns the
+    Node subscription lock. It stops every channel once the expiry passes and
+    resumes the pre-lock channels when Main extends or clears the expiry.
+    The heartbeat receiver triggers enforcement immediately as well; this loop
+    is the wall-clock safety net (and covers restarts of the Node service)."""
+    time.sleep(2.0)
+    while True:
+        try:
+            if NODE_MODE != "public":
+                manager.enforce_node_expiry()
+        except Exception:
+            # Enforcement failures must never crash the Node service.
+            pass
+        time.sleep(float(NODE_EXPIRY_ENFORCEMENT_INTERVAL_SECONDS))
+
+
 # STREAMFORGE_NODE_SELF_HOSTED_HLSJS_BACKGROUND_FETCH_V1163:
 def _ensure_node_hlsjs_cache() -> None:
     try:
@@ -9228,6 +9384,12 @@ async def lifespan(_app: FastAPI):
         threading.Thread(
             target=_node_main_heartbeat_loop,
             name="streamforge-node-main-heartbeat", daemon=True,
+        ).start()
+        # STREAMFORGE_NODE_EXPIRY_SERVICE_LOCK_V1290: subscriptions are
+        # enforced by the control worker's own loop, independent of panel play.
+        threading.Thread(
+            target=_node_expiry_enforcement_loop,
+            name="streamforge-node-expiry", daemon=True,
         ).start()
         if NODE_DEDICATED_CHANNEL_SUPERVISOR:
             manager.ensure_channel_supervisor()
