@@ -11,7 +11,7 @@
 >
 > **Typical use:** One **Main Server** encodes every channel once; several **Remote Nodes** in other data centres relay those channels and serve the viewers, with per-user connection limits, IP/ASN access policies and automatic node selection.
 
-**v12.91:** Fixed — expiry typed on Main is now Bangladesh time everywhere: the Node card shows exactly what you entered (12-hour BD format) and enforcement fires at that BD moment. Requires Main v12.90; Remote Nodes must be updated from Node Updates. Re-save existing expiry dates after updating.
+**v12.92:** Expired Nodes now show a clear payment notice; the Node edit form allows backdating expiry dates. Requires Main v12.91; update Remote Nodes from Node Updates.
 
 > **v12.83 upgrade notes:** HTTPS connections to Remote Nodes now always verify
 > certificates; replace self-signed or name-mismatched certificates before
@@ -121,20 +121,20 @@ This is a **host-installed application**, **not a Docker Compose stack**. Review
 
 ### 1. Download the versioned package
 
-Download `streamforge-X.YY.zip` from **[Releases](https://github.com/Santuctg/streamforge/releases/tag/v12.91)** and check it:
+Download `streamforge-X.YY.zip` from **[Releases](https://github.com/Santuctg/streamforge/releases/tag/v12.92)** and check it:
 
 ```bash
 cd /root
-curl -fL -o streamforge-12.91.zip \
-  https://github.com/Santuctg/streamforge/releases/download/v12.91/streamforge-12.91.zip
-sha256sum streamforge-12.91.zip
+curl -fL -o streamforge-12.92.zip \
+  https://github.com/Santuctg/streamforge/releases/download/v12.92/streamforge-12.92.zip
+sha256sum streamforge-12.92.zip
 ```
 
 ### 2a. Fresh install (new server only)
 
 ```bash
-unzip -q streamforge-12.91.zip -d /root
-sudo bash /root/streamforge-12.91/scripts/install.sh
+unzip -q streamforge-12.92.zip -d /root
+sudo bash /root/streamforge-12.92/scripts/install.sh
 ```
 
 Open `http://SERVER_IP` and sign in as **`admin` / `ChangeMe123!`**. The Panel then requires a new password of at least 12 characters before anything else.
@@ -142,7 +142,7 @@ Open `http://SERVER_IP` and sign in as **`admin` / `ChangeMe123!`**. The Panel t
 ### 2b. Upgrade an existing server
 
 ```bash
-sudo streamforge-update --force /root/streamforge-12.91.zip
+sudo streamforge-update --force /root/streamforge-12.92.zip
 ```
 
 Releases are applied **in order** — each updater accepts only the previous version and rolls back automatically on failure. **Never run `install.sh` on an existing server.**

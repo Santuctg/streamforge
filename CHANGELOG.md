@@ -1,3 +1,9 @@
+## 12.92 - 2026-11-03
+
+- Node expiry edit now allows intentional backdating (removed the browser `min` restriction); past values remain marked expired and keep the service lock enforced.
+- Replaced the raw expired-service warning on the Node dashboard with a styled, payment-focused notice explaining that channels are off pending payment and will resume automatically after Main extends the subscription. Added visible spacing between the notice and dashboard cards.
+- New updater `scripts/force_update_v1292.sh` stages the Main node form and Node Agent; both VERSION files bumped to 12.92. Remote Nodes must be updated from Node Updates for the notice change.
+
 ## 12.91 - 2026-11-03
 
 - **Fixed the node expiry timezone semantics**: the expiry time typed on the Main form is now treated as **Bangladesh wall time everywhere**. Previously a naive entry (the form's default) was read as UTC, so `12:12 PM` displayed as `6:12 PM` on the Node dashboard and enforcement fired 6 hours off (marker `STREAMFORGE_NODE_EXPIRY_BD_WALL_TIME_V1291`).
