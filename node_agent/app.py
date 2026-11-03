@@ -4225,15 +4225,18 @@ class AgentManager:
             parsed_expiry = datetime.fromisoformat(raw.replace("Z", "+00:00"))
         except ValueError:
             return raw, "node-expiry-card-expired"
+        # STREAMFORGE_NODE_EXPIRY_BD_WALL_TIME_V1291: Main's subscription form
+        # collects Bangladesh wall-clock time, so a naive ISO value from the
+        # heartbeat is already in Asia/Dhaka local time.
         if parsed_expiry.tzinfo is None:
-            parsed_expiry = parsed_expiry.replace(tzinfo=timezone.utc)
+            parsed_expiry = parsed_expiry.replace(tzinfo=BANGLADESH_TZ)
         expiry_bd = parsed_expiry.astimezone(BANGLADESH_TZ).strftime("%d %b %Y %I:%M %p")
         if parsed_expiry <= datetime.now(timezone.utc):
             return expiry_bd + " · EXPIRED", "node-expiry-card-expired"
         return expiry_bd, "node-expiry-card-active"
 
     def node_expiry_lock_reason(self) -> str:
-        """Return a lock reason once the subscription is past its expiry (UTC)."""
+        """Return a lock reason once the subscription is past its expiry (BD)."""
         raw = str(self.node_expires_at or "").strip()
         if not raw:
             return ""
@@ -4242,8 +4245,10 @@ class AgentManager:
         except ValueError:
             # A corrupt Main value must not brick the Node service.
             return ""
+        # STREAMFORGE_NODE_EXPIRY_BD_WALL_TIME_V1291: naive Main values are
+        # Bangladesh wall-clock time (the form's operator input).
         if parsed_expiry.tzinfo is None:
-            parsed_expiry = parsed_expiry.replace(tzinfo=timezone.utc)
+            parsed_expiry = parsed_expiry.replace(tzinfo=BANGLADESH_TZ)
         if parsed_expiry <= datetime.now(timezone.utc):
             return "Node subscription expired"
         return ""

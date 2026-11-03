@@ -99,6 +99,10 @@ from .source_resolver import youtube_cookie_configured, youtube_cookie_path
 BASE_DIR = Path(__file__).resolve().parent
 APP_ROOT = BASE_DIR.parent
 APP_VERSION = (APP_ROOT / "VERSION").read_text(encoding="utf-8").strip() if (APP_ROOT / "VERSION").exists() else "dev"
+# STREAMFORGE_NODE_EXPIRY_BD_WALL_TIME_V1291: Node subscription expiry is
+# operator-facing Bangladesh time (the Node form collects Asia/Dhaka wall
+# clock). Display/comparison for node expiry uses this zone.
+BANGLADESH_TZ = timezone(timedelta(hours=6), "Asia/Dhaka")
 TEMPLATES = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 _SLUG_RE = re.compile(r"[^a-z0-9]+")
 
@@ -7989,6 +7993,9 @@ def nodes_page(
         node_panel_urls={item.id: effective_node_url(item).strip().rstrip("/") for item in nodes},
         app_version=APP_VERSION,
         now=datetime.utcnow(),
+        # STREAMFORGE_NODE_EXPIRY_BD_WALL_TIME_V1291: the node expiry badge
+        # compares Bangladesh wall-clock time (as stored from the form).
+        node_expiry_now=datetime.now(BANGLADESH_TZ).replace(tzinfo=None),
     )
 
 
@@ -10053,6 +10060,9 @@ def node_heartbeat(
         "node_name": node.name,
         # STREAMFORGE_NODE_EXPIRY_HEARTBEAT_V1289: the Node dashboard reads its
         # subscription expiry from this live response (empty = unlimited).
+        # STREAMFORGE_NODE_EXPIRY_BD_WALL_TIME_V1291: the stored value is
+        # Bangladesh wall-clock time (from the Node form); the Node Agent
+        # interprets naive values as Asia/Dhaka local time.
         "node_expires_at": node.expires_at.isoformat() if node.expires_at else "",
         "server_time": datetime.now(timezone.utc).isoformat(),
         "viewer_sessions": central_viewer_session_details(db, node_id=node.id, include_geo=False),
