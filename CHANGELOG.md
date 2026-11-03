@@ -1,3 +1,11 @@
+## 12.89 - 2026-11-03
+
+- Node subscription expiry date is now shown on the **Node's own dashboard** (`/panel`) as a "Subscription expires" card — red with an EXPIRED marker past the date, green "Unlimited" when no expiry is set.
+- Main sends `node_expires_at` in the Node heartbeat response; the Node Agent persists it and renders the card (marker `STREAMFORGE_NODE_EXPIRY_HEARTBEAT_V1289`).
+- New updater `scripts/force_update_v1289.sh` (repoints `scripts/update.sh`); updates the bundled Node Agent payload and, when present, a local Node Agent at `/opt/streamforge-node`.
+- **Remote Nodes must be updated from Node Updates** to display the expiry card on their dashboards (the Node Agent payload changed for the first time since v12.83).
+- Both VERSION files bumped to 12.89.
+
 ## 12.88 - 2026-11-03
 
 - Removed node expiry from Main Panel dashboard (`/`) — expiry date now shows only on Node pages (`/nodes/{id}`) as requested.
@@ -13,6 +21,7 @@
 - Node expiry date now shown on Nodes dashboard (`/nodes`) card with 'Expired' badge for past-due nodes and 'Unlimited' for nodes without expiry.
 - Fixed `force_update_v1285.sh` to stage updated templates from package source (`$SRC`) instead of installed root (`$ROOT`), so expiry date field appears correctly after update.
 - Fixed `scripts/update.sh` to point to `force_update_v1286.sh` (was incorrectly pointing to v12.85 updater).
+- Fixed naive/aware datetime comparison for the SQLite `expires_at` value on the Nodes dashboard (`datetime.utcnow()` instead of timezone-aware `now`).
 - Both VERSION files bumped to 12.86. Remote Node runtime payload unchanged — Remote Nodes need no update for v12.86.
 
 ## 12.85 - 2026-11-03
@@ -254,15 +263,3 @@
 - Added `STREAMFORGE_NODE_DIRECT_STREAM_SINGLE_READY_V1210`: direct stream lookup matches the requested stream before any readiness validation.
 - Added `STREAMFORGE_NODE_DIRECT_STREAM_HLS_FAST_READY_V1210`: direct playback checks only the selected channel's local HLS freshness and avoids a supervisor RPC in the request hot path.
 - Preserved all v12.9 Node Playlist User expiry edit support and earlier StreamForge fixes/settings/data.
-
-rebuild
-rebuild2
-rebuild3
-rebuild4
-rebuild
-rebuild5
-fix: naive datetime comparison for SQLite expires_at
-fix: updater
-rebuild
-rebuild
-rebuild2

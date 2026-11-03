@@ -143,6 +143,9 @@ else:
         None,
     )
 
+    # STREAMFORGE_RELEASE_NODE_DASHBOARD_EXPIRY_V1289:
+    node_expiry_v1289 = "STREAMFORGE_V1289_NODE_DASHBOARD_EXPIRY_UPDATER" in text
+
     if "STREAMFORGE_V1284_ROLE_MANAGER_UPDATER" in text:
         for marker in (
             '12.83|12.84',
@@ -165,6 +168,29 @@ else:
             errors.append(f"{updater.name} v12.84 must not restart Nginx or the channel supervisor")
         if not (root / "scripts/apply_role_manager_fix.py").is_file():
             errors.append("missing role patcher")
+    elif node_expiry_v1289:
+        if 'cp -a "$SRC/." "$STAGE/"' in text:
+            errors.append(f"{updater.name} v12.89 must not copy the entire tree")
+        if re.search(r'systemctl[ \t]+(restart|reload)[ \t]+(nginx|streamforge-channel-supervisor)', text):
+            errors.append(f"{updater.name} v12.89 must not restart Nginx or the channel supervisor")
+        for marker in (
+            'STREAMFORGE_V1289_NODE_DASHBOARD_EXPIRY_UPDATER',
+            '12.88|12.89',
+            'OLD_NODE_BLOB="2d9595392e713068cc4c0c8f5243ef55b4f5472b"',
+            'NEW_NODE_BLOB="6b0b1bcebbf3a25adad2542ed87866f480870777"',
+            'STREAMFORGE_V1289_LOCAL_NODE_AGENT_OPTIONAL',
+            'STREAMFORGE_NODE_EXPIRY_HEARTBEAT_V1289',
+            'STREAMFORGE_V1289_TEST_FAIL_AFTER_WRITE',
+            'ROLLBACK=1',
+            'RESTARTED=1',
+            'systemctl restart streamforge',
+            'systemctl restart streamforge-public',
+            'systemctl is-active --quiet streamforge',
+            'Rolling back from',
+            'atomic_copy',
+        ):
+            if marker not in text:
+                errors.append(f"{updater.name} v12.89 contract missing {marker}")
     elif hardening_v1283:
         if 'cp -a "$SRC/." "$STAGE/"' in text:
             errors.append(f"{updater.name} v12.83 must not copy the entire tree")
