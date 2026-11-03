@@ -1,3 +1,9 @@
+## 12.93 - 2026-11-03
+
+- Expired Node expiry date/time is now strongly red on both the Main Nodes page and the Node dashboard.
+- Centered the Node dashboard payment notice and changed its heading/body to the requested wording: “💰 Payment Pending” and “The subscription has expired, so all channels are stopped until the payment is made. Once it is paid, everything resumes automatically.”
+- New updater `scripts/force_update_v1293.sh` stages the Nodes template and Node Agent; both VERSION files bumped to 12.93. Remote Nodes must be updated from Node Updates for the dashboard notice.
+
 ## 12.92 - 2026-11-03
 
 - Node expiry edit now allows intentional backdating (removed the browser `min` restriction); past values remain marked expired and keep the service lock enforced.
