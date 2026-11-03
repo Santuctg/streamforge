@@ -26,7 +26,7 @@ smbclient and the yt-dlp runtime used for YouTube Live.
 
 ```bash
 cd /root
-VERSION=12.94
+VERSION=12.95
 curl -fL -o streamforge-$VERSION.zip \
   https://github.com/Santuctg/streamforge/releases/download/v$VERSION/streamforge-$VERSION.zip
 sha256sum streamforge-$VERSION.zip      # compare with the hash you were given

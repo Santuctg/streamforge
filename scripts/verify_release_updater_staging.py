@@ -155,6 +155,8 @@ else:
     node_expiry_v1293 = "STREAMFORGE_V1293_PAYMENT_NOTICE_UPDATER" in text
     # STREAMFORGE_RELEASE_NODE_WEBPLAYER_EXPIRY_V1294:
     node_expiry_v1294 = "STREAMFORGE_V1294_EXPIRED_WEBPLAYER_UPDATER" in text
+    # STREAMFORGE_RELEASE_MAIN_NODE_SUMMARY_V1295:
+    node_summary_v1295 = "STREAMFORGE_V1295_DASHBOARD_NODE_SUMMARY_UPDATER" in text
 
     if "STREAMFORGE_V1284_ROLE_MANAGER_UPDATER" in text:
         for marker in (
@@ -331,6 +333,32 @@ else:
         ):
             if marker not in text:
                 errors.append(f"{updater.name} v12.94 contract missing {marker}")
+    elif node_summary_v1295:
+        if 'cp -a "$SRC/." "$STAGE/"' in text:
+            errors.append(f"{updater.name} v12.95 must not copy the entire tree")
+        if re.search(r'systemctl[ \t]+(restart|reload)[ \t]+(nginx|streamforge-channel-supervisor)', text):
+            errors.append(f"{updater.name} v12.95 must not restart Nginx or the channel supervisor")
+        for marker in (
+            'STREAMFORGE_V1295_DASHBOARD_NODE_SUMMARY_UPDATER',
+            'STREAMFORGE_MAIN_DASHBOARD_NODE_SUMMARY_V1295',
+            'app/templates/dashboard.html',
+            'offline_node_count',
+            'expired_node_count',
+            '12.94|12.95',
+            'OLD_NODE_BLOB="47795a19932ea3de0a4f159ad31c3dd51195a1d0"',
+            'NEW_NODE_BLOB="47795a19932ea3de0a4f159ad31c3dd51195a1d0"',
+            'STREAMFORGE_V1295_LOCAL_NODE_AGENT_OPTIONAL',
+            'STREAMFORGE_V1295_TEST_FAIL_AFTER_WRITE',
+            'ROLLBACK=1',
+            'RESTARTED=1',
+            'systemctl restart streamforge',
+            'systemctl restart streamforge-public',
+            'systemctl is-active --quiet streamforge-public',
+            'Rolling back from',
+            'atomic_copy',
+        ):
+            if marker not in text:
+                errors.append(f"{updater.name} v12.95 contract missing {marker}")
     elif hardening_v1283:
         if 'cp -a "$SRC/." "$STAGE/"' in text:
             errors.append(f"{updater.name} v12.83 must not copy the entire tree")

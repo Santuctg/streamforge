@@ -1,3 +1,9 @@
+## 12.95 - 2026-11-03
+
+- Main dashboard Nodes card now shows the total number only (e.g. `9`), followed by the number of offline Nodes and the number of expired Nodes.
+- Offline is derived from total minus online; expired is counted separately using Bangladesh wall time.
+- New updater `scripts/force_update_v1295.sh`; both VERSION files bumped to 12.95. Node Agent behavior is unchanged.
+
 ## 12.94 - 2026-11-03
 
 - When a Node subscription expires, its Web Player root now shows a dedicated **Subscription Expired** page instead of login/player content; it explains that payment and subscription renewal restore access automatically.
