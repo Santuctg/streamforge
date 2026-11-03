@@ -505,7 +505,9 @@
   const minNow = now.toISOString().slice(0, 16);
   const field = document.querySelector('input[name="expires_at"]');
   if (!field) return;
-  field.min = minNow;
+  // STREAMFORGE_NODE_EXPIRY_BACKDATE_ALLOWED_V1292: no min clamp — operators
+  // may backdate on purpose (e.g. to re-test or keep a node's lock enforced);
+  // stale/past dates are shown as EXPIRED by both panels.
   document.querySelectorAll('.node-expiry-shortcut').forEach((btn) => {
     btn.addEventListener('click', () => {
       const offset = btn.dataset.offset || '';
