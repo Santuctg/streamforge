@@ -4271,6 +4271,8 @@ class AgentManager:
     def enforce_node_expiry(self) -> str:
         """Enforce the subscription state on channel capacity.
 
+        STREAMFORGE_NODE_EXPIRY_RESTORE_RETRY_V1298: keep failed/missing
+        channel restore intents persisted and retry them after renewal.
         STREAMFORGE_NODE_EXPIRY_SERVICE_LOCK_V1290: once the expiry passes,
         every desired-running channel is stopped with the proven Stop-panel
         path (which persists ``desired_running=False`` and kills FFmpeg).
@@ -4314,15 +4316,15 @@ class AgentManager:
             locked = self._expiry_lock_active
             if not locked and not restore:
                 return ""
-            try:
-                self._persist_expiry_restore({})
-            except (OSError, ValueError, TypeError):
-                pass
             rows: list[tuple[str, ChannelConfig]] = []
+            pending_restore = dict(restore)
             with self.lock:
                 for key, desired in restore.items():
                     rt = self.channels.get(key)
-                    if rt and desired and not bool(rt.desired_running):
+                    if rt and desired:
+                        # Retry channels with a saved restore intent even when
+                        # desired_running was already set by a prior failed
+                        # attempt. start() is idempotent for live processes.
                         rt.desired_running = True
                         rt.intentional_stop = False
                         rows.append((key, rt.config))
@@ -4330,17 +4332,29 @@ class AgentManager:
             resumed = 0
             for key, config in rows:
                 try:
-                    self.start(key, config)
+                    result = self.start(key, config)
+                    status = str((result or {}).get("status") or "").strip().lower()
+                    if status in {"error", "stopped", "expired"} or (result or {}).get("error"):
+                        continue
+                    pending_restore.pop(key, None)
                     resumed += 1
                 except Exception:
-                    pass
+                    # Keep the restore intent durable; the next enforcement
+                    # tick retries instead of silently losing the channel.
+                    continue
+            try:
+                # Missing runtime/catalog entries and unsuccessful starts stay
+                # queued across the next enforcement tick and process restart.
+                self._persist_expiry_restore(pending_restore)
+            except (OSError, ValueError, TypeError):
+                pass
             if locked or rows:
                 self.log(
                     "Node subscription active; expired lock released",
                     scope="settings",
-                    details=f"resumed={resumed}",
+                    details=f"resumed={resumed}; pending={len(pending_restore)}",
                 )
-            return "resumed" if resumed else ""
+            return "resumed" if resumed else ("pending" if pending_restore else "")
 
     def sync_panel_users(self, payload: PanelUserSyncPayload) -> dict[str, Any]:
         with self.lock:
