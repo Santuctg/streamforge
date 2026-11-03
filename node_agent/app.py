@@ -1228,6 +1228,9 @@ class AgentManager:
         self.panel_url = PANEL_URL
         self.panel_node_slug = PANEL_NODE_SLUG
         self.node_name = "Node"
+        # STREAMFORGE_NODE_EXPIRY_HEARTBEAT_V1289: Main-owned subscription
+        # expiry for this Node, synchronized through the heartbeat response.
+        self.node_expires_at = ""
         self.node_logo_url = ""
         self.independent_mode = False
         self.local_channel_limit = 0
@@ -2267,6 +2270,7 @@ class AgentManager:
                 for username, item in cached_panel_users.items()
             }
             self.node_name = str(raw_panel_users.get("node_name") or self.node_name)
+            self.node_expires_at = str(raw_panel_users.get("node_expires_at") or "")
             self.node_logo_url = str(raw_panel_users.get("node_logo_url") or "")
             self.independent_mode = bool(raw_panel_users.get("independent_mode", self.independent_mode))
             if cached_hashes_present:
@@ -4151,6 +4155,7 @@ class AgentManager:
         temp = PANEL_USERS_FILE.with_suffix(".tmp")
         temp.write_text(json.dumps({
             "node_name": self.node_name,
+            "node_expires_at": self.node_expires_at,
             "node_logo_url": self.node_logo_url,
             "independent_mode": bool(self.independent_mode),
             "users": [item.model_dump() for item in self.panel_users.values()],
@@ -4172,6 +4177,25 @@ class AgentManager:
             self.patch_access_file({"node_name": cleaned})
             self.save_panel_users()
         self.log("Node name synchronized from Main", scope="settings", details=f"node_name={cleaned}")
+        return True
+
+    def apply_main_node_expires(self, value: Any) -> bool:
+        """Persist the Main-owned Node subscription expiry from the heartbeat.
+
+        STREAMFORGE_NODE_EXPIRY_HEARTBEAT_V1289: an empty value means the
+        subscription is unlimited and clears any previously stored expiry.
+        """
+        cleaned = str(value or "").strip()[:64]
+        if cleaned == self.node_expires_at:
+            return False
+        with self.lock:
+            self.node_expires_at = cleaned
+            self.save_panel_users()
+        self.log(
+            "Node subscription expiry synchronized from Main",
+            scope="settings",
+            details=f"expires_at={cleaned or 'unlimited'}",
+        )
         return True
 
     def sync_panel_users(self, payload: PanelUserSyncPayload) -> dict[str, Any]:
@@ -6214,6 +6238,9 @@ class AgentManager:
                 self.panel_last_ok = bool(response.status == 200 and data.get("ok"))
                 if self.panel_last_ok:
                     self.apply_main_node_name(data.get("node_name"))
+                    # STREAMFORGE_NODE_EXPIRY_HEARTBEAT_V1289: keep the Node
+                    # dashboard expiry card in step with the Main Node row.
+                    self.apply_main_node_expires(data.get("node_expires_at"))
                 if self.panel_last_ok and str(data.get("panel_url") or "").strip():
                     new_panel_url = str(data.get("panel_url")).strip().rstrip("/")
                     if new_panel_url != self.panel_url:
@@ -7617,6 +7644,24 @@ def _panel_page(user: PanelAccessUser, message: str = "") -> str:
     message_html = f'<div class="ok">{html.escape(message)}</div>' if message else ""
     rows_html = "".join(rows) if rows else '<tr><td colspan="12" class="empty">No live channels are running.</td></tr>'
     total_live_users = int(viewer_stats.get("total_users", 0) or 0)
+    # STREAMFORGE_NODE_EXPIRY_HEARTBEAT_V1289: subscription expiry card on the
+    # Node dashboard. Value arrives through the Main heartbeat response; empty
+    # means the subscription is unlimited.
+    expiry_raw = str(getattr(manager, "node_expires_at", "") or "").strip()
+    expiry_display = "Unlimited"
+    expiry_class = "node-expiry-card-active"
+    if expiry_raw:
+        try:
+            parsed_expiry = datetime.fromisoformat(expiry_raw.replace("Z", "+00:00"))
+            if parsed_expiry.tzinfo is None:
+                parsed_expiry = parsed_expiry.replace(tzinfo=timezone.utc)
+            expiry_display = parsed_expiry.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+            if parsed_expiry <= datetime.now(timezone.utc):
+                expiry_class = "node-expiry-card-expired"
+                expiry_display += " · EXPIRED"
+        except ValueError:
+            expiry_display = expiry_raw
+            expiry_class = "node-expiry-card-expired"
     channel_colgroup = '''<colgroup>
 <col class="node-col-id"><col class="node-col-channel"><col class="node-col-server"><col class="node-col-online"><col class="node-col-status"><col class="node-col-controls"><col class="node-col-stream"><col class="node-col-video"><col class="node-col-audio"><col class="node-col-speed"><col class="node-col-fps"><col class="node-col-more">
 </colgroup>'''
@@ -7631,7 +7676,9 @@ def _panel_page(user: PanelAccessUser, message: str = "") -> str:
   <div class="card node-gpu-card" data-node-gpu-card{gpu_hidden}><span>GPU</span><b data-node-gpu>{gpu_usage}</b><small data-node-gpu-name>{gpu_name}</small><small class="node-gpu-summary"><span data-node-gpu-vram>{gpu_vram}</span><span data-node-gpu-temp>{gpu_temp}</span><span data-node-gpu-encoder>{gpu_encoder}</span><span><b data-node-gpu-streams>{gpu_streams}</b> streams</span></small></div>
   <div class="card"><span>Active channels</span><b data-active-channels>{active_channels}</b></div>
   <div class="card"><span>System uptime</span><b data-system-uptime>{_human_duration(metrics.get('uptime_seconds') or 0)}</b><small>Node host uptime</small></div>
+  <div class="card node-expiry-card"><span>Subscription expires</span><b class="{expiry_class}">{expiry_display}</b><small>Synchronized from Main Server</small></div>
 </section>
+<style>/* STREAMFORGE_NODE_EXPIRY_HEARTBEAT_V1289 */.node-expiry-card-expired{{color:#ff969f;font-weight:700}}.node-expiry-card-active{{color:#74dfaf}}</style>
 <div class="node-metrics-toolbar"><label>Graph time span <select data-node-metrics-span><option value="1">1 hour</option><option value="6">6 hours</option><option value="24">24 hours</option><option value="72">3 days</option><option value="168">7 days</option><option value="720">30 days</option></select></label></div><section class="node-metrics-history"><article><div class="node-metrics-chart-title"><b>CPU &amp; Memory</b></div><canvas width="720" height="260" data-node-metric-chart="resources"></canvas><div class="node-chart-legend"><span class="cpu">CPU Usage <b data-node-legend-value="cpu"></b></span><span class="memory">Memory Usage <b data-node-legend-value="memory"></b></span></div></article><article><div class="node-metrics-chart-title"><b>Network Traffic</b></div><canvas width="720" height="260" data-node-metric-chart="network"></canvas><div class="node-chart-legend"><span class="input">Input <b data-node-legend-value="input"></b></span><span class="output">Output <b data-node-legend-value="output"></b></span></div></article><article><div class="node-metrics-chart-title"><b>Online users</b></div><canvas width="720" height="260" data-node-metric-chart="users"></canvas><div class="node-chart-legend"><span class="users">Online users <b data-node-legend-value="users"></b></span></div></article><article><div class="node-metrics-chart-title"><b>Channels</b></div><canvas width="720" height="260" data-node-metric-chart="channels"></canvas><div class="node-chart-legend"><span class="total-channels">Total channels <b data-node-legend-value="total-channels"></b></span><span class="online-channels">Online channels <b data-node-legend-value="online-channels"></b></span></div></article><article class="node-gpu-history" data-node-gpu-history{gpu_hidden}><div class="node-metrics-chart-title"><b>GPU utilization</b></div><canvas width="720" height="260" data-node-metric-chart="gpu-util"></canvas><div class="node-chart-legend"><span class="gpu-usage">GPU <b data-node-legend-value="gpu-usage"></b></span><span class="gpu-encoder">Encoder <b data-node-legend-value="gpu-encoder"></b></span><span class="gpu-vram">VRAM <b data-node-legend-value="gpu-vram"></b></span></div></article><article class="node-gpu-history" data-node-gpu-history{gpu_hidden}><div class="node-metrics-chart-title"><b>GPU temperature</b></div><canvas width="720" height="260" data-node-metric-chart="gpu-temp"></canvas><div class="node-chart-legend"><span class="gpu-temp">Temperature <b data-node-legend-value="gpu-temp"></b></span></div></article></section>
 <style>/* STREAMFORGE_NODE_DASHBOARD_LIVE_CHARTS_V1281 */.node-chart-legend [data-node-legend-value]{{margin-left:4px;color:#e6eef7;font-variant-numeric:tabular-nums}}.node-chart-legend [data-node-legend-value]:empty{{display:none}}.card .hardware-summary{{display:flex!important;align-items:center;justify-content:space-between;gap:12px;margin-top:4px;white-space:nowrap}}.node-gpu-card[hidden],.node-gpu-history[hidden]{{display:none!important}}.node-gpu-summary{{display:flex!important;gap:8px;flex-wrap:wrap;margin-top:5px}}.node-gpu-summary span{{white-space:nowrap}}.card .hardware-summary span{{display:inline}}.node-metrics-toolbar{{display:flex;justify-content:flex-end;margin:16px 0 -6px}}.node-metrics-toolbar label{{display:flex;align-items:center;gap:10px}}.node-metrics-toolbar select{{width:auto;min-width:140px;height:40px;min-height:40px;padding:0 34px 0 11px;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:8px}}.node-metrics-history{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:16px 0}}.node-metrics-history article{{padding:18px;border:1px solid var(--line);border-radius:10px;background:#17212d}}.node-metrics-history article>div:first-child{{display:flex;justify-content:space-between}}.node-metrics-chart-title{{display:flex;align-items:center;min-height:22px}}.node-metrics-chart-title>b{{font-size:14px;line-height:1.25;letter-spacing:.01em}}.node-metrics-history canvas{{display:block;width:100%;height:260px;margin-top:10px;background:#17212d;cursor:crosshair;touch-action:none;user-select:none}}.node-chart-legend{{display:flex!important;justify-content:center!important;gap:20px;flex-wrap:wrap;font-weight:700;font-size:12px;line-height:1.35}}.node-chart-legend span:before{{content:"";display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:6px}}.node-chart-legend .cpu:before,.node-chart-legend .input:before{{background:#4f8fe8}}.node-chart-legend .memory:before,.node-chart-legend .output:before{{background:#51c2d6}}.node-chart-legend .users:before{{background:#a786e8}}.node-chart-legend .total-channels:before{{background:#f0b44d}}.node-chart-legend .online-channels:before{{background:#35c49a}}.node-chart-legend .gpu-usage:before{{background:#4f8fe8}}.node-chart-legend .gpu-encoder:before{{background:#35c49a}}.node-chart-legend .gpu-vram:before{{background:#a786e8}}.node-chart-legend .gpu-temp:before{{background:#f0b44d}}@media(min-width:1600px){{.node-metrics-history{{gap:16px}}.node-metrics-history article{{padding:16px 18px 14px}}.node-metrics-chart-title>b{{font-size:15px}}.node-metrics-history canvas{{height:280px;margin-top:8px}}.node-chart-legend{{font-size:12.5px;gap:24px;padding-top:6px}}}}@media(min-width:2200px){{.node-metrics-history canvas{{height:300px}}}}/* STREAMFORGE_NODE_RESPONSIVE_METRIC_CHART_HEIGHT_V1071 */@media(max-width:1500px){{.node-metrics-history{{gap:12px}}.node-metrics-history article{{padding:15px}}.node-metrics-history canvas{{height:230px;margin-top:8px}}}}@media(max-width:1300px){{.node-metrics-history{{gap:10px}}.node-metrics-history article{{padding:13px}}.node-metrics-history canvas{{height:200px;margin-top:6px}}.node-chart-legend{{font-size:11px;gap:14px}}}}@media(max-width:1050px){{.node-metrics-history canvas{{height:180px}}}}@media(max-width:900px){{.node-metrics-history canvas{{height:170px}}}}@media(max-width:760px){{.node-metrics-history{{grid-template-columns:1fr}}.node-metrics-history canvas{{height:185px}}}}@media(max-width:520px){{.node-metrics-history article{{padding:12px}}.node-metrics-history canvas{{height:165px}}}}</style>
 <div class="toolbar node-channel-toolbar"><div><h2>Live channels</h2><small>Only active channels are shown. Search filters instantly.</small></div><div class="actions"><input type="search" data-node-channel-search placeholder="Type to filter channels"><span class="node-filter-count" data-node-filter-count></span></div></div>

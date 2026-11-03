@@ -10051,6 +10051,9 @@ def node_heartbeat(
         "ok": True,
         "node": node.slug,
         "node_name": node.name,
+        # STREAMFORGE_NODE_EXPIRY_HEARTBEAT_V1289: the Node dashboard reads its
+        # subscription expiry from this live response (empty = unlimited).
+        "node_expires_at": node.expires_at.isoformat() if node.expires_at else "",
         "server_time": datetime.now(timezone.utc).isoformat(),
         "viewer_sessions": central_viewer_session_details(db, node_id=node.id, include_geo=False),
         "viewer_ttl_seconds": viewer_tracker.ttl_seconds,
