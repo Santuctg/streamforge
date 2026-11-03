@@ -11,7 +11,7 @@
 >
 > **Typical use:** One **Main Server** encodes every channel once; several **Remote Nodes** in other data centres relay those channels and serve the viewers, with per-user connection limits, IP/ASN access policies and automatic node selection.
 
-**v12.95:** Main dashboard Nodes card shows total Nodes, offline Nodes, and expired Nodes separately. Requires Main v12.94.
+**v12.96:** Node Web Player expiry screen has updated wording and Node logo; Main dashboard offline/expired counts align left/right and hide when zero. Requires Main v12.95.
 
 > **v12.83 upgrade notes:** HTTPS connections to Remote Nodes now always verify
 > certificates; replace self-signed or name-mismatched certificates before
@@ -121,20 +121,20 @@ This is a **host-installed application**, **not a Docker Compose stack**. Review
 
 ### 1. Download the versioned package
 
-Download `streamforge-X.YY.zip` from **[Releases](https://github.com/Santuctg/streamforge/releases/tag/v12.95)** and check it:
+Download `streamforge-X.YY.zip` from **[Releases](https://github.com/Santuctg/streamforge/releases/tag/v12.96)** and check it:
 
 ```bash
 cd /root
-curl -fL -o streamforge-12.95.zip \
-  https://github.com/Santuctg/streamforge/releases/download/v12.95/streamforge-12.95.zip
-sha256sum streamforge-12.95.zip
+curl -fL -o streamforge-12.96.zip \
+  https://github.com/Santuctg/streamforge/releases/download/v12.96/streamforge-12.96.zip
+sha256sum streamforge-12.96.zip
 ```
 
 ### 2a. Fresh install (new server only)
 
 ```bash
-unzip -q streamforge-12.95.zip -d /root
-sudo bash /root/streamforge-12.95/scripts/install.sh
+unzip -q streamforge-12.96.zip -d /root
+sudo bash /root/streamforge-12.96/scripts/install.sh
 ```
 
 Open `http://SERVER_IP` and sign in as **`admin` / `ChangeMe123!`**. The Panel then requires a new password of at least 12 characters before anything else.
@@ -142,7 +142,7 @@ Open `http://SERVER_IP` and sign in as **`admin` / `ChangeMe123!`**. The Panel t
 ### 2b. Upgrade an existing server
 
 ```bash
-sudo streamforge-update --force /root/streamforge-12.95.zip
+sudo streamforge-update --force /root/streamforge-12.96.zip
 ```
 
 Releases are applied **in order** — each updater accepts only the previous version and rolls back automatically on failure. **Never run `install.sh` on an existing server.**

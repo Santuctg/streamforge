@@ -1,3 +1,9 @@
+## 12.96 - 2026-11-03
+
+- Node Web Player expired page now uses the requested copy, shows `Expired: <Bangladesh date/time> · EXPIRED`, and displays the Node logo beneath the notice when configured.
+- Main dashboard Node status labels now sit on one row: offline count on the left, expired count on the right. Each label is hidden when its count is zero.
+- New updater `scripts/force_update_v1296.sh`; both VERSION files bumped to 12.96.
+
 ## 12.95 - 2026-11-03
 
 - Main dashboard Nodes card now shows the total number only (e.g. `9`), followed by the number of offline Nodes and the number of expired Nodes.

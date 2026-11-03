@@ -157,6 +157,8 @@ else:
     node_expiry_v1294 = "STREAMFORGE_V1294_EXPIRED_WEBPLAYER_UPDATER" in text
     # STREAMFORGE_RELEASE_MAIN_NODE_SUMMARY_V1295:
     node_summary_v1295 = "STREAMFORGE_V1295_DASHBOARD_NODE_SUMMARY_UPDATER" in text
+    # STREAMFORGE_RELEASE_WEBPLAYER_COPY_AND_SUMMARY_V1296:
+    webplayer_summary_v1296 = "STREAMFORGE_V1296_EXPIRED_BRANDING_UPDATER" in text
 
     if "STREAMFORGE_V1284_ROLE_MANAGER_UPDATER" in text:
         for marker in (
@@ -359,6 +361,31 @@ else:
         ):
             if marker not in text:
                 errors.append(f"{updater.name} v12.95 contract missing {marker}")
+    elif webplayer_summary_v1296:
+        if 'cp -a "$SRC/." "$STAGE/"' in text:
+            errors.append(f"{updater.name} v12.96 must not copy the entire tree")
+        if re.search(r'systemctl[ \t]+(restart|reload)[ \t]+(nginx|streamforge-channel-supervisor)', text):
+            errors.append(f"{updater.name} v12.96 must not restart Nginx or the channel supervisor")
+        for marker in (
+            'STREAMFORGE_V1296_EXPIRED_BRANDING_UPDATER',
+            'STREAMFORGE_NODE_WEBPLAYER_EXPIRED_BRANDING_V1296',
+            'STREAMFORGE_MAIN_DASHBOARD_NODE_STATUS_ROW_V1296',
+            'app/templates/dashboard.html',
+            '12.95|12.96',
+            'OLD_NODE_BLOB="47795a19932ea3de0a4f159ad31c3dd51195a1d0"',
+            'NEW_NODE_BLOB="9d256646b58147b00a0e57c54e4da382421b0e99"',
+            'STREAMFORGE_V1296_LOCAL_NODE_AGENT_OPTIONAL',
+            'STREAMFORGE_V1296_TEST_FAIL_AFTER_WRITE',
+            'ROLLBACK=1',
+            'RESTARTED=1',
+            'systemctl restart streamforge',
+            'systemctl restart streamforge-public',
+            'systemctl is-active --quiet streamforge-public',
+            'Rolling back from',
+            'atomic_copy',
+        ):
+            if marker not in text:
+                errors.append(f"{updater.name} v12.96 contract missing {marker}")
     elif hardening_v1283:
         if 'cp -a "$SRC/." "$STAGE/"' in text:
             errors.append(f"{updater.name} v12.83 must not copy the entire tree")
