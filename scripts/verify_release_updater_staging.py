@@ -153,6 +153,8 @@ else:
     node_expiry_v1292 = "STREAMFORGE_V1292_PAYMENT_NOTICE_UPDATER" in text
     # STREAMFORGE_RELEASE_NODE_EXPIRY_CENTERED_NOTICE_V1293:
     node_expiry_v1293 = "STREAMFORGE_V1293_PAYMENT_NOTICE_UPDATER" in text
+    # STREAMFORGE_RELEASE_NODE_WEBPLAYER_EXPIRY_V1294:
+    node_expiry_v1294 = "STREAMFORGE_V1294_EXPIRED_WEBPLAYER_UPDATER" in text
 
     if "STREAMFORGE_V1284_ROLE_MANAGER_UPDATER" in text:
         for marker in (
@@ -303,6 +305,32 @@ else:
         ):
             if marker not in text:
                 errors.append(f"{updater.name} v12.93 contract missing {marker}")
+    elif node_expiry_v1294:
+        if 'cp -a "$SRC/." "$STAGE/"' in text:
+            errors.append(f"{updater.name} v12.94 must not copy the entire tree")
+        if re.search(r'systemctl[ \t]+(restart|reload)[ \t]+(nginx|streamforge-channel-supervisor)', text):
+            errors.append(f"{updater.name} v12.94 must not restart Nginx or the channel supervisor")
+        for marker in (
+            'STREAMFORGE_V1294_EXPIRED_WEBPLAYER_UPDATER',
+            'app/templates/dashboard.html',
+            'app/templates/nodes.html',
+            'STREAMFORGE_NODE_WEBPLAYER_SUBSCRIPTION_EXPIRED_V1294',
+            'STREAMFORGE_MAIN_DASHBOARD_EXPIRED_NODE_COUNT_V1294',
+            '12.93|12.94',
+            'OLD_NODE_BLOB="84629d588b01fa88319e28ddaf94ceb77949d56c"',
+            'NEW_NODE_BLOB="47795a19932ea3de0a4f159ad31c3dd51195a1d0"',
+            'STREAMFORGE_V1294_LOCAL_NODE_AGENT_OPTIONAL',
+            'STREAMFORGE_V1294_TEST_FAIL_AFTER_WRITE',
+            'ROLLBACK=1',
+            'RESTARTED=1',
+            'systemctl restart streamforge',
+            'systemctl restart streamforge-public',
+            'systemctl is-active --quiet streamforge-public',
+            'Rolling back from',
+            'atomic_copy',
+        ):
+            if marker not in text:
+                errors.append(f"{updater.name} v12.94 contract missing {marker}")
     elif hardening_v1283:
         if 'cp -a "$SRC/." "$STAGE/"' in text:
             errors.append(f"{updater.name} v12.83 must not copy the entire tree")

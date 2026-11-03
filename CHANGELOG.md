@@ -1,3 +1,9 @@
+## 12.94 - 2026-11-03
+
+- When a Node subscription expires, its Web Player root now shows a dedicated **Subscription Expired** page instead of login/player content; it explains that payment and subscription renewal restore access automatically.
+- Main Server dashboard now displays the number of expired Nodes in the Nodes card, calculated using Bangladesh wall time.
+- New updater `scripts/force_update_v1294.sh` includes the dashboard and Node Web Player changes; both VERSION files bumped to 12.94. Remote Nodes must be updated from Node Updates for their Web Player expiry screen.
+
 ## 12.93 - 2026-11-03
 
 - Expired Node expiry date/time is now strongly red on both the Main Nodes page and the Node dashboard.
