@@ -161,6 +161,8 @@ else:
     webplayer_summary_v1296 = "STREAMFORGE_V1296_EXPIRED_BRANDING_UPDATER" in text
     # STREAMFORGE_RELEASE_MAIN_ALL_CLEAR_STATUS_V1297:
     all_clear_v1297 = "STREAMFORGE_V1297_ALL_CLEAR_NODE_STATUS_UPDATER" in text
+    # STREAMFORGE_RELEASE_EXPIRY_RESTORE_RETRY_V1298:
+    expiry_retry_v1298 = "STREAMFORGE_V1298_RETRY_EXPIRY_RESTORE_UPDATER" in text
 
     if "STREAMFORGE_V1284_ROLE_MANAGER_UPDATER" in text:
         for marker in (
@@ -415,6 +417,29 @@ else:
         ):
             if marker not in text:
                 errors.append(f"{updater.name} v12.97 contract missing {marker}")
+    elif expiry_retry_v1298:
+        if 'cp -a "$SRC/." "$STAGE/"' in text:
+            errors.append(f"{updater.name} v12.98 must not copy the entire tree")
+        if re.search(r'systemctl[ \t]+(restart|reload)[ \t]+(nginx|streamforge-channel-supervisor)', text):
+            errors.append(f"{updater.name} v12.98 must not restart Nginx or the channel supervisor")
+        for marker in (
+            'STREAMFORGE_V1298_RETRY_EXPIRY_RESTORE_UPDATER',
+            'STREAMFORGE_NODE_EXPIRY_RESTORE_RETRY_V1298',
+            '12.97|12.98',
+            'OLD_NODE_BLOB="9d256646b58147b00a0e57c54e4da382421b0e99"',
+            'NEW_NODE_BLOB="85c42f3419a8584752e5e166230f508b6675d6a6"',
+            'STREAMFORGE_V1298_LOCAL_NODE_AGENT_OPTIONAL',
+            'STREAMFORGE_V1298_TEST_FAIL_AFTER_WRITE',
+            'ROLLBACK=1',
+            'RESTARTED=1',
+            'systemctl restart streamforge',
+            'systemctl restart streamforge-public',
+            'systemctl is-active --quiet streamforge-public',
+            'Rolling back from',
+            'atomic_copy',
+        ):
+            if marker not in text:
+                errors.append(f"{updater.name} v12.98 contract missing {marker}")
     elif hardening_v1283:
         if 'cp -a "$SRC/." "$STAGE/"' in text:
             errors.append(f"{updater.name} v12.83 must not copy the entire tree")
