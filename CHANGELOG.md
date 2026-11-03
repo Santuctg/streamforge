@@ -1,3 +1,11 @@
+## 12.91 - 2026-11-03
+
+- **Fixed the node expiry timezone semantics**: the expiry time typed on the Main form is now treated as **Bangladesh wall time everywhere**. Previously a naive entry (the form's default) was read as UTC, so `12:12 PM` displayed as `6:12 PM` on the Node dashboard and enforcement fired 6 hours off (marker `STREAMFORGE_NODE_EXPIRY_BD_WALL_TIME_V1291`).
+- The Node Agent now interprets **naive heartbeat values as Asia/Dhaka (+06:00) local time** in both the dashboard card and the expiry lock decision; explicit UTC-offset values remain epoch-accurate. Main's Nodes-list "Expires" badge compares BD wall time and is labelled `(BD)`; the Node form help text states BD time.
+- Existing expiry entries saved before v12.91 were stored under the UTC interpretation — **set the date again** once updated.
+- New updater `scripts/force_update_v1291.sh` (repoints `scripts/update.sh`); Node Agent bundle changed — **Remote Nodes must be updated from Node Updates** for the fix.
+- Both VERSION files bumped to 12.91.
+
 ## 12.90 - 2026-11-03
 
 - Node subscription expiry is now **enforced**: once the date passes, the Node's control worker stops every desired-running channel (`desired_running=False` persisted + FFmpeg killed) and refuses new starts until Main extends or clears the expiry — then the pre-lock channels resume automatically (marker `STREAMFORGE_NODE_EXPIRY_SERVICE_LOCK_V1290`).

@@ -147,6 +147,8 @@ else:
     node_expiry_v1289 = "STREAMFORGE_V1289_NODE_DASHBOARD_EXPIRY_UPDATER" in text
     # STREAMFORGE_RELEASE_NODE_EXPIRY_ENFORCEMENT_V1290:
     node_expiry_v1290 = "STREAMFORGE_V1290_EXPIRY_ENFORCEMENT_UPDATER" in text
+    # STREAMFORGE_RELEASE_NODE_EXPIRY_BD_WALL_TIME_V1291:
+    node_expiry_v1291 = "STREAMFORGE_V1291_BD_WALL_TIME_UPDATER" in text
 
     if "STREAMFORGE_V1284_ROLE_MANAGER_UPDATER" in text:
         for marker in (
@@ -219,6 +221,32 @@ else:
         ):
             if marker not in text:
                 errors.append(f"{updater.name} v12.90 contract missing {marker}")
+    elif node_expiry_v1291:
+        if 'cp -a "$SRC/.\" "$STAGE/"' in text:
+            errors.append(f"{updater.name} v12.91 must not copy the entire tree")
+        if re.search(r'systemctl[ \t]+(restart|reload)[ \t]+(nginx|streamforge-channel-supervisor)', text):
+            errors.append(f"{updater.name} v12.91 must not restart Nginx or the channel supervisor")
+        for marker in (
+            'STREAMFORGE_V1291_BD_WALL_TIME_UPDATER',
+            '12.90|12.91',
+            'OLD_NODE_BLOB="f7fcc98e56ad0ea88e804a39d19cc5f2c359fde8"',
+            'NEW_NODE_BLOB="0d4a773a7f176d1dba6f3bcb958c82463572c54c"',
+            'STREAMFORGE_V1291_LOCAL_NODE_AGENT_OPTIONAL',
+            'STREAMFORGE_NODE_EXPIRY_BD_WALL_TIME_V1291',
+            'BANGLADESH_TZ',
+            '_node_expiry_enforcement_loop',
+            'node_expiry_bd_display',
+            'STREAMFORGE_V1291_TEST_FAIL_AFTER_WRITE',
+            'ROLLBACK=1',
+            'RESTARTED=1',
+            'systemctl restart streamforge',
+            'systemctl restart streamforge-public',
+            'systemctl is-active --quiet streamforge',
+            'Rolling back from',
+            'atomic_copy',
+        ):
+            if marker not in text:
+                errors.append(f"{updater.name} v12.91 contract missing {marker}")
     elif hardening_v1283:
         if 'cp -a "$SRC/." "$STAGE/"' in text:
             errors.append(f"{updater.name} v12.83 must not copy the entire tree")
