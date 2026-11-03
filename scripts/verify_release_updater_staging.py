@@ -145,6 +145,8 @@ else:
 
     # STREAMFORGE_RELEASE_NODE_DASHBOARD_EXPIRY_V1289:
     node_expiry_v1289 = "STREAMFORGE_V1289_NODE_DASHBOARD_EXPIRY_UPDATER" in text
+    # STREAMFORGE_RELEASE_NODE_EXPIRY_ENFORCEMENT_V1290:
+    node_expiry_v1290 = "STREAMFORGE_V1290_EXPIRY_ENFORCEMENT_UPDATER" in text
 
     if "STREAMFORGE_V1284_ROLE_MANAGER_UPDATER" in text:
         for marker in (
@@ -191,6 +193,32 @@ else:
         ):
             if marker not in text:
                 errors.append(f"{updater.name} v12.89 contract missing {marker}")
+    elif node_expiry_v1290:
+        if 'cp -a "$SRC/.\" "$STAGE/"' in text:
+            errors.append(f"{updater.name} v12.90 must not copy the entire tree")
+        if re.search(r'systemctl[ \t]+(restart|reload)[ \t]+(nginx|streamforge-channel-supervisor)', text):
+            errors.append(f"{updater.name} v12.90 must not restart Nginx or the channel supervisor")
+        for marker in (
+            'STREAMFORGE_V1290_EXPIRY_ENFORCEMENT_UPDATER',
+            '12.89|12.90',
+            'OLD_NODE_BLOB="6b0b1bcebbf3a25adad2542ed87866f480870777"',
+            'NEW_NODE_BLOB="f7fcc98e56ad0ea88e804a39d19cc5f2c359fde8"',
+            'STREAMFORGE_V1290_LOCAL_NODE_AGENT_OPTIONAL',
+            'STREAMFORGE_NODE_EXPIRY_SERVICE_LOCK_V1290',
+            'BANGLADESH_TZ',
+            '_node_expiry_enforcement_loop',
+            'node_expiry_bd_display',
+            'STREAMFORGE_V1290_TEST_FAIL_AFTER_WRITE',
+            'ROLLBACK=1',
+            'RESTARTED=1',
+            'systemctl restart streamforge',
+            'systemctl restart streamforge-public',
+            'systemctl is-active --quiet streamforge',
+            'Rolling back from',
+            'atomic_copy',
+        ):
+            if marker not in text:
+                errors.append(f"{updater.name} v12.90 contract missing {marker}")
     elif hardening_v1283:
         if 'cp -a "$SRC/." "$STAGE/"' in text:
             errors.append(f"{updater.name} v12.83 must not copy the entire tree")

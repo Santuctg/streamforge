@@ -1,3 +1,11 @@
+## 12.90 - 2026-11-03
+
+- Node subscription expiry is now **enforced**: once the date passes, the Node's control worker stops every desired-running channel (`desired_running=False` persisted + FFmpeg killed) and refuses new starts until Main extends or clears the expiry — then the pre-lock channels resume automatically (marker `STREAMFORGE_NODE_EXPIRY_SERVICE_LOCK_V1290`).
+- Expiry card on the Node dashboard now shows **Bangladesh time (UTC+6) in 12-hour format** (`02 Dec 2026 01:40 AM`) instead of UTC; a red banner appears while the service lock is active.
+- Enforcement runs on a 30-second loop (env-tunable `STREAMFORGE_NODE_EXPIRY_ENFORCEMENT_INTERVAL_SECONDS`), on every heartbeat that changes the expiry, and across Node restarts (restore set persisted in node operations settings). Corrupt/invalid expiry values never lock the service. Public playback workers never enforce; the `start()` guard engages before the supervisor-delegation branch so panel/API starts cannot bypass the lock.
+- New updater `scripts/force_update_v1290.sh` (repoints `scripts/update.sh`); Node Agent bundle changed again — **Remote Nodes must be updated from Node Updates** to gain enforcement.
+- Both VERSION files bumped to 12.90.
+
 ## 12.89 - 2026-11-03
 
 - Node subscription expiry date is now shown on the **Node's own dashboard** (`/panel`) as a "Subscription expires" card — red with an EXPIRED marker past the date, green "Unlimited" when no expiry is set.
