@@ -6820,6 +6820,9 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     online_node_count = int(db.scalar(
         select(func.count(Node.id)).where(or_(Node.node_type == "local", Node.status == "online"))
     ) or 0)
+    # STREAMFORGE_MAIN_DASHBOARD_NODE_SUMMARY_V1295: keep the headline as the
+    # total node count, and report offline count separately below it.
+    offline_node_count = max(0, node_count - online_node_count)
     # STREAMFORGE_MAIN_DASHBOARD_EXPIRED_NODE_COUNT_V1294: Node expiry values
     # are stored as Bangladesh wall time; compare against the same local wall
     # clock so the dashboard count agrees with the Main Nodes page and Node lock.
@@ -6854,6 +6857,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         total_bitrate=total_bitrate,
         node_count=node_count,
         online_node_count=online_node_count,
+        offline_node_count=offline_node_count,
         expired_node_count=expired_node_count,
         system_metrics=system_metrics.snapshot(),
     )
