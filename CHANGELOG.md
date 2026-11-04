@@ -1,3 +1,10 @@
+## 13.01 - 2026-11-04
+
+- Made **Main Updates** fully responsive across wide desktop, laptop, tablet, phone and extra-small phone widths with dedicated 1100px, 760px, 700px, 430px and 350px breakpoints.
+- Tablet layouts now use balanced two-column summary/security cards, phones switch to one column, and extra-small phones simplify card icons and arrange update-job steps in a readable 2×2 grid.
+- Added robust wrapping and minimum-width guards for long request IDs, SHA256 details, release names, alerts and action labels; the page is centered at wide widths and prevents horizontal overflow.
+- New bounded updater `scripts/force_update_v1301.sh`; both VERSION files bumped to 13.01. Update security and Node Agent runtime bytes are unchanged.
+
 ## 13.00 - 2026-11-04
 
 - Redesigned **Main Updates** with a polished release overview, clearer installed/latest/update state cards, verified GitHub release details, security-verification cards, and a structured update-job progress display.
