@@ -163,6 +163,8 @@ else:
     all_clear_v1297 = "STREAMFORGE_V1297_ALL_CLEAR_NODE_STATUS_UPDATER" in text
     # STREAMFORGE_RELEASE_EXPIRY_RESTORE_RETRY_V1298:
     expiry_retry_v1298 = "STREAMFORGE_V1298_RETRY_EXPIRY_RESTORE_UPDATER" in text
+    # STREAMFORGE_RELEASE_MAIN_WEB_UPDATE_V1299:
+    main_web_update_v1299 = "STREAMFORGE_V1299_MAIN_WEB_UPDATE_UPDATER" in text
 
     if "STREAMFORGE_V1284_ROLE_MANAGER_UPDATER" in text:
         for marker in (
@@ -440,6 +442,34 @@ else:
         ):
             if marker not in text:
                 errors.append(f"{updater.name} v12.98 contract missing {marker}")
+    elif main_web_update_v1299:
+        if 'cp -a "$SRC/." "$STAGE/"' in text:
+            errors.append(f"{updater.name} v12.99 must not copy the entire tree")
+        if re.search(r'systemctl[ \t]+(restart|reload)[ \t]+(nginx|streamforge-channel-supervisor)', text):
+            errors.append(f"{updater.name} v12.99 must not restart Nginx or the channel supervisor")
+        for marker in (
+            'STREAMFORGE_V1299_MAIN_WEB_UPDATE_UPDATER',
+            'STREAMFORGE_V1299_INSTALL_PRIVILEGED_UPDATE_HELPER',
+            'app/templates/main_updates.html',
+            'scripts/main_system_control.py',
+            'deploy/streamforge-main-system.service',
+            '12.98|12.99',
+            'OLD_NODE_BLOB="85c42f3419a8584752e5e166230f508b6675d6a6"',
+            'NEW_NODE_BLOB="85c42f3419a8584752e5e166230f508b6675d6a6"',
+            'STREAMFORGE_V1299_LOCAL_NODE_AGENT_OPTIONAL',
+            'STREAMFORGE_V1299_TEST_FAIL_AFTER_WRITE',
+            'systemctl enable --now streamforge-main-system.path',
+            '/usr/local/sbin/streamforge-main-system-control',
+            'ROLLBACK=1',
+            'RESTARTED=1',
+            'systemctl restart streamforge',
+            'systemctl restart streamforge-public',
+            'systemctl is-active --quiet streamforge-public',
+            'Rolling back from',
+            'atomic_copy',
+        ):
+            if marker not in text:
+                errors.append(f"{updater.name} v12.99 contract missing {marker}")
     elif hardening_v1283:
         if 'cp -a "$SRC/." "$STAGE/"' in text:
             errors.append(f"{updater.name} v12.83 must not copy the entire tree")

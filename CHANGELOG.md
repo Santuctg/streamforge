@@ -1,3 +1,10 @@
+## 12.99 - 2026-11-04
+
+- Added **Main Updates** to the authenticated web panel. It checks the official `Santuctg/streamforge` GitHub Releases feed, shows installed/latest versions, and queues an update from the browser.
+- Added the `main_system.update` permission. The web process never executes root commands: the existing root-owned Main system helper independently re-fetches official release metadata, requires the exact release asset name/URL and GitHub SHA256 digest, downloads with a size limit, verifies SHA256/ZIP integrity, and runs pending official releases sequentially through `streamforge-update`.
+- Update progress/result is shown on the page and refreshes while scheduled/downloading/installing. GitHub checks are briefly cached to avoid API-rate exhaustion.
+- New updater `scripts/force_update_v1299.sh` installs the privileged verifier and updated sandboxed systemd service. Both VERSION files bumped to 12.99; Node Agent payload is unchanged.
+
 ## 12.98 - 2026-11-03
 
 - Fixed Node subscription renewal auto-resume: the saved desired-running set is no longer cleared before channels start. Start failures and channels not yet loaded remain persisted and are retried on the enforcement loop; restore entries are removed only after a start is accepted.
