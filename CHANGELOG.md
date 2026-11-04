@@ -1,3 +1,7 @@
+## 13.14 - 2026-11-05
+
+- Shifted only the collapsed footer controls onto the navigation icon center line. Simplified Playlist User notification labels and removed helper copy. Moved timezone from Notification Center to Settings as a worker-loaded global system timezone, preserving the previous notification timezone as fallback.
+
 ## 13.13 - 2026-11-05
 
 - Centered collapsed-sidebar footer controls against the full 76px sidebar. Added a prominent independently saved server timezone panel, modal delivery-message viewing, immediate matching Main Update processing state, and grouped Playlist User Email/SMS notification controls.

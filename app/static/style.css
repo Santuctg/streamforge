@@ -3576,18 +3576,19 @@ textarea:-webkit-autofill:focus{
   .app-shell.sidebar-collapsed .sidebar-bottom .node-signout-icon svg{transform:translateX(.5px)!important}
 }
 
-/* STREAMFORGE_COLLAPSED_FOOTER_FULL_SIDEBAR_CENTER:
-   Expand across the 76px sidebar border box instead of centering inside its
-   10px horizontal padding. The 44px footer buttons now center at x=38px. */
+/* STREAMFORGE_COLLAPSED_FOOTER_EXACT_NAV_CENTER:
+   Only the two footer controls need correction. Their containing block starts
+   after the sidebar's 10px padding, so translate that group left by 10px. */
 @media(min-width:761px){
   .app-shell.sidebar-collapsed .sidebar-bottom{
     box-sizing:border-box!important;
     width:76px!important;
     min-width:76px!important;
-    margin-left:-10px!important;
-    margin-right:-10px!important;
+    margin-left:0!important;
+    margin-right:0!important;
     padding-left:16px!important;
     padding-right:16px!important;
     justify-items:center!important;
+    transform:translateX(-10px)!important;
   }
 }

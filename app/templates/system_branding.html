@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Settings · {{ branding.name }}{% endblock %}
-{% block heading %}<h1>Settings</h1><p>Main Server branding and connection capacity</p>{% endblock %}
+{% block heading %}<h1>Settings</h1><p>Main Server branding, system time and connection capacity</p>{% endblock %}
 {% block content %}
 {% if saved %}<div class="alert success">Settings saved successfully.</div>{% endif %}
 {% if message %}<div class="alert success">{{ message }}</div>{% endif %}
@@ -40,6 +40,7 @@
       <label>Metrics history retention (days)<input type="number" min="1" max="3650" name="metrics_retention_days" value="{{ metrics_retention_days }}"></label>
       <label class="graph-span-field">Default graph time span<select name="metrics_default_span_hours">{% for hours,label in [(1,'Last hour'),(6,'Last 6 hours'),(24,'Last 24 hours'),(72,'Last 3 days'),(168,'Last 7 days'),(720,'Last 30 days')] %}<option value="{{ hours }}" {% if metrics_default_span_hours == hours %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
       <label>Graph sample interval (seconds)<input type="number" min="5" max="3600" name="metrics_sample_interval_seconds" value="{{ metrics_sample_interval_seconds }}"></label>
+      <label>System time zone<select name="system_timezone">{% for zone in timezone_options %}<option value="{{ zone }}" {% if zone == system_timezone %}selected{% endif %}>{{ zone }}</option>{% endfor %}</select><small class="field-help">Used across the Main Panel, logs and all Email/SMS notification dates.</small></label>
       <!-- STREAMFORGE_SESSION_HOVER_SETTINGS_UI_V2254 -->
       <label>Online session timeout (seconds)<input type="number" min="5" max="3600" name="viewer_session_timeout_seconds" value="{{ viewer_session_timeout_seconds }}"><small class="field-help">How long a viewer stays counted as Online after its last playback heartbeat. Default: 5 seconds.</small></label>
       <!-- STREAMFORGE_CLIENT_SESSION_RESET_OFFLINE_UI_V1081 -->

@@ -149,20 +149,24 @@ try:
 except Exception:
     DISPLAY_TZ = timezone.utc
 
-NOTIFICATION_TIMEZONES = (
+SYSTEM_TIMEZONES = (
     "Asia/Dhaka", "Asia/Kolkata", "Asia/Dubai", "Asia/Singapore",
     "Europe/London", "Europe/Berlin", "America/New_York", "America/Los_Angeles", "UTC",
 )
 
 
-def notification_timezone_name(db: Session) -> str:
-    row = db.get(AppSetting, "notification_timezone")
+def system_timezone_name(db: Session) -> str:
+    # STREAMFORGE_V1314_GLOBAL_SYSTEM_TIMEZONE: one Settings-owned timezone is
+    # loaded by every worker and shared by panel formatting and notifications.
+    # The older Notification Center setting is retained as a fallback so an
+    # existing choice becomes the global system zone without being lost.
+    row = db.get(AppSetting, "system_timezone") or db.get(AppSetting, "notification_timezone")
     value = str(row.value if row else settings.timezone_name).strip()
     try:
         ZoneInfo(value)
         return value
     except Exception:
-        return settings.timezone_name
+        return "UTC"
 
 _NODE_UPDATE_LOCK = threading.RLock()
 _NODE_UPDATE_JOBS: dict[int, dict[str, object]] = {}
@@ -5220,6 +5224,7 @@ def _main_client_session_history_observer_loop() -> None:
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    global DISPLAY_TZ
     # STREAMFORGE_PUBLIC_PROCESS_ISOLATION_V62:
     # Public WebPlayer/API workers run the same route module for compatibility,
     # but they must never execute control-plane startup/shutdown side effects.
@@ -5229,6 +5234,7 @@ async def lifespan(_app: FastAPI):
     process_role = str(os.getenv("STREAMFORGE_PROCESS_ROLE", "control") or "control").strip().lower()
     if process_role == "public":
         with SessionLocal() as db:
+            DISPLAY_TZ = ZoneInfo(system_timezone_name(db))
             connection_tracker.set_total_limit(app_setting_int(db, MAIN_TOTAL_CONNECTIONS_KEY, 0))
             viewer_ttl = max(5, min(3600, app_setting_int(db, VIEWER_SESSION_TIMEOUT_KEY, 5)))
             connection_tracker.set_ttl(viewer_ttl)
@@ -5242,6 +5248,7 @@ async def lifespan(_app: FastAPI):
     Base.metadata.create_all(bind=engine)
     ensure_runtime_schema()
     with SessionLocal() as db:
+        DISPLAY_TZ = ZoneInfo(system_timezone_name(db))
         super_role = ensure_default_roles(db)
         ensure_stream_link_secret(db)
         # STREAMFORGE_VAULT_OPTIONAL_V1282: announce the missing key once at
@@ -5758,6 +5765,8 @@ def render(request: Request, name: str, db: Session, **context):
             "app_version": APP_VERSION,
             "app_root": str(request.scope.get("root_path") or "").rstrip("/"),
             "branding": branding_settings(db),
+            "system_timezone": system_timezone_name(db),
+            "timezone_options": SYSTEM_TIMEZONES,
             # STREAMFORGE_MAIN_HIDDEN_NATIVE_ROUTE_V49: normal document reloads
             # are retained, while the browser-facing URL stays at the configured
             # Panel/API root. Internal route state is exposed only to panel JS.
@@ -5897,6 +5906,8 @@ def system_branding_page(
         viewer_session_timeout_seconds=max(5, min(3600, app_setting_int(db, VIEWER_SESSION_TIMEOUT_KEY, 5))),
         client_session_reset_offline_minutes=max(1, min(10080, app_setting_int(db, CLIENT_SESSION_RESET_OFFLINE_MINUTES_KEY, 60))),
         hide_panel_hover_urls=app_setting_str(db, HIDE_PANEL_HOVER_URLS_KEY, "1").lower() not in {"0", "false", "off", "no"},
+        system_timezone=system_timezone_name(db),
+        timezone_options=SYSTEM_TIMEZONES,
         available_network_interfaces=sorted(set(available_network_interfaces()) | set(selected_interfaces)),
         selected_network_interfaces=selected_interfaces,
         youtube_cookies_configured=youtube_cookie_configured(),
@@ -5922,6 +5933,7 @@ def system_branding_save(
     viewer_session_timeout_seconds: int = Form(5),
     client_session_reset_offline_minutes: int = Form(60),
     hide_panel_hover_urls: Optional[str] = Form(None),
+    system_timezone: str = Form("Asia/Dhaka"),
     network_interfaces: list[str] = Form([]),
     db: Session = Depends(get_db),
 ):
@@ -5933,6 +5945,11 @@ def system_branding_save(
     cleaned_subtitle = " ".join(submitted_subtitle.split())[:120] if submitted_subtitle.strip() else ""
     if not cleaned_name:
         return render(request, "system_branding.html", db, saved=False, message="", error="Brand name is required", main_total_max_connections=max(0, min(1000000, int(total_max_connections or 0))), metrics_retention_days=max(1, min(3650, int(metrics_retention_days or 30))), log_retention_days=max(1, min(3650, int(log_retention_days or 30))), available_network_interfaces=available_network_interfaces(), selected_network_interfaces=selected_network_interfaces(db))
+    cleaned_timezone = system_timezone.strip()
+    try:
+        selected_timezone = ZoneInfo(cleaned_timezone)
+    except Exception:
+        return RedirectResponse("/system/branding?error=" + quote_plus("Choose a valid system time zone"), status_code=303)
     branding = branding_settings(db)
     old_logo_url = branding["logo_url"]
     old_favicon_url = branding["favicon_url"]
@@ -5986,11 +6003,14 @@ def system_branding_save(
     save_app_setting(db, CLIENT_SESSION_RESET_OFFLINE_MINUTES_KEY, session_reset_minutes)
     hide_hover_urls = as_bool(hide_panel_hover_urls)
     save_app_setting(db, HIDE_PANEL_HOVER_URLS_KEY, "1" if hide_hover_urls else "0")
+    save_app_setting(db, "system_timezone", cleaned_timezone)
     available_interfaces = set(available_network_interfaces())
     selected_interfaces = [] if "__all__" in network_interfaces else sorted({item for item in network_interfaces if item in available_interfaces})
     save_app_setting(db, METRICS_NETWORK_INTERFACES_KEY, ",".join(selected_interfaces))
     prune_logs(log_days, db=db, force=True)
     db.commit()
+    global DISPLAY_TZ
+    DISPLAY_TZ = selected_timezone
     connection_tracker.set_total_limit(connection_limit)
     connection_tracker.set_ttl(viewer_ttl_seconds)
     viewer_tracker.ttl_seconds = viewer_ttl_seconds
@@ -6020,6 +6040,7 @@ def system_branding_save(
         "viewer_session_timeout_seconds": viewer_ttl_seconds,
         "client_session_reset_offline_minutes": session_reset_minutes,
         "hide_panel_hover_urls": hide_hover_urls,
+        "system_timezone": cleaned_timezone,
         "network_interfaces": selected_interfaces or ["all"],
         "youtube_cookies_configured": youtube_cookie_configured(),
     })
@@ -9556,36 +9577,10 @@ def notification_center(request: Request, db: Session = Depends(get_db)):
     return render(
         request, "notifications.html", db,
         config=public_email_config(db), sms_config=public_sms_config(db), users=users, nodes=nodes,
-        server_timezone=notification_timezone_name(db), timezone_options=NOTIFICATION_TIMEZONES,
         deliveries=deliveries, campaigns=campaigns, delivery_stats=delivery_stats,
         message=str(request.query_params.get("message") or "")[:500],
         error=str(request.query_params.get("error") or "")[:500],
     )
-
-
-@app.post("/system/notifications/timezone", dependencies=[Depends(permission_required("notifications.manage"))])
-def notification_timezone_save(
-    request: Request,
-    server_timezone: str = Form("Asia/Dhaka"),
-    db: Session = Depends(get_db),
-):
-    admin = current_admin(request, db)
-    if not admin:
-        return redirect_login()
-    timezone_name = server_timezone.strip()
-    try:
-        ZoneInfo(timezone_name)
-    except Exception:
-        return _notification_redirect(error="Choose a valid server time zone")
-    save_app_setting(db, "notification_timezone", timezone_name)
-    db.commit()
-    global DISPLAY_TZ
-    DISPLAY_TZ = ZoneInfo(timezone_name)
-    log_event(
-        "Notification time zone updated", scope="system", actor=admin.username,
-        details={"timezone": timezone_name},
-    )
-    return _notification_redirect(message=f"Server time zone saved as {timezone_name}.")
 
 
 @app.post("/system/notifications/settings", dependencies=[Depends(permission_required("notifications.manage"))])

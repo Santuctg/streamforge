@@ -242,7 +242,7 @@ def email_config(db: Session) -> EmailConfig:
         password = str(decrypt_secret(encrypted) or "") if encrypted else ""
     except Exception:
         password = ""
-    timezone_row = db.get(AppSetting, "notification_timezone")
+    timezone_row = db.get(AppSetting, "system_timezone") or db.get(AppSetting, "notification_timezone")
     timezone_name = str(timezone_row.value if timezone_row else "Asia/Dhaka").strip() or "Asia/Dhaka"
     try:
         ZoneInfo(timezone_name)
