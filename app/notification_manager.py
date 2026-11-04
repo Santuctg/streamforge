@@ -7,7 +7,8 @@
 # variable syntax in notification templates.
 # STREAMFORGE_V1307_NOTIFICATION_FIXES:
 # STREAMFORGE_V1308_TEMPLATE_VALUES:
-# STREAMFORGE_V1309_NOTIFICATION_CENTER: delivery body inspection and timezone-aware settings. manual campaigns receive expiry values and
+# STREAMFORGE_V1309_NOTIFICATION_CENTER:
+# STREAMFORGE_V1310_TIMEZONE_FIX: expiry_date is rendered in the configured server timezone. delivery body inspection and timezone-aware settings. manual campaigns receive expiry values and
 # flexible brace syntax is rendered consistently. release package includes the complete
 # Notification Center template and the compact Node owner recipient row.
 from __future__ import annotations
@@ -22,6 +23,7 @@ import uuid
 import json
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
+from zoneinfo import ZoneInfo
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
@@ -209,6 +211,7 @@ class EmailConfig:
     user_body: str
     node_subject: str
     node_body: str
+    timezone_name: str
 
     @property
     def ready(self) -> bool:
@@ -228,6 +231,12 @@ def email_config(db: Session) -> EmailConfig:
         password = str(decrypt_secret(encrypted) or "") if encrypted else ""
     except Exception:
         password = ""
+    timezone_row = db.get(AppSetting, "notification_timezone")
+    timezone_name = str(timezone_row.value if timezone_row else "Asia/Dhaka").strip() or "Asia/Dhaka"
+    try:
+        ZoneInfo(timezone_name)
+    except Exception:
+        timezone_name = "Asia/Dhaka"
     return EmailConfig(
         enabled=_boolean(_setting(db, "enabled", "0")),
         auto_enabled=_boolean(_setting(db, "auto_enabled", "0")),
@@ -246,6 +255,7 @@ def email_config(db: Session) -> EmailConfig:
         user_body=_setting(db, "user_body", DEFAULT_USER_BODY) or DEFAULT_USER_BODY,
         node_subject=_setting(db, "node_subject", DEFAULT_NODE_SUBJECT) or DEFAULT_NODE_SUBJECT,
         node_body=_setting(db, "node_body", DEFAULT_NODE_BODY) or DEFAULT_NODE_BODY,
+        timezone_name=timezone_name,
     )
 
 
@@ -324,10 +334,14 @@ def _template_values(
     config: EmailConfig,
 ) -> dict[str, str]:
     expiry_value = _aware(expiry)
+    try:
+        expiry_value = expiry_value.astimezone(ZoneInfo(config.timezone_name)) if expiry_value else None
+    except Exception:
+        pass
     return {
         "customer_name": recipient_name or "Customer",
         "node_name": node_name,
-        "expiry_date": expiry_value.strftime("%Y-%m-%d %H:%M UTC") if expiry_value else "—",
+        "expiry_date": expiry_value.strftime("%Y-%m-%d %H:%M %Z") if expiry_value else "—",
         "days_remaining": str(max(0, days_remaining)),
         "service_name": config.service_name,
         "support_contact": config.support_contact,

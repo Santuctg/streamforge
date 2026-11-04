@@ -1,3 +1,7 @@
+## 13.10 - 2026-11-05
+
+- Applied the configured server time zone to notification `{expiry_date}` values.
+
 ## 13.09 - 2026-11-05
 
 - Added View message to sent/failed delivery history, including subject/body and SMS bodies. Added configurable server default time zone. Forced Node owner information into one line.
