@@ -1,6 +1,8 @@
 """Persistent email and SMS notifications for Stream Users and Node Server owners."""
 # STREAMFORGE_V1304_MAESTRO_SMS: Maestro SMS API integration with encrypted
 # credentials, test delivery and queued automatic reminders.
+# STREAMFORGE_V1305_SMS_TEMPLATES: SMS has separate short User and Node
+# templates instead of reusing long email bodies.
 from __future__ import annotations
 
 import math
@@ -35,6 +37,8 @@ from .secrets_store import decrypt_secret
 SETTING_PREFIX = "notification_email_"
 SMS_SETTING_PREFIX = "notification_sms_"
 SMS_API_URL = "https://sms.maestro.com.bd/api/smsapi2"
+DEFAULT_SMS_USER_BODY = "{customer_name}, your {service_name} service expires on {expiry_date}. Renew to keep it active. Support: {support_contact}"
+DEFAULT_SMS_NODE_BODY = "{customer_name}, Node {node_name} service expires on {expiry_date}. Renew to avoid interruption. Support: {support_contact}"
 DEFAULT_USER_SUBJECT = "Your {service_name} subscription expires in {days_remaining} day(s)"
 DEFAULT_USER_BODY = """Hello {customer_name},
 
@@ -90,6 +94,8 @@ class SmsConfig:
     api_key: str
     sender_id: str
     message_type: str
+    user_body: str
+    node_body: str
 
     @property
     def ready(self) -> bool:
@@ -112,6 +118,8 @@ def sms_config(db: Session) -> SmsConfig:
         api_key=api_key,
         sender_id=_sms_setting(db, "sender_id"),
         message_type=message_type,
+        user_body=_sms_setting(db, "user_body", DEFAULT_SMS_USER_BODY) or DEFAULT_SMS_USER_BODY,
+        node_body=_sms_setting(db, "node_body", DEFAULT_SMS_NODE_BODY) or DEFAULT_SMS_NODE_BODY,
     )
 
 
@@ -123,6 +131,8 @@ def public_sms_config(db: Session) -> dict[str, object]:
         "api_url": config.api_url,
         "sender_id": config.sender_id,
         "message_type": config.message_type,
+        "user_body": config.user_body,
+        "node_body": config.node_body,
         "api_key_saved": bool(_sms_setting(db, "api_key_enc")),
         "ready": config.ready,
     }
@@ -393,6 +403,7 @@ def queue_expiry_reminders(db: Session) -> int:
         event = "expired" if threshold == 0 else f"expiry_{threshold}_days"
         template_subject = config.node_subject if recipient_type == "node" else config.user_subject
         template_body = config.node_body if recipient_type == "node" else config.user_body
+        sms_template_body = sms.node_body if recipient_type == "node" else sms.user_body
         values = _template_values(
             recipient_name=recipient_name, expiry=expiry, node_name=node_name,
             days_remaining=threshold, config=config,
@@ -410,7 +421,8 @@ def queue_expiry_reminders(db: Session) -> int:
             db.add(NotificationDelivery(
                 recipient_type=recipient_type, recipient_id=recipient_id, recipient_name=recipient_name[:180],
                 channel=channel, email=destination, event_type=event, dedupe_key=dedupe,
-                subject=render_template(template_subject, values), body=render_template(template_body, values),
+                subject=render_template(template_subject, values) if channel == "email" else "",
+                body=render_template(template_body if channel == "email" else sms_template_body, values),
                 status="queued", scheduled_at=now,
             ))
             queued += 1

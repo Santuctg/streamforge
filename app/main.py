@@ -70,6 +70,8 @@ from .notification_manager import (
     DEFAULT_NODE_SUBJECT,
     DEFAULT_USER_BODY,
     DEFAULT_USER_SUBJECT,
+    DEFAULT_SMS_NODE_BODY,
+    DEFAULT_SMS_USER_BODY,
     SETTING_PREFIX as NOTIFICATION_SETTING_PREFIX,
     email_config,
     notification_worker,
@@ -9633,6 +9635,8 @@ def notification_sms_settings_save(
     sms_api_url: str = Form("https://sms.maestro.com.bd/api/smsapi2"),
     sms_sender_id: str = Form(""),
     sms_message_type: str = Form("text"),
+    sms_user_body: str = Form(DEFAULT_SMS_USER_BODY),
+    sms_node_body: str = Form(DEFAULT_SMS_NODE_BODY),
     sms_api_key: str = Form(""),
     clear_sms_api_key: Optional[str] = Form(None),
     db: Session = Depends(get_db),
@@ -9650,6 +9654,8 @@ def notification_sms_settings_save(
     save_app_setting(db, "notification_sms_api_url", api_url)
     save_app_setting(db, "notification_sms_sender_id", sender_id)
     save_app_setting(db, "notification_sms_message_type", message_type)
+    save_app_setting(db, "notification_sms_user_body", sms_user_body.strip()[:1600] or DEFAULT_SMS_USER_BODY)
+    save_app_setting(db, "notification_sms_node_body", sms_node_body.strip()[:1600] or DEFAULT_SMS_NODE_BODY)
     if as_bool(clear_sms_api_key):
         save_app_setting(db, "notification_sms_api_key_enc", "")
     elif sms_api_key.strip():

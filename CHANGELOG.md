@@ -1,3 +1,7 @@
+## 13.05 - 2026-11-05
+
+- Added separate short SMS templates for Stream Users and Node Server owners; SMS no longer reuses long email bodies.
+
 ## 13.04 - 2026-11-05
 
 - Added Maestro SMS API integration to Notification Center with encrypted API-key storage, sender ID, text/Unicode mode and a test SMS action.
