@@ -5,6 +5,8 @@
 # templates instead of reusing long email bodies.
 # STREAMFORGE_V1306_TEMPLATE_RENDERING: support both {name} and {{name}}
 # variable syntax in notification templates.
+# STREAMFORGE_V1307_NOTIFICATION_FIXES: release package includes the complete
+# Notification Center template and the compact Node owner recipient row.
 from __future__ import annotations
 
 import math

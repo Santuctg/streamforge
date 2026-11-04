@@ -1,3 +1,7 @@
+## 13.07 - 2026-11-05
+
+- Repackaged the complete Notification Center template and verified the `{expiry_date}` / `{days_remaining}` fixes and compact Node owner row in the release archive.
+
 ## 13.06 - 2026-11-05
 
 - Fixed `{expiry_date}` and `{days_remaining}` rendering, including double-brace syntax. Compacted Node owner information into one responsive line.
