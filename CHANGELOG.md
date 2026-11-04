@@ -1,3 +1,9 @@
+## 13.03 - 2026-11-04
+
+- Kept browser-autofilled form fields on the dark theme: the Notification Center's *Test recipient*, SMTP credentials, *From email* and other autofilled inputs no longer flash a light background that clashed with the panel (global `:-webkit-autofill` override in `app/static/style.css`).
+- The updater now republishes the Nginx direct static cache (`/var/cache/streamforge/main-static`) and verifies it byte for byte, so the fixed stylesheet reaches browsers immediately.
+- New bounded updater `scripts/force_update_v1303.sh`; both VERSION files bumped to 13.03. Node Agent runtime bytes are unchanged and Remote Nodes do not require an update.
+
 ## 13.02 - 2026-11-04
 
 - Added the **Notification Center** (`Notifications` in the sidebar): SMTP delivery settings with an encrypted stored password, a test-email control, separate Stream User and Node Server expiry templates, manual campaigns and a persistent delivery history with retry/resend.

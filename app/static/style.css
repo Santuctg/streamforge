@@ -3546,3 +3546,19 @@ button:disabled,select:disabled,input:disabled,[aria-disabled="true"]{cursor:not
 /* STREAMFORGE_MAIN_NATIVE_NAV_FEEDBACK_V49 */
 html.streamforge-native-loading,html.streamforge-native-loading body{cursor:progress!important}
 .streamforge-nav-loading{filter:brightness(1.18);outline:1px solid rgba(120,190,255,.35);outline-offset:-1px}
+/* STREAMFORGE_V1303_DARK_AUTOFILL_CSS: browsers paint autofilled fields
+   (Test recipient, SMTP username, From email, search boxes) with a light
+   background that breaks the dark theme. Pin autofill to the panel's dark
+   field colors so the value stays readable and the background stays dark. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus{
+  -webkit-text-fill-color:var(--text);
+  -webkit-box-shadow:0 0 0 1000px #0b1118 inset;
+  box-shadow:0 0 0 1000px #0b1118 inset;
+  caret-color:var(--text);
+  transition:background-color 9999s ease-out;
+}
