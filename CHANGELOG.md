@@ -1,3 +1,7 @@
+## 13.06 - 2026-11-05
+
+- Fixed `{expiry_date}` and `{days_remaining}` rendering, including double-brace syntax. Compacted Node owner information into one responsive line.
+
 ## 13.05 - 2026-11-05
 
 - Added separate short SMS templates for Stream Users and Node Server owners; SMS no longer reuses long email bodies.

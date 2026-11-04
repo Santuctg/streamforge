@@ -3,6 +3,8 @@
 # credentials, test delivery and queued automatic reminders.
 # STREAMFORGE_V1305_SMS_TEMPLATES: SMS has separate short User and Node
 # templates instead of reusing long email bodies.
+# STREAMFORGE_V1306_TEMPLATE_RENDERING: support both {name} and {{name}}
+# variable syntax in notification templates.
 from __future__ import annotations
 
 import math
@@ -330,7 +332,11 @@ def _template_values(
 def render_template(template: str, values: dict[str, str]) -> str:
     result = str(template or "")
     for key, value in values.items():
-        result = result.replace("{" + key + "}", value)
+        replacement = str(value or "")
+        # Accept both documented {name} tokens and the common {{name}}
+        # spelling operators may paste from other template systems.
+        result = result.replace("{{" + key + "}}", replacement)
+        result = result.replace("{" + key + "}", replacement)
     return result
 
 

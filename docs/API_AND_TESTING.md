@@ -40,7 +40,7 @@ policy of the serving Node. Rejections are written to the **Client log**.
 | Endpoint | Purpose |
 | --- | --- |
 | `GET /health` | Returns `ok` (header `X-StreamForge-Process-Role: control` or `public`) |
-| `GET /version` | Returns the running Main version, e.g. `13.05` |
+| `GET /version` | Returns the running Main version, e.g. `13.06` |
 | `GET /relay/{relay_key}/{slug}/index.m3u8` (+ segments) | HLS relay pulled by Remote Nodes; the HMAC relay key authorises it |
 
 Local checks on the Main Server:
@@ -76,12 +76,12 @@ python3 -m venv .venv
 python3 -m pip install -r requirements.txt httpx   # httpx is needed by TestClient tests
 export PYTHONPATH=.
 
-# current release (13.05)
+# current release (13.06)
 python3 scripts/test_role_manager.py
 python3 scripts/test_role_manager_patch.py
 python3 scripts/test_documentation.py
-python3 scripts/test_v1305_updater.py
-python3 scripts/verify_v1305_patch_roundtrip.py
+python3 scripts/test_v1306_updater.py
+python3 scripts/verify_v1306_patch_roundtrip.py
 python3 scripts/test_v1302_notifications.py
 python3 scripts/verify_release_updater_staging.py
 
