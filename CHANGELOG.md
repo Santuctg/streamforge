@@ -1,3 +1,7 @@
+## 13.13 - 2026-11-05
+
+- Centered collapsed-sidebar footer controls against the full 76px sidebar. Added a prominent independently saved server timezone panel, modal delivery-message viewing, immediate matching Main Update processing state, and grouped Playlist User Email/SMS notification controls.
+
 ## 13.12 - 2026-11-05
 
 - Put all Node owner controls in one large-screen row, render saved templates in Test SMS, add targeted expiry-variable tests and optically align collapsed footer glyphs.

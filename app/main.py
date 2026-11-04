@@ -9563,6 +9563,31 @@ def notification_center(request: Request, db: Session = Depends(get_db)):
     )
 
 
+@app.post("/system/notifications/timezone", dependencies=[Depends(permission_required("notifications.manage"))])
+def notification_timezone_save(
+    request: Request,
+    server_timezone: str = Form("Asia/Dhaka"),
+    db: Session = Depends(get_db),
+):
+    admin = current_admin(request, db)
+    if not admin:
+        return redirect_login()
+    timezone_name = server_timezone.strip()
+    try:
+        ZoneInfo(timezone_name)
+    except Exception:
+        return _notification_redirect(error="Choose a valid server time zone")
+    save_app_setting(db, "notification_timezone", timezone_name)
+    db.commit()
+    global DISPLAY_TZ
+    DISPLAY_TZ = ZoneInfo(timezone_name)
+    log_event(
+        "Notification time zone updated", scope="system", actor=admin.username,
+        details={"timezone": timezone_name},
+    )
+    return _notification_redirect(message=f"Server time zone saved as {timezone_name}.")
+
+
 @app.post("/system/notifications/settings", dependencies=[Depends(permission_required("notifications.manage"))])
 def notification_settings_save(
     request: Request,
@@ -9584,7 +9609,6 @@ def notification_settings_save(
     user_body: str = Form(DEFAULT_USER_BODY),
     node_subject: str = Form(DEFAULT_NODE_SUBJECT),
     node_body: str = Form(DEFAULT_NODE_BODY),
-    server_timezone: str = Form("Asia/Dhaka"),
     db: Session = Depends(get_db),
 ):
     admin = current_admin(request, db)
@@ -9603,10 +9627,6 @@ def notification_settings_save(
         return _notification_redirect(error="Reminder days must be comma-separated numbers")
     if not days:
         return _notification_redirect(error="Set at least one reminder day")
-    try:
-        ZoneInfo(server_timezone.strip())
-    except Exception:
-        return _notification_redirect(error="Choose a valid server time zone")
     if sender and not valid_email(sender):
         return _notification_redirect(error="Enter a valid From email address")
     if reply and not valid_email(reply):
@@ -9635,9 +9655,6 @@ def notification_settings_save(
     }
     for name, value in values.items():
         save_app_setting(db, NOTIFICATION_SETTING_PREFIX + name, value)
-    save_app_setting(db, "notification_timezone", server_timezone.strip())
-    global DISPLAY_TZ
-    DISPLAY_TZ = ZoneInfo(server_timezone.strip())
     if as_bool(clear_smtp_password):
         save_app_setting(db, NOTIFICATION_SETTING_PREFIX + "smtp_password_enc", "")
     elif smtp_password:
@@ -9848,12 +9865,28 @@ def main_updates_page(request: Request, db: Session = Depends(get_db)):
     installed_key = _release_version_key(APP_VERSION)
     latest_key = _release_version_key(latest.get("version"))
     update_available = bool(installed_key and latest_key and latest_key > installed_key)
+    # STREAMFORGE_V1313_VISIBLE_NOTIFICATION_UPDATE_UI_FIX: preserve the new
+    # request identity in the redirect so scheduled/processing is visible
+    # before the privileged helper publishes its first matching result.
+    update_result = _main_update_result()
+    requested_id = str(request.query_params.get("request_id") or "").strip()[:80]
+    requested_target = str(request.query_params.get("target") or "").strip()[:32]
+    if requested_id and re.fullmatch(r"[0-9]+-[0-9a-f]+", requested_id):
+        if str(update_result.get("request_id") or "") != requested_id:
+            update_result = {
+                "ok": True,
+                "action": "update_release",
+                "status": "scheduled",
+                "request_id": requested_id,
+                "current_version": requested_target,
+                "message": f"Update to v{requested_target} is scheduled and processing." if requested_target else "Update is scheduled and processing.",
+            }
     return render(
         request, "main_updates.html", db,
         latest=latest,
         check_error=check_error,
         update_available=update_available,
-        update_result=_main_update_result(),
+        update_result=update_result,
         message=str(request.query_params.get("message") or "")[:300],
         error=str(request.query_params.get("error") or "")[:300],
     )
@@ -9879,7 +9912,11 @@ def main_updates_apply(request: Request, db: Session = Depends(get_db)):
         details={"request_id": request_id, "from": APP_VERSION, "target": latest["version"]},
     )
     return RedirectResponse(
-        "/system/updates?message=" + quote_plus(f"Update to v{latest['version']} scheduled. This page may briefly disconnect."),
+        "/system/updates?" + urlencode({
+            "message": f"Update to v{latest['version']} scheduled. Processing has started.",
+            "request_id": request_id,
+            "target": latest["version"],
+        }),
         status_code=303,
     )
 

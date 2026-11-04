@@ -2,6 +2,9 @@
 {% block title %}{{ 'Edit' if user and user.id else 'Add' }} User · {{ branding.name }}{% endblock %}
 {% block heading %}<h1>{{ 'Edit user' if user and user.id else 'Add user' }}</h1><p>Main Panel users with optional sticky load balancing</p>{% endblock %}
 {% block content %}
+<style>
+.user-notification-settings{display:grid;grid-template-columns:minmax(210px,1.2fr) minmax(170px,1fr) minmax(190px,.9fr) minmax(190px,.9fr);gap:12px;align-items:stretch;padding:14px;border:1px solid #315f75;border-radius:10px;background:#0c171f}.user-notification-settings>label{min-width:0;margin:0}.user-notification-settings>.check{display:grid!important;grid-template-columns:18px minmax(0,1fr)!important;align-items:start!important;gap:9px!important;padding:11px!important;border:1px solid var(--line)!important;border-radius:8px!important;background:#0b1118!important}.user-notification-settings>.check input{width:16px!important;height:16px!important;margin:2px 0 0!important}.user-notification-settings>.check span{display:grid;gap:3px}.user-notification-settings>.check small{color:var(--muted);font-size:10px}@media(max-width:1100px){.user-notification-settings{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:620px){.user-notification-settings{grid-template-columns:1fr}}
+</style>
 <form class="form-layout" method="post" data-playlist-order-form data-current-playlist-order='{{ user.playlist_order or "[]" if user else "[]" }}' action="{{ '/users/' ~ user.id ~ '/edit' if user and user.id else '/users/new' }}" data-user-delivery-form>
 {% if error %}<div class="alert danger wide">{{ error }}</div>{% endif %}
 <section class="panel form-section"><div class="panel-head"><div><h2>Account</h2><p>A random secure token is generated automatically.</p></div></div>
@@ -10,14 +13,16 @@
 <label>Password<input type="password" name="xtream_password" autocomplete="new-password" placeholder="{{ 'Leave blank to keep current password' if user and user.xtream_password_hash else 'Enter account password' }}" {% if not user %}required{% endif %}><small class="field-help">Stored as a secure scrypt hash. Playback URLs returned by the API use encrypted keys instead of exposing this password.</small></label>
 <label>Display name (optional)<input name="name" value="{{ user.name if user else '' }}" placeholder="Defaults to username"></label>
 <label>Expiry (UTC)<input type="datetime-local" name="expires_at" value="{{ user.expires_at.strftime('%Y-%m-%dT%H:%M') if user and user.expires_at else '' }}"></label>
-<label>Notification email<input type="email" name="contact_email" maxlength="320" value="{{ user.contact_email or '' if user else '' }}" placeholder="customer@example.com"><small class="field-help">Expiry reminders and manual service notices are sent here.</small></label>
-<label>Notification mobile<input type="tel" name="contact_phone" maxlength="32" value="{{ user.contact_phone or '' if user else '' }}" placeholder="017XXXXXXXX"><small class="field-help">Bangladesh mobile number for SMS notices.</small></label>
-<label class="check wide"><input type="checkbox" name="sms_notifications" {% if not user or user.sms_notifications %}checked{% endif %}><span><b>SMS notifications enabled</b><small class="field-help">SMS reminders are sent only when SMS delivery is enabled in Notification Center.</small></span></label>
+<div class="wide user-notification-settings">
+  <label>Notification email<input type="email" name="contact_email" maxlength="320" value="{{ user.contact_email or '' if user else '' }}" placeholder="customer@example.com"><small class="field-help">Expiry reminders and notices.</small></label>
+  <label>Notification mobile<input type="tel" name="contact_phone" maxlength="32" value="{{ user.contact_phone or '' if user else '' }}" placeholder="017XXXXXXXX"><small class="field-help">Bangladesh SMS number.</small></label>
+  <label class="check"><input type="checkbox" name="email_notifications" {% if not user or user.email_notifications %}checked{% endif %}><span><b>Enable email notifications</b><small>Uncheck to turn email notices off.</small></span></label>
+  <label class="check"><input type="checkbox" name="sms_notifications" {% if not user or user.sms_notifications %}checked{% endif %}><span><b>Enable SMS notifications</b><small>Uncheck to turn SMS notices off.</small></span></label>
+</div>
 <label>Account type<select name="user_type"><option value="viewer" {% if not user or user.user_type != 'restream' %}selected{% endif %}>Normal user — HLS only, IP/session-bound key</option><option value="restream" {% if user and user.user_type == 'restream' %}selected{% endif %}>Restreamer — allowed IPs required</option></select><small class="field-help">Normal users cannot request TS/restream output. Restreamer accounts are restricted to the IP/CIDR list below.</small></label>
 <label class="user-max-connections-field">Max connections<input type="number" min="0" max="100" name="max_connections" value="{{ user.max_connections if user else 1 }}"><small>0 means unlimited.</small></label>
 <label class="wide">Restream allowed IPs / CIDRs<textarea name="restream_allowed_ips" rows="4" placeholder="203.0.113.10&#10;198.51.100.0/24">{{ user.restream_allowed_ips or '' if user else '' }}</textarea><small class="field-help">Required only for Restreamer accounts. One IP or CIDR per line.</small></label>
 <label class="check"><input type="checkbox" name="enabled" {% if not user or user.enabled %}checked{% endif %}><span>Enabled</span></label>
-<label class="check"><input type="checkbox" name="email_notifications" {% if not user or user.email_notifications %}checked{% endif %}><span>Email notifications enabled</span></label>
 <input type="hidden" name="delivery_mode" value="central">
 <input type="hidden" name="direct_node_id" value="">
 <label class="wide">Playlist profile

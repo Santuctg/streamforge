@@ -11,7 +11,7 @@
 >
 > **Typical use:** One **Main Server** encodes every channel once; several **Remote Nodes** in other data centres relay those channels and serve the viewers, with per-user connection limits, IP/ASN access policies and automatic node selection.
 
-**v13.12:** Exact UI/template fix: Node owner controls share one large-screen row, Test SMS renders the saved template, and collapsed footer glyphs are optically aligned. Requires Main v13.04; Remote Nodes do not need an update.
+**v13.13:** Centered the collapsed footer, added a dedicated notification timezone panel and message popup, made Main Update processing immediately visible, and grouped Playlist User Email/SMS controls. Requires Main v13.04; Remote Nodes do not need an update.
 
 > **v12.83 upgrade notes:** HTTPS connections to Remote Nodes now always verify
 > certificates; replace self-signed or name-mismatched certificates before
@@ -122,20 +122,20 @@ This is a **host-installed application**, **not a Docker Compose stack**. Review
 
 ### 1. Download the versioned package
 
-Download `streamforge-X.YY.zip` from **[Releases](https://github.com/Santuctg/streamforge/releases/tag/v13.12)** and check it:
+Download `streamforge-X.YY.zip` from **[Releases](https://github.com/Santuctg/streamforge/releases/tag/v13.13)** and check it:
 
 ```bash
 cd /root
-curl -fL -o streamforge-13.12.zip \
-  https://github.com/Santuctg/streamforge/releases/download/v13.12/streamforge-13.12.zip
-sha256sum streamforge-13.12.zip
+curl -fL -o streamforge-13.13.zip \
+  https://github.com/Santuctg/streamforge/releases/download/v13.13/streamforge-13.13.zip
+sha256sum streamforge-13.13.zip
 ```
 
 ### 2a. Fresh install (new server only)
 
 ```bash
-unzip -q streamforge-13.12.zip -d /root
-sudo bash /root/streamforge-13.12/scripts/install.sh
+unzip -q streamforge-13.13.zip -d /root
+sudo bash /root/streamforge-13.13/scripts/install.sh
 ```
 
 Open `http://SERVER_IP` and sign in as **`admin` / `ChangeMe123!`**. The Panel then requires a new password of at least 12 characters before anything else.
@@ -143,7 +143,7 @@ Open `http://SERVER_IP` and sign in as **`admin` / `ChangeMe123!`**. The Panel t
 ### 2b. Upgrade an existing server
 
 ```bash
-sudo streamforge-update --force /root/streamforge-13.12.zip
+sudo streamforge-update --force /root/streamforge-13.13.zip
 ```
 
 Releases are applied **in order** — each updater accepts only the previous version and rolls back automatically on failure. **Never run `install.sh` on an existing server.**
