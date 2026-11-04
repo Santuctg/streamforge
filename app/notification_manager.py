@@ -5,7 +5,9 @@
 # templates instead of reusing long email bodies.
 # STREAMFORGE_V1306_TEMPLATE_RENDERING: support both {name} and {{name}}
 # variable syntax in notification templates.
-# STREAMFORGE_V1307_NOTIFICATION_FIXES: release package includes the complete
+# STREAMFORGE_V1307_NOTIFICATION_FIXES:
+# STREAMFORGE_V1308_TEMPLATE_VALUES: manual campaigns receive expiry values and
+# flexible brace syntax is rendered consistently. release package includes the complete
 # Notification Center template and the compact Node owner recipient row.
 from __future__ import annotations
 
@@ -335,10 +337,8 @@ def render_template(template: str, values: dict[str, str]) -> str:
     result = str(template or "")
     for key, value in values.items():
         replacement = str(value or "")
-        # Accept both documented {name} tokens and the common {{name}}
-        # spelling operators may paste from other template systems.
-        result = result.replace("{{" + key + "}}", replacement)
-        result = result.replace("{" + key + "}", replacement)
+        # Accept {name}, {{name}} and optional whitespace inside either form.
+        result = re.sub(r"\{\{\s*" + re.escape(key) + r"\s*\}\}|\{\s*" + re.escape(key) + r"\s*\}", replacement, result)
     return result
 
 
@@ -352,13 +352,13 @@ def queue_manual_campaign(
     selected = set(recipients)
     users = db.scalars(select(StreamUser).where(StreamUser.contact_email.is_not(None))).all()
     nodes = db.scalars(select(Node).where(Node.contact_email.is_not(None))).all()
-    targets: list[tuple[str, int, str, str, str]] = []
+    targets: list[tuple[str, int, str, str, str, datetime | None]] = []
     for user in users:
         if f"user:{user.id}" in selected and user.email_notifications and valid_email(user.contact_email):
-            targets.append(("stream_user", user.id, user.name, str(user.contact_email), ""))
+            targets.append(("stream_user", user.id, user.name, str(user.contact_email), "", _aware(user.expires_at)))
     for node in nodes:
         if f"node:{node.id}" in selected and node.email_notifications and valid_email(node.contact_email):
-            targets.append(("node", node.id, node.contact_name or node.name, str(node.contact_email), node.name))
+            targets.append(("node", node.id, node.contact_name or node.name, str(node.contact_email), node.name, _aware(node.expires_at)))
     if not targets:
         raise ValueError("Select at least one recipient with email notifications enabled")
     campaign = NotificationCampaign(
@@ -368,8 +368,10 @@ def queue_manual_campaign(
     db.add(campaign)
     db.flush()
     config = email_config(db)
-    for recipient_type, recipient_id, recipient_name, email, node_name in targets:
-        values = _template_values(recipient_name=recipient_name, node_name=node_name, config=config)
+    now = _utcnow()
+    for recipient_type, recipient_id, recipient_name, email, node_name, expiry in targets:
+        days_remaining = max(0, math.ceil((expiry - now).total_seconds() / 86400)) if expiry and expiry > now else 0
+        values = _template_values(recipient_name=recipient_name, node_name=node_name, expiry=expiry, days_remaining=days_remaining, config=config)
         db.add(NotificationDelivery(
             campaign_id=campaign.id, recipient_type=recipient_type, recipient_id=recipient_id,
             recipient_name=recipient_name[:180], email=email, event_type="manual",

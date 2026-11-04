@@ -1,3 +1,7 @@
+## 13.08 - 2026-11-05
+
+- Fixed manual campaign rendering for `expiry_date` and `days_remaining`, including whitespace-tolerant brace syntax. Forced Node owner information into one line.
+
 ## 13.07 - 2026-11-05
 
 - Repackaged the complete Notification Center template and verified the `{expiry_date}` / `{days_remaining}` fixes and compact Node owner row in the release archive.
