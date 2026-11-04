@@ -1,3 +1,9 @@
+## 13.04 - 2026-11-05
+
+- Added Maestro SMS API integration to Notification Center with encrypted API-key storage, sender ID, text/Unicode mode and a test SMS action.
+- Added mobile numbers and SMS notification toggles for Stream Users and Node Server owners; automatic SMS expiry reminders use the existing queued delivery and retry worker.
+- New bounded updater `scripts/force_update_v1304.sh`; both VERSION files bumped to 13.04. Node Agent runtime bytes are unchanged.
+
 ## 13.03 - 2026-11-04
 
 - Kept browser-autofilled form fields on the dark theme: the Notification Center's *Test recipient*, SMTP credentials, *From email* and other autofilled inputs no longer flash a light background that clashed with the panel (global `:-webkit-autofill` override in `app/static/style.css`).

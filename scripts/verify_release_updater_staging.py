@@ -3,6 +3,9 @@ from pathlib import Path
 import re
 
 root = Path(__file__).resolve().parents[1]
+# STREAMFORGE_V1304_MAESTRO_SMS_UPDATER is validated by the v13.04 release
+# contract missing checks in scripts/verify_v1304_patch_roundtrip.py.
+# round-trip; the generic guards below still apply to every bounded updater.
 version = (root / "VERSION").read_text(encoding="utf-8").strip()
 compact = version.replace(".", "")
 updater = root / "scripts" / f"force_update_v{compact}.sh"

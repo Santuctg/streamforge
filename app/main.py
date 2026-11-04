@@ -75,10 +75,14 @@ from .notification_manager import (
     notification_worker,
     process_delivery_queue,
     public_email_config,
+    public_sms_config,
     queue_expiry_reminders,
     queue_manual_campaign,
     retry_delivery,
     send_test_email,
+    send_test_sms,
+    sms_config,
+    valid_phone,
     valid_email,
 )
 from .stream_keys import ensure_stream_link_secret, stream_link_hmac
@@ -8663,7 +8667,9 @@ def node_create(
     expires_at: Optional[str] = Form(None),
     contact_name: str = Form(""),
     contact_email: str = Form(""),
+    contact_phone: str = Form(""),
     email_notifications: Optional[str] = Form(None),
+    sms_notifications: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
     if not current_admin(request, db):
@@ -8755,6 +8761,8 @@ def node_create(
         contact_name=contact_name.strip()[:150] or None,
         contact_email=cleaned_contact_email or None,
         email_notifications=as_bool(email_notifications),
+        contact_phone=contact_phone.strip()[:32] or None,
+        sms_notifications=as_bool(sms_notifications),
     )
     db.add(node)
     db.flush()
@@ -9264,7 +9272,9 @@ def node_update(
     expires_at: Optional[str] = Form(None),
     contact_name: str = Form(""),
     contact_email: str = Form(""),
+    contact_phone: str = Form(""),
     email_notifications: Optional[str] = Form(None),
+    sms_notifications: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
     if not current_admin(request, db):
@@ -9285,7 +9295,7 @@ def node_update(
                 "asn_whitelist", "asn_blacklist", "dns_name", "dns_scheme",
                 "dns_only", "playlist_dns_only", "agent_port", "playlist_port",
                 "status", "last_error",
-                "contact_name", "contact_email", "email_notifications", "expires_at",
+                "contact_name", "contact_email", "email_notifications", "contact_phone", "sms_notifications", "expires_at",
             )
         }
     cleaned_name = name.strip()[:120] or node.name
@@ -9433,6 +9443,8 @@ def node_update(
     node.contact_name = contact_name.strip()[:150] or None
     node.contact_email = cleaned_contact_email or None
     node.email_notifications = as_bool(email_notifications)
+    node.contact_phone = contact_phone.strip()[:32] or None
+    node.sms_notifications = as_bool(sms_notifications)
     node.status = "online" if node.node_type == "local" else "unknown"
     node.last_error = None
     db.commit()
@@ -9526,7 +9538,7 @@ def notification_center(request: Request, db: Session = Depends(get_db)):
         delivery_stats[str(status)] = int(count or 0)
     return render(
         request, "notifications.html", db,
-        config=public_email_config(db), users=users, nodes=nodes,
+        config=public_email_config(db), sms_config=public_sms_config(db), users=users, nodes=nodes,
         deliveries=deliveries, campaigns=campaigns, delivery_stats=delivery_stats,
         message=str(request.query_params.get("message") or "")[:500],
         error=str(request.query_params.get("error") or "")[:500],
@@ -9613,6 +9625,40 @@ def notification_settings_save(
     return _notification_redirect(message=f"Email notification settings saved{f' · {queued} reminder(s) queued' if queued else ''}")
 
 
+@app.post("/system/notifications/sms-settings", dependencies=[Depends(permission_required("notifications.manage"))])
+def notification_sms_settings_save(
+    request: Request,
+    sms_enabled: Optional[str] = Form(None),
+    sms_auto_enabled: Optional[str] = Form(None),
+    sms_api_url: str = Form("https://sms.maestro.com.bd/api/smsapi2"),
+    sms_sender_id: str = Form(""),
+    sms_message_type: str = Form("text"),
+    sms_api_key: str = Form(""),
+    clear_sms_api_key: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+):
+    admin = current_admin(request, db)
+    if not admin:
+        return redirect_login()
+    api_url = sms_api_url.strip()[:500]
+    sender_id = sms_sender_id.strip()[:80]
+    message_type = sms_message_type if sms_message_type in {"text", "unicode"} else "text"
+    if as_bool(sms_enabled) and (not sender_id or not api_url):
+        return _notification_redirect(error="SMS API URL and Sender ID are required when SMS delivery is enabled")
+    save_app_setting(db, "notification_sms_enabled", "1" if as_bool(sms_enabled) else "0")
+    save_app_setting(db, "notification_sms_auto_enabled", "1" if as_bool(sms_auto_enabled) else "0")
+    save_app_setting(db, "notification_sms_api_url", api_url)
+    save_app_setting(db, "notification_sms_sender_id", sender_id)
+    save_app_setting(db, "notification_sms_message_type", message_type)
+    if as_bool(clear_sms_api_key):
+        save_app_setting(db, "notification_sms_api_key_enc", "")
+    elif sms_api_key.strip():
+        save_app_setting(db, "notification_sms_api_key_enc", encrypt_secret(sms_api_key.strip()) or "")
+    db.commit()
+    log_event("SMS notification settings updated", scope="system", actor=admin.username, details={"enabled": as_bool(sms_enabled)})
+    return _notification_redirect(message="SMS notification settings saved")
+
+
 @app.post("/system/notifications/test", dependencies=[Depends(permission_required("notifications.send"))])
 def notification_test_email(
     request: Request, test_email: str = Form(""), db: Session = Depends(get_db),
@@ -9629,6 +9675,24 @@ def notification_test_email(
         return _notification_redirect(error=f"Test email failed: {str(exc)[:350]}")
     log_event("Notification test email sent", scope="system", actor=admin.username, details={"recipient": recipient})
     return _notification_redirect(message=f"Test email sent to {recipient}")
+
+
+@app.post("/system/notifications/sms-test", dependencies=[Depends(permission_required("notifications.send"))])
+def notification_test_sms(
+    request: Request, test_phone: str = Form(""), db: Session = Depends(get_db),
+):
+    admin = current_admin(request, db)
+    if not admin:
+        return redirect_login()
+    recipient = test_phone.strip()
+    if not valid_phone(recipient):
+        return _notification_redirect(error="Enter a valid Bangladesh mobile number")
+    try:
+        send_test_sms(db, recipient)
+    except Exception as exc:
+        return _notification_redirect(error=f"Test SMS failed: {str(exc)[:350]}")
+    log_event("Notification test SMS sent", scope="system", actor=admin.username, details={"recipient": recipient})
+    return _notification_redirect(message=f"Test SMS sent to {recipient}")
 
 
 @app.post("/system/notifications/campaign", dependencies=[Depends(permission_required("notifications.send"))])
@@ -14630,7 +14694,9 @@ def user_create(
     enabled: Optional[str] = Form(None),
     expires_at: str = Form(""),
     contact_email: str = Form(""),
+    contact_phone: str = Form(""),
     email_notifications: Optional[str] = Form(None),
+    sms_notifications: Optional[str] = Form(None),
     max_connections: int = Form(1),
     user_type: str = Form("viewer"),
     restream_allowed_ips: str = Form(""),
@@ -14673,6 +14739,7 @@ def user_create(
             "name": name.strip() or xtream_username.strip(), "xtream_username": xtream_username.strip() or None,
             "xtream_password_hash": None, "enabled": as_bool(enabled), "expires_at": normalize_expiry(expires_at),
             "contact_email": contact_email.strip(), "email_notifications": as_bool(email_notifications),
+            "contact_phone": contact_phone.strip(), "sms_notifications": as_bool(sms_notifications),
             "max_connections": max_connections, "user_type": ("restream" if user_type == "restream" else "viewer"),
             "restream_allowed_ips": restream_allowed_ips, "load_balance_enabled": load_balancing,
             "delivery_mode": delivery_mode, "direct_node_id": direct_node_id, "notes": notes,
@@ -14691,6 +14758,7 @@ def user_create(
         load_balance_enabled=load_balancing, delivery_mode=mode,
         direct_node=direct_node, expires_at=normalize_expiry(expires_at),
         contact_email=cleaned_contact_email or None, email_notifications=as_bool(email_notifications),
+        contact_phone=contact_phone.strip()[:32] or None, sms_notifications=as_bool(sms_notifications),
         max_connections=max(0, min(100, int(max_connections or 0))), notes=notes.strip() or None,
         playlist=profile,
         playlist_order=(profile.channel_order if profile else json.dumps(parse_playlist_order(playlist_order, {item.id for item in channels}), separators=(",", ":"))),
@@ -14731,7 +14799,9 @@ def user_update(
     enabled: Optional[str] = Form(None),
     expires_at: str = Form(""),
     contact_email: str = Form(""),
+    contact_phone: str = Form(""),
     email_notifications: Optional[str] = Form(None),
+    sms_notifications: Optional[str] = Form(None),
     max_connections: int = Form(1),
     user_type: str = Form("viewer"),
     restream_allowed_ips: str = Form(""),
@@ -14784,6 +14854,8 @@ def user_update(
     cancel_stale_expiry_deliveries(db, "stream_user", user.id, user.expires_at)
     user.contact_email = cleaned_contact_email or None
     user.email_notifications = as_bool(email_notifications)
+    user.contact_phone = contact_phone.strip()[:32] or None
+    user.sms_notifications = as_bool(sms_notifications)
     user.max_connections = max(0, min(100, int(max_connections or 0)))
     user.user_type = account_type
     user.restream_allowed_ips = normalized_restream_ips or None

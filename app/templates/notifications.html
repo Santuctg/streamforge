@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Notifications · {{ branding.name }}{% endblock %}
-{% block heading %}<h1>Notifications</h1><p>Email notices for Stream Users and Node Server owners</p>{% endblock %}
+{% block heading %}<h1>Notifications</h1><p>Email and SMS notices for Stream Users and Node Server owners</p>{% endblock %}
 {% block content %}
 <div class="notification-page">
   {% if message %}<div class="alert success">{{ message }}</div>{% endif %}
@@ -48,6 +48,24 @@
       <button class="button" type="submit">Send test email</button>
     </form>
     {% endif %}
+  </section>
+  {% endif %}
+
+  {% if can('notifications.manage') %}
+  <section class="panel form-section notification-settings">
+    <div class="panel-head"><div><h2>SMS delivery settings</h2><p>Maestro SMS API credentials are encrypted before storage. The API key is never shown again.</p></div><span class="status {{ 'running' if sms_config.ready else 'stopped' }}">{{ 'ready' if sms_config.ready else 'setup required' }}</span></div>
+    <form method="post" action="/system/notifications/sms-settings" class="notification-settings-form">
+      <div class="notification-toggle-row"><label class="check"><input type="checkbox" name="sms_enabled" {% if sms_config.enabled %}checked{% endif %}><span><b>Enable SMS delivery</b><small>Allows test and queued SMS sending.</small></span></label><label class="check"><input type="checkbox" name="sms_auto_enabled" {% if sms_config.auto_enabled %}checked{% endif %}><span><b>Automatic SMS reminders</b><small>Queues expiry reminders for eligible phone numbers.</small></span></label></div>
+      <div class="form-grid notification-smtp-grid">
+        <label>SMS API URL<input name="sms_api_url" value="{{ sms_config.api_url }}" maxlength="500"></label>
+        <label>Sender ID<input name="sms_sender_id" value="{{ sms_config.sender_id }}" maxlength="80" placeholder="8809601012030"></label>
+        <label>Message type<select name="sms_message_type"><option value="text" {% if sms_config.message_type == 'text' %}selected{% endif %}>Text</option><option value="unicode" {% if sms_config.message_type == 'unicode' %}selected{% endif %}>Unicode / Bangla</option></select></label>
+        <label>SMS API key<input type="password" name="sms_api_key" autocomplete="new-password" placeholder="{{ 'Saved — leave blank to keep' if sms_config.api_key_saved else 'Enter API key' }}"></label>
+        {% if sms_config.api_key_saved %}<label class="check notification-clear-secret"><input type="checkbox" name="clear_sms_api_key"><span>Clear saved SMS API key</span></label>{% endif %}
+      </div>
+      <div class="form-actions"><button class="button primary" type="submit">Save SMS settings</button></div>
+    </form>
+    {% if can('notifications.send') %}<form method="post" action="/system/notifications/sms-test" class="notification-test-form"><label>Test mobile number<input name="test_phone" required placeholder="017XXXXXXXX"></label><button class="button" type="submit">Send test SMS</button></form>{% endif %}
   </section>
   {% endif %}
 

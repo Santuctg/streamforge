@@ -96,6 +96,11 @@ def ensure_runtime_schema() -> None:
     dialect = engine.dialect.name
     statements: list[str] = []
 
+    if "notification_deliveries" in table_names:
+        delivery_columns = {column["name"] for column in inspector.get_columns("notification_deliveries")}
+        if "channel" not in delivery_columns:
+            statements.append("ALTER TABLE notification_deliveries ADD COLUMN channel VARCHAR(20) NOT NULL DEFAULT 'email'")
+
     if "admin_users" in table_names:
         admin_columns = {column["name"] for column in inspector.get_columns("admin_users")}
         if "role_id" not in admin_columns:
@@ -183,6 +188,14 @@ def ensure_runtime_schema() -> None:
                 if dialect == "sqlite" else
                 "ALTER TABLE nodes ADD COLUMN email_notifications BOOLEAN NOT NULL DEFAULT TRUE"
             )
+        if "contact_phone" not in node_columns:
+            statements.append("ALTER TABLE nodes ADD COLUMN contact_phone VARCHAR(32)")
+        if "sms_notifications" not in node_columns:
+            statements.append(
+                "ALTER TABLE nodes ADD COLUMN sms_notifications BOOLEAN NOT NULL DEFAULT 1"
+                if dialect == "sqlite" else
+                "ALTER TABLE nodes ADD COLUMN sms_notifications BOOLEAN NOT NULL DEFAULT TRUE"
+            )
 
     if "channel_categories" in table_names:
         category_columns = {column["name"] for column in inspector.get_columns("channel_categories")}
@@ -233,6 +246,14 @@ def ensure_runtime_schema() -> None:
                 "ALTER TABLE stream_users ADD COLUMN email_notifications BOOLEAN NOT NULL DEFAULT 1"
                 if dialect == "sqlite" else
                 "ALTER TABLE stream_users ADD COLUMN email_notifications BOOLEAN NOT NULL DEFAULT TRUE"
+            )
+        if "contact_phone" not in user_columns:
+            statements.append("ALTER TABLE stream_users ADD COLUMN contact_phone VARCHAR(32)")
+        if "sms_notifications" not in user_columns:
+            statements.append(
+                "ALTER TABLE stream_users ADD COLUMN sms_notifications BOOLEAN NOT NULL DEFAULT 1"
+                if dialect == "sqlite" else
+                "ALTER TABLE stream_users ADD COLUMN sms_notifications BOOLEAN NOT NULL DEFAULT TRUE"
             )
 
     if "node_stream_users" in table_names:
@@ -346,6 +367,7 @@ def ensure_runtime_schema() -> None:
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_stream_users_playlist_id ON stream_users(playlist_id)"))
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_stream_users_xtream_username ON stream_users(xtream_username)"))
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_stream_users_contact_email ON stream_users(contact_email)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_stream_users_contact_phone ON stream_users(contact_phone)"))
             if dialect == "sqlite":
                 connection.execute(text(
                     "CREATE UNIQUE INDEX IF NOT EXISTS ux_stream_users_xtream_username_lower "
@@ -354,6 +376,7 @@ def ensure_runtime_schema() -> None:
                 ))
         if "nodes" in table_names:
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_nodes_contact_email ON nodes(contact_email)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_nodes_contact_phone ON nodes(contact_phone)"))
 
         # Base.metadata.create_all creates the association tables. Backfill them
         # from the legacy single-node column without overwriting later choices.
