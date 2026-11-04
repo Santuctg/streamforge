@@ -6,11 +6,11 @@ Type=oneshot
 User=root
 Group=root
 ExecStart=/usr/local/sbin/streamforge-main-system-control
-TimeoutStartSec=300
+TimeoutStartSec=3600
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
 # STREAMFORGE_RESTORE_ENV_SANDBOX_WRITE_V3030: only the existing environment
 # file is writable; main_system_control.py installs it in place without trying
 # to create a forbidden sibling temporary file below read-only /etc.
-ReadWritePaths=/var/lib/streamforge /var/backups/streamforge /opt/streamforge -/etc/streamforge.env
+ReadWritePaths=/var/lib/streamforge /var/backups/streamforge /opt/streamforge /usr/local/bin /usr/local/sbin /etc/systemd/system -/etc/streamforge.env

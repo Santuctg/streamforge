@@ -12,6 +12,9 @@ import subprocess
 import tarfile
 import tempfile
 import time
+import urllib.error
+import urllib.request
+import zipfile
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
@@ -21,12 +24,16 @@ RESULT_FILE = RUNTIME_DIR / "result.json"
 
 DATA_DIR = Path("/var/lib/streamforge")
 RESTORE_INBOX = DATA_DIR / "restore-inbox"
+UPDATE_INBOX = DATA_DIR / "update-inbox"
 APP_DIR = Path("/opt/streamforge")
 ENV_FILE = Path("/etc/streamforge.env")
 BACKUP_DIR = Path("/var/backups/streamforge")
 RESTORE_LOGO_SYNC_MARKER = DATA_DIR / "restore-logo-sync.pending"
 
-ALLOWED_ACTIONS = {"restart_service", "reboot_server", "restore_backup"}
+ALLOWED_ACTIONS = {"restart_service", "reboot_server", "restore_backup", "update_release"}
+GITHUB_RELEASES_API = "https://api.github.com/repos/Santuctg/streamforge/releases?per_page=100"
+GITHUB_RELEASE_PREFIX = "https://github.com/Santuctg/streamforge/releases/download/"
+MAX_UPDATE_BYTES = 250 * 1024 * 1024
 ALLOWED_RESTORE_FILES = {
     "BACKUP-MANIFEST.txt",
     "streamforge-assets/ASSET-MANIFEST.json",
@@ -69,7 +76,132 @@ def atomic_json(path: Path, payload: dict[str, object]) -> None:
     temporary = path.with_name(f".{path.name}.tmp")
     temporary.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf-8")
     temporary.chmod(0o640)
+    try:
+        os.chown(temporary, 0, path.parent.stat().st_gid)
+    except OSError:
+        pass
     temporary.replace(path)
+
+
+# STREAMFORGE_MAIN_WEB_GITHUB_UPDATE_HELPER_V1299: only official, published
+# GitHub release assets with API-provided SHA256 digests can reach the root
+# updater. The web worker cannot provide a URL, local package path, or digest.
+def _version_key(value: object) -> tuple[int, ...]:
+    cleaned = str(value or "").strip().lstrip("v")
+    if not re.fullmatch(r"[0-9]+\.[0-9]+(?:\.[0-9]+)?", cleaned):
+        return ()
+    return tuple(int(part) for part in cleaned.split("."))
+
+
+def _github_update_plan(installed: str, target: str) -> list[dict[str, str]]:
+    installed_key = _version_key(installed)
+    target_key = _version_key(target)
+    if not installed_key or not target_key or target_key <= installed_key:
+        raise RuntimeError("Target release is not newer than the installed version")
+    request = urllib.request.Request(
+        GITHUB_RELEASES_API,
+        headers={"Accept": "application/vnd.github+json", "User-Agent": f"StreamForge-Root-Updater/{installed}"},
+    )
+    with urllib.request.urlopen(request, timeout=20) as response:
+        releases = json.loads(response.read(3 * 1024 * 1024).decode("utf-8"))
+    if not isinstance(releases, list):
+        raise RuntimeError("GitHub returned an invalid release list")
+    plan: list[dict[str, str]] = []
+    for release in releases:
+        if not isinstance(release, dict) or release.get("draft") or release.get("prerelease"):
+            continue
+        version = str(release.get("tag_name") or "").strip().lstrip("v")
+        key = _version_key(version)
+        if not key or not (installed_key < key <= target_key):
+            continue
+        expected_name = f"streamforge-{version}.zip"
+        asset = next(
+            (item for item in list(release.get("assets") or [])
+             if isinstance(item, dict) and str(item.get("name") or "") == expected_name),
+            None,
+        )
+        if not asset:
+            raise RuntimeError(f"Official ZIP is missing for v{version}")
+        digest = str(asset.get("digest") or "").strip().lower()
+        url = str(asset.get("browser_download_url") or "").strip()
+        expected_url = f"{GITHUB_RELEASE_PREFIX}v{version}/{expected_name}"
+        if url != expected_url or not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
+            raise RuntimeError(f"Release v{version} has no trusted SHA256 asset")
+        plan.append({"version": version, "url": url, "sha256": digest.split(":", 1)[1]})
+    plan.sort(key=lambda item: _version_key(item["version"]))
+    if not plan or plan[-1]["version"] != target:
+        raise RuntimeError(f"Target release v{target} was not found in the official GitHub feed")
+    return plan
+
+
+def _download_release_asset(item: dict[str, str]) -> Path:
+    UPDATE_INBOX.mkdir(parents=True, exist_ok=True)
+    target = UPDATE_INBOX / f"streamforge-{item['version']}.zip"
+    temporary = target.with_suffix(".zip.part")
+    temporary.unlink(missing_ok=True)
+    request = urllib.request.Request(
+        item["url"],
+        headers={"Accept": "application/octet-stream", "User-Agent": "StreamForge-Root-Updater"},
+    )
+    digest = hashlib.sha256()
+    size = 0
+    try:
+        with urllib.request.urlopen(request, timeout=60) as response, temporary.open("wb") as output:
+            declared = int(response.headers.get("Content-Length") or 0)
+            if declared > MAX_UPDATE_BYTES:
+                raise RuntimeError("Release package exceeds the update size limit")
+            while True:
+                chunk = response.read(1024 * 1024)
+                if not chunk:
+                    break
+                size += len(chunk)
+                if size > MAX_UPDATE_BYTES:
+                    raise RuntimeError("Release package exceeds the update size limit")
+                digest.update(chunk)
+                output.write(chunk)
+            output.flush()
+            os.fsync(output.fileno())
+        if size <= 0 or digest.hexdigest() != item["sha256"]:
+            raise RuntimeError(f"SHA256 verification failed for v{item['version']}")
+        if not zipfile.is_zipfile(temporary):
+            raise RuntimeError(f"Downloaded package for v{item['version']} is not a ZIP")
+        temporary.replace(target)
+        target.chmod(0o600)
+        return target
+    except Exception:
+        temporary.unlink(missing_ok=True)
+        raise
+
+
+def update_release(target_version: str, request_id: str) -> str:
+    installed = (APP_DIR / "VERSION").read_text(encoding="utf-8").strip()
+    plan = _github_update_plan(installed, target_version)
+    completed: list[str] = []
+    for item in plan:
+        atomic_json(RESULT_FILE, {
+            "ok": True, "request_id": request_id, "action": "update_release",
+            "status": "downloading", "current_version": item["version"],
+            "message": f"Downloading and verifying v{item['version']}",
+        })
+        package = _download_release_asset(item)
+        atomic_json(RESULT_FILE, {
+            "ok": True, "request_id": request_id, "action": "update_release",
+            "status": "installing", "current_version": item["version"],
+            "message": f"Installing verified release v{item['version']}",
+        })
+        result = subprocess.run(
+            ["/usr/local/bin/streamforge-update", "--force", str(package)],
+            capture_output=True, text=True, timeout=1800,
+        )
+        package.unlink(missing_ok=True)
+        if result.returncode != 0:
+            detail = (result.stdout + "\n" + result.stderr).strip()[-2000:]
+            raise RuntimeError(f"v{item['version']} updater failed: {detail}")
+        running = (APP_DIR / "VERSION").read_text(encoding="utf-8").strip()
+        if running != item["version"]:
+            raise RuntimeError(f"v{item['version']} updater completed but installed VERSION is {running}")
+        completed.append(item["version"])
+    return "Main Server updated successfully through v" + completed[-1]
 
 
 def _safe_member_name(member: tarfile.TarInfo) -> str:
@@ -1053,6 +1185,7 @@ def main() -> int:
 
     restore_path = ""
     recovery_url = ""
+    target_version = ""
     if action == "restore_backup":
         try:
             restore_path = str(_validate_restore_path(payload.get("restore_path")))
@@ -1061,6 +1194,15 @@ def main() -> int:
             atomic_json(
                 RESULT_FILE,
                 {"ok": False, "request_id": request_id, "action": action, "error": str(exc)},
+            )
+            REQUEST_FILE.unlink(missing_ok=True)
+            return 1
+    if action == "update_release":
+        target_version = str(payload.get("target_version") or "").strip()
+        if not _version_key(target_version):
+            atomic_json(
+                RESULT_FILE,
+                {"ok": False, "request_id": request_id, "action": action, "error": "Invalid target release version"},
             )
             REQUEST_FILE.unlink(missing_ok=True)
             return 1
@@ -1087,6 +1229,22 @@ def main() -> int:
             atomic_json(
                 RESULT_FILE,
                 {"ok": False, "request_id": request_id, "action": action, "status": "failed", "error": str(exc)[-1200:]},
+            )
+            return 1
+
+    if action == "update_release":
+        time.sleep(2)
+        try:
+            message = update_release(target_version, request_id)
+            atomic_json(
+                RESULT_FILE,
+                {"ok": True, "request_id": request_id, "action": action, "status": "completed", "current_version": target_version, "message": message},
+            )
+            return 0
+        except Exception as exc:
+            atomic_json(
+                RESULT_FILE,
+                {"ok": False, "request_id": request_id, "action": action, "status": "failed", "current_version": target_version, "error": str(exc)[-2000:]},
             )
             return 1
 

@@ -37,6 +37,7 @@ PERMISSION_GROUPS: "OrderedDict[str, list[tuple[str, str, str]]]" = OrderedDict(
                 ("backups.delete", "Remove backups", "Delete backup destinations or stored backup archives."),
                 ("main_system.service_restart", "Restart Main service", "Restart the StreamForge Main service."),
                 ("main_system.reboot", "Reboot Main Server", "Reboot the complete Main Server."),
+                ("main_system.update", "Update Main Server", "Check signed GitHub release assets and update the Main Server from the web panel."),
             ],
         ),
         (
@@ -139,6 +140,7 @@ PERMISSION_DEPENDENCIES: dict[str, set[str]] = {
     "backups.delete": {"backups.view"},
     "main_system.service_restart": {"nodes.view"},
     "main_system.reboot": {"nodes.view"},
+    "main_system.update": {"settings.view"},
     "nodes.create": {"nodes.view"},
     "nodes.edit": {"nodes.view"},
     "nodes.delete": {"nodes.view"},

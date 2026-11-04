@@ -2034,6 +2034,7 @@ MAIN_ACCESS_REQUEST_FILE = MAIN_ACCESS_RUNTIME_DIR / "request.json"
 MAIN_ACCESS_RESULT_FILE = MAIN_ACCESS_RUNTIME_DIR / "result.json"
 MAIN_SYSTEM_RUNTIME_DIR = settings.main_access_runtime_dir.parent / "main-system-runtime"
 MAIN_SYSTEM_REQUEST_FILE = MAIN_SYSTEM_RUNTIME_DIR / "request.json"
+MAIN_SYSTEM_RESULT_FILE = MAIN_SYSTEM_RUNTIME_DIR / "result.json"
 MAIN_RESTORE_INBOX = settings.main_access_runtime_dir.parent / "restore-inbox"
 MAIN_RESTORE_ALLOWED_FILES = frozenset({
     "BACKUP-MANIFEST.txt",
@@ -2101,9 +2102,10 @@ def _write_main_system_request(
     admin: AdminUser,
     restore_path: str = "",
     recovery_url: str = "",
+    target_version: str = "",
 ) -> str:
     """Queue a validated privileged Main service/server action via systemd."""
-    if action not in {"restart_service", "reboot_server", "restore_backup"}:
+    if action not in {"restart_service", "reboot_server", "restore_backup", "update_release"}:
         raise ValueError("Unsupported Main Server action")
     request_id = f"{int(time.time() * 1000)}-{secrets.token_hex(12)}"
     MAIN_SYSTEM_RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
@@ -2134,6 +2136,11 @@ def _write_main_system_request(
         ):
             raise ValueError("Invalid active Main recovery URL")
         payload["recovery_url"] = str(recovery_url).strip().rstrip("/")
+    if action == "update_release":
+        cleaned_target = str(target_version or "").strip()
+        if not re.fullmatch(r"[0-9]+\.[0-9]+(?:\.[0-9]+)?", cleaned_target):
+            raise ValueError("Invalid target release version")
+        payload["target_version"] = cleaned_target
     temporary = MAIN_SYSTEM_RUNTIME_DIR / f".request-{request_id}.tmp"
     try:
         temporary.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf-8")
@@ -9453,6 +9460,124 @@ def _main_server_admin_action(node_id: int, action: str, request: Request, db: S
         actor=admin.username, details={"request_id": request_id},
     )
     return RedirectResponse(f"/nodes?message={quote_plus(label + ' scheduled')}", status_code=303)
+
+
+# STREAMFORGE_MAIN_WEB_GITHUB_UPDATE_V1299: Main update discovery is read-only
+# in the web worker. The root helper independently re-fetches GitHub metadata,
+# verifies every asset SHA256, and executes sequential official updaters.
+STREAMFORGE_GITHUB_RELEASES_API = "https://api.github.com/repos/Santuctg/streamforge/releases?per_page=100"
+_github_release_cache: dict[str, object] = {"checked_at": 0.0, "release": {}}
+_github_release_cache_lock = threading.Lock()
+
+
+def _release_version_key(value: object) -> tuple[int, ...]:
+    cleaned = str(value or "").strip().lstrip("v")
+    if not re.fullmatch(r"[0-9]+\.[0-9]+(?:\.[0-9]+)?", cleaned):
+        return ()
+    return tuple(int(part) for part in cleaned.split("."))
+
+
+def _github_latest_release() -> dict[str, str]:
+    with _github_release_cache_lock:
+        cached = _github_release_cache.get("release")
+        if isinstance(cached, dict) and cached and time.monotonic() - float(_github_release_cache.get("checked_at") or 0) < 60:
+            return {str(key): str(value) for key, value in cached.items()}
+    github_request = urllib.request.Request(
+        STREAMFORGE_GITHUB_RELEASES_API,
+        headers={"Accept": "application/vnd.github+json", "User-Agent": f"StreamForge-Main/{APP_VERSION}"},
+    )
+    with urllib.request.urlopen(github_request, timeout=12) as response:
+        raw = json.loads(response.read(2 * 1024 * 1024).decode("utf-8"))
+    if not isinstance(raw, list):
+        raise ValueError("GitHub returned an invalid release list")
+    releases: list[dict[str, str]] = []
+    for item in raw:
+        if not isinstance(item, dict) or item.get("draft") or item.get("prerelease"):
+            continue
+        version = str(item.get("tag_name") or "").strip().lstrip("v")
+        if not _release_version_key(version):
+            continue
+        expected_name = f"streamforge-{version}.zip"
+        asset = next(
+            (entry for entry in list(item.get("assets") or [])
+             if isinstance(entry, dict) and str(entry.get("name") or "") == expected_name),
+            None,
+        )
+        if not asset:
+            continue
+        digest = str(asset.get("digest") or "").strip().lower()
+        if not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
+            continue
+        releases.append({
+            "version": version,
+            "tag": f"v{version}",
+            "name": str(item.get("name") or f"StreamForge v{version}"),
+            "published_at": str(item.get("published_at") or ""),
+            "digest": digest,
+            "url": str(item.get("html_url") or f"https://github.com/Santuctg/streamforge/releases/tag/v{version}"),
+        })
+    if not releases:
+        raise ValueError("No verified StreamForge release asset was found on GitHub")
+    latest = max(releases, key=lambda item: _release_version_key(item["version"]))
+    with _github_release_cache_lock:
+        _github_release_cache["checked_at"] = time.monotonic()
+        _github_release_cache["release"] = dict(latest)
+    return latest
+
+
+def _main_update_result() -> dict[str, object]:
+    try:
+        result = json.loads(MAIN_SYSTEM_RESULT_FILE.read_text(encoding="utf-8"))
+        return result if isinstance(result, dict) and result.get("action") == "update_release" else {}
+    except (OSError, ValueError, TypeError):
+        return {}
+
+
+@app.get("/system/updates", response_class=HTMLResponse, dependencies=[Depends(permission_required("main_system.update"))])
+def main_updates_page(request: Request, db: Session = Depends(get_db)):
+    latest: dict[str, str] = {}
+    check_error = ""
+    try:
+        latest = _github_latest_release()
+    except (OSError, ValueError, urllib.error.URLError, json.JSONDecodeError) as exc:
+        check_error = str(exc)[:300]
+    installed_key = _release_version_key(APP_VERSION)
+    latest_key = _release_version_key(latest.get("version"))
+    update_available = bool(installed_key and latest_key and latest_key > installed_key)
+    return render(
+        request, "main_updates.html", db,
+        latest=latest,
+        check_error=check_error,
+        update_available=update_available,
+        update_result=_main_update_result(),
+        message=str(request.query_params.get("message") or "")[:300],
+        error=str(request.query_params.get("error") or "")[:300],
+    )
+
+
+@app.post("/system/updates/apply", dependencies=[Depends(permission_required("main_system.update"))])
+def main_updates_apply(request: Request, db: Session = Depends(get_db)):
+    admin = current_admin(request, db)
+    if not admin:
+        return redirect_login()
+    try:
+        latest = _github_latest_release()
+        if _release_version_key(latest["version"]) <= _release_version_key(APP_VERSION):
+            return RedirectResponse("/system/updates?message=" + quote_plus("Main Server is already up to date."), status_code=303)
+        request_id = _write_main_system_request(
+            "update_release", admin, target_version=latest["version"],
+        )
+    except (OSError, ValueError, urllib.error.URLError, json.JSONDecodeError) as exc:
+        return RedirectResponse("/system/updates?error=" + quote_plus(f"Update could not be queued: {exc}"), status_code=303)
+    log_event(
+        "Main GitHub update requested", scope="system", level="warning",
+        actor=admin.username,
+        details={"request_id": request_id, "from": APP_VERSION, "target": latest["version"]},
+    )
+    return RedirectResponse(
+        "/system/updates?message=" + quote_plus(f"Update to v{latest['version']} scheduled. This page may briefly disconnect."),
+        status_code=303,
+    )
 
 
 @app.post("/nodes/{node_id}/main-service-restart", dependencies=[Depends(permission_required("main_system.service_restart"))])

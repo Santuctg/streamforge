@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Main Updates · {{ branding.name }}{% endblock %}
+{% block heading %}<h1>Main Updates</h1><p>Secure updates from the official GitHub Releases feed</p>{% endblock %}
+{% block content %}
+{% if message %}<div class="notice">{{ message }}</div>{% endif %}
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+<section class="panel main-update-panel">
+  <div class="panel-head"><div><h2>Main Server release</h2><p>Each package is SHA256-verified before the privileged updater runs.</p></div><a class="button" href="/system/updates">Check again</a></div>
+  <div class="main-update-grid">
+    <article><span>Installed</span><strong>v{{ app_version }}</strong><small>Currently running</small></article>
+    <article><span>Latest on GitHub</span><strong>{% if latest %}v{{ latest.version }}{% else %}Unavailable{% endif %}</strong><small>{% if latest.published_at %}{{ latest.published_at[:10] }}{% else %}Release check failed{% endif %}</small></article>
+    <article><span>Status</span><strong class="{% if update_available %}warn{% else %}good{% endif %}">{% if update_available %}Update available{% elif latest %}Up to date{% else %}Check failed{% endif %}</strong><small>{% if latest.digest %}SHA256 {{ latest.digest[7:19] }}…{% endif %}</small></article>
+  </div>
+  {% if check_error %}<div class="error">GitHub check failed: {{ check_error }}</div>{% endif %}
+  {% if latest %}<div class="main-update-release"><div><b>{{ latest.name }}</b><small><a href="{{ latest.url }}" target="_blank" rel="noopener">View official release</a></small></div>{% if update_available %}<form method="post" action="/system/updates/apply" onsubmit="return confirm('Update Main Server to v{{ latest.version }}? The panel will briefly disconnect while services restart.')"><button class="button primary" type="submit">Update to v{{ latest.version }}</button></form>{% endif %}</div>{% endif %}
+</section>
+
+{% if update_result %}<section class="panel main-update-progress">
+  <div class="panel-head"><div><h2>Last update job</h2><p>Request {{ update_result.request_id or '—' }}</p></div><span class="status {% if update_result.ok %}up{% else %}down{% endif %}">{{ update_result.status or ('completed' if update_result.ok else 'failed') }}</span></div>
+  {% if update_result.current_version %}<p><b>Processing:</b> v{{ update_result.current_version }}</p>{% endif %}
+  {% if update_result.message %}<div class="notice">{{ update_result.message }}</div>{% endif %}
+  {% if update_result.error %}<div class="error">{{ update_result.error }}</div>{% endif %}
+</section>{% endif %}
+
+{% if update_result.status in ['scheduled', 'downloading', 'installing'] %}<script>setTimeout(function(){location.reload()},5000)</script>{% endif %}
+
+<style>
+.main-update-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:16px 0}.main-update-grid article{padding:18px;border:1px solid var(--line);border-radius:14px;background:var(--panel2)}.main-update-grid span,.main-update-grid small{display:block;color:var(--muted)}.main-update-grid strong{display:block;font-size:25px;margin:7px 0}.main-update-grid strong.warn{color:#ffc866}.main-update-grid strong.good{color:#74dfaf}.main-update-release{display:flex;justify-content:space-between;align-items:center;gap:18px;padding-top:16px;border-top:1px solid var(--line)}.main-update-release small{display:block;margin-top:5px}.main-update-progress{margin-top:16px}@media(max-width:760px){.main-update-grid{grid-template-columns:1fr}.main-update-release{align-items:stretch;flex-direction:column}.main-update-release form button{width:100%}}
+</style>
+{% endblock %}
