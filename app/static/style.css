@@ -3562,3 +3562,14 @@ textarea:-webkit-autofill:focus{
   caret-color:var(--text);
   transition:background-color 9999s ease-out;
 }
+
+/* STREAMFORGE_V1311_COLLAPSED_FOOTER_ICON_GEOMETRY:
+   Keep account and logout icons on the exact same center line as the other
+   collapsed-sidebar icons on wide screens. */
+@media(min-width:761px){
+  .app-shell.sidebar-collapsed .sidebar-bottom{display:grid!important;grid-template-columns:44px!important;justify-items:center!important;align-content:end!important;gap:4px!important;width:100%!important}
+  .app-shell.sidebar-collapsed .sidebar-bottom>form{display:grid!important;place-items:center!important;width:44px!important;height:42px!important;margin:0!important;padding:0!important}
+  .app-shell.sidebar-collapsed .sidebar-bottom>form>.nav-button{display:grid!important;place-items:center!important;width:44px!important;height:42px!important;min-width:44px!important;min-height:42px!important;margin:0!important;padding:0!important;gap:0!important}
+  .app-shell.sidebar-collapsed .sidebar-bottom .node-account-icon,.app-shell.sidebar-collapsed .sidebar-bottom .node-signout-icon{display:grid!important;place-items:center!important;width:20px!important;height:20px!important;min-width:20px!important;margin:0!important}
+  .app-shell.sidebar-collapsed .sidebar-bottom .node-account-icon svg,.app-shell.sidebar-collapsed .sidebar-bottom .node-signout-icon svg{display:block!important;width:20px!important;height:20px!important;margin:0!important}
+}

@@ -8,7 +8,9 @@
 # STREAMFORGE_V1307_NOTIFICATION_FIXES:
 # STREAMFORGE_V1308_TEMPLATE_VALUES:
 # STREAMFORGE_V1309_NOTIFICATION_CENTER:
-# STREAMFORGE_V1310_TIMEZONE_FIX: expiry_date is rendered in the configured server timezone. delivery body inspection and timezone-aware settings. manual campaigns receive expiry values and
+# STREAMFORGE_V1310_TIMEZONE_FIX:
+# STREAMFORGE_V1311_LIVE_UPDATE_AND_ICON_FIX: updater accepts every released
+# Main version through 13.11 and the collapsed sidebar footer is centered. expiry_date is rendered in the configured server timezone. delivery body inspection and timezone-aware settings. manual campaigns receive expiry values and
 # flexible brace syntax is rendered consistently. release package includes the complete
 # Notification Center template and the compact Node owner recipient row.
 from __future__ import annotations

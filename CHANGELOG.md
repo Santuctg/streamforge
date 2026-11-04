@@ -1,3 +1,7 @@
+## 13.11 - 2026-11-05
+
+- Fixed the updater version gate so installed v13.09 servers can update successfully. Aligned collapsed-sidebar account/logout icons on wide screens.
+
 ## 13.10 - 2026-11-05
 
 - Applied the configured server time zone to notification `{expiry_date}` values.
