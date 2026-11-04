@@ -1,3 +1,7 @@
+## 13.09 - 2026-11-05
+
+- Added View message to sent/failed delivery history, including subject/body and SMS bodies. Added configurable server default time zone. Forced Node owner information into one line.
+
 ## 13.08 - 2026-11-05
 
 - Fixed manual campaign rendering for `expiry_date` and `days_remaining`, including whitespace-tolerant brace syntax. Forced Node owner information into one line.

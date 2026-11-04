@@ -33,6 +33,7 @@
         <label>Reply-To email<input type="email" name="reply_to" value="{{ config.reply_to }}" maxlength="320" placeholder="support@example.com"></label>
         <label>Service name<input name="service_name" value="{{ config.service_name }}" maxlength="120"></label>
         <label class="wide">Support contact<input name="support_contact" value="{{ config.support_contact }}" maxlength="500" placeholder="Phone, payment link or support address"></label>
+        <label>Server default time zone<select name="server_timezone">{% for zone in timezone_options %}<option value="{{ zone }}" {% if zone == server_timezone %}selected{% endif %}>{{ zone }}</option>{% endfor %}</select><small class="field-help">Used for notification expiry dates and server-side displayed times.</small></label>
         <label class="wide">Reminder days<input name="reminder_days" value="{{ config.reminder_days }}" placeholder="30,14,7,3,1,0"><small class="field-help">Comma-separated days before expiry. Zero sends the expiry-day notice.</small></label>
       </div>
       <div class="notification-template-grid">
@@ -113,7 +114,9 @@ Support: {support_contact}</textarea><small class="field-help">Available here: {
   <section class="panel notification-history">
     <div class="panel-head"><div><h2>Delivery history</h2><p>Latest 100 messages. Failed deliveries can be retried after correcting SMTP settings.</p></div></div>
     <div class="table-wrap"><table><thead><tr><th>Recipient</th><th>Type</th><th>Event</th><th>Status</th><th>Attempts</th><th>Time</th><th>Action</th></tr></thead><tbody>
-      {% for item in deliveries %}<tr><td><b>{{ item.recipient_name }}</b><br><small>{{ item.email }}</small>{% if item.error %}<small class="notification-error">{{ item.error }}</small>{% endif %}</td><td>{{ 'Node Server' if item.recipient_type == 'node' else 'Stream User' }}</td><td>{{ item.event_type|replace('_',' ')|title }}</td><td><span class="status {{ 'running' if item.status == 'sent' else ('error' if item.status == 'failed' else 'starting') }}">{{ item.status }}</span></td><td>{{ item.attempts }}</td><td>{{ (item.sent_at or item.created_at).strftime('%Y-%m-%d %H:%M') }}</td><td>{% if can('notifications.send') and item.status in ['failed','sent'] %}<form method="post" action="/system/notifications/deliveries/{{ item.id }}/retry" onsubmit="return confirm('Queue this email again?')"><button class="button small" type="submit">{{ 'Retry' if item.status == 'failed' else 'Resend' }}</button></form>{% else %}—{% endif %}</td></tr>{% else %}<tr><td colspan="7" class="empty">No email delivery history yet.</td></tr>{% endfor %}
+      {% for item in deliveries %}<tr><td><b>{{ item.recipient_name }}</b><br><small>{{ item.email }}</small>{% if item.error %}<small class="notification-error">{{ item.error }}</small>{% endif %}<details class="notification-message-details"><summary>View message</summary><pre>{% if item.subject %}Subject: {{ item.subject }}
+
+{% endif %}{{ item.body }}</pre></details></td><td>{{ item.channel|upper if item.channel else 'EMAIL' }} · {{ 'Node Server' if item.recipient_type == 'node' else 'Stream User' }}</td><td>{{ item.event_type|replace('_',' ')|title }}</td><td><span class="status {{ 'running' if item.status == 'sent' else ('error' if item.status == 'failed' else 'starting') }}">{{ item.status }}</span></td><td>{{ item.attempts }}</td><td>{{ (item.sent_at or item.created_at).strftime('%Y-%m-%d %H:%M') }}</td><td>{% if can('notifications.send') and item.status in ['failed','sent'] %}<form method="post" action="/system/notifications/deliveries/{{ item.id }}/retry" onsubmit="return confirm('Queue this message again?')"><button class="button small" type="submit">{{ 'Retry' if item.status == 'failed' else 'Resend' }}</button></form>{% else %}—{% endif %}</td></tr>{% else %}<tr><td colspan="7" class="empty">No delivery history yet.</td></tr>{% endfor %}
     </tbody></table></div>
   </section>
 </div>
@@ -124,6 +127,9 @@ Support: {support_contact}</textarea><small class="field-help">Available here: {
 <style>
 /* Keep Node owner identity and expiry metadata on one compact row. */
 .notification-node-owner{display:block!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.notification-node-recipient>span{display:grid;grid-template-columns:minmax(120px,auto) minmax(0,1fr);align-items:center;gap:10px;min-width:0}
+.notification-node-recipient>span>b,.notification-node-recipient .notification-node-owner{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.notification-message-details{margin-top:6px}.notification-message-details summary{color:var(--accent);cursor:pointer;font-size:10px}.notification-message-details pre{max-width:460px;max-height:180px;margin:7px 0 0;padding:9px;border:1px solid var(--line);border-radius:7px;background:#0b1118;color:var(--text);white-space:pre-wrap;overflow:auto;font:11px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace}
 </style>
 {% endblock %}
 {% block scripts %}<script>

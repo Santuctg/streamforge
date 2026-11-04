@@ -149,6 +149,21 @@ try:
 except Exception:
     DISPLAY_TZ = timezone.utc
 
+NOTIFICATION_TIMEZONES = (
+    "Asia/Dhaka", "Asia/Kolkata", "Asia/Dubai", "Asia/Singapore",
+    "Europe/London", "Europe/Berlin", "America/New_York", "America/Los_Angeles", "UTC",
+)
+
+
+def notification_timezone_name(db: Session) -> str:
+    row = db.get(AppSetting, "notification_timezone")
+    value = str(row.value if row else settings.timezone_name).strip()
+    try:
+        ZoneInfo(value)
+        return value
+    except Exception:
+        return settings.timezone_name
+
 _NODE_UPDATE_LOCK = threading.RLock()
 _NODE_UPDATE_JOBS: dict[int, dict[str, object]] = {}
 # STREAMFORGE_CHANNEL_SAVE_ASYNC_SYNC_V1118:
@@ -9541,6 +9556,7 @@ def notification_center(request: Request, db: Session = Depends(get_db)):
     return render(
         request, "notifications.html", db,
         config=public_email_config(db), sms_config=public_sms_config(db), users=users, nodes=nodes,
+        server_timezone=notification_timezone_name(db), timezone_options=NOTIFICATION_TIMEZONES,
         deliveries=deliveries, campaigns=campaigns, delivery_stats=delivery_stats,
         message=str(request.query_params.get("message") or "")[:500],
         error=str(request.query_params.get("error") or "")[:500],
@@ -9568,6 +9584,7 @@ def notification_settings_save(
     user_body: str = Form(DEFAULT_USER_BODY),
     node_subject: str = Form(DEFAULT_NODE_SUBJECT),
     node_body: str = Form(DEFAULT_NODE_BODY),
+    server_timezone: str = Form("Asia/Dhaka"),
     db: Session = Depends(get_db),
 ):
     admin = current_admin(request, db)
@@ -9586,6 +9603,10 @@ def notification_settings_save(
         return _notification_redirect(error="Reminder days must be comma-separated numbers")
     if not days:
         return _notification_redirect(error="Set at least one reminder day")
+    try:
+        ZoneInfo(server_timezone.strip())
+    except Exception:
+        return _notification_redirect(error="Choose a valid server time zone")
     if sender and not valid_email(sender):
         return _notification_redirect(error="Enter a valid From email address")
     if reply and not valid_email(reply):
@@ -9614,6 +9635,9 @@ def notification_settings_save(
     }
     for name, value in values.items():
         save_app_setting(db, NOTIFICATION_SETTING_PREFIX + name, value)
+    save_app_setting(db, "notification_timezone", server_timezone.strip())
+    global DISPLAY_TZ
+    DISPLAY_TZ = ZoneInfo(server_timezone.strip())
     if as_bool(clear_smtp_password):
         save_app_setting(db, NOTIFICATION_SETTING_PREFIX + "smtp_password_enc", "")
     elif smtp_password:

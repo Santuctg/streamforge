@@ -6,7 +6,8 @@
 # STREAMFORGE_V1306_TEMPLATE_RENDERING: support both {name} and {{name}}
 # variable syntax in notification templates.
 # STREAMFORGE_V1307_NOTIFICATION_FIXES:
-# STREAMFORGE_V1308_TEMPLATE_VALUES: manual campaigns receive expiry values and
+# STREAMFORGE_V1308_TEMPLATE_VALUES:
+# STREAMFORGE_V1309_NOTIFICATION_CENTER: delivery body inspection and timezone-aware settings. manual campaigns receive expiry values and
 # flexible brace syntax is rendered consistently. release package includes the complete
 # Notification Center template and the compact Node owner recipient row.
 from __future__ import annotations
