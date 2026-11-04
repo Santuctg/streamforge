@@ -1,31 +1,160 @@
 {% extends "base.html" %}
 {% block title %}Main Updates · {{ branding.name }}{% endblock %}
-{% block heading %}<h1>Main Updates</h1><p>Secure updates from the official GitHub Releases feed</p>{% endblock %}
+{% block heading %}<h1>Main Updates</h1><p>Install verified releases from the official StreamForge GitHub repository</p>{% endblock %}
 {% block content %}
-{% if message %}<div class="notice">{{ message }}</div>{% endif %}
-{% if error %}<div class="error">{{ error }}</div>{% endif %}
+<div class="main-updates-page">
+  {% if message %}<div class="alert success main-update-alert" role="status">{{ message }}</div>{% endif %}
+  {% if error %}<div class="alert danger main-update-alert" role="alert">{{ error }}</div>{% endif %}
 
-<section class="panel main-update-panel">
-  <div class="panel-head"><div><h2>Main Server release</h2><p>Each package is SHA256-verified before the privileged updater runs.</p></div><a class="button" href="/system/updates">Check again</a></div>
-  <div class="main-update-grid">
-    <article><span>Installed</span><strong>v{{ app_version }}</strong><small>Currently running</small></article>
-    <article><span>Latest on GitHub</span><strong>{% if latest %}v{{ latest.version }}{% else %}Unavailable{% endif %}</strong><small>{% if latest.published_at %}{{ latest.published_at[:10] }}{% else %}Release check failed{% endif %}</small></article>
-    <article><span>Status</span><strong class="{% if update_available %}warn{% else %}good{% endif %}">{% if update_available %}Update available{% elif latest %}Up to date{% else %}Check failed{% endif %}</strong><small>{% if latest.digest %}SHA256 {{ latest.digest[7:19] }}…{% endif %}</small></article>
-  </div>
-  {% if check_error %}<div class="error">GitHub check failed: {{ check_error }}</div>{% endif %}
-  {% if latest %}<div class="main-update-release"><div><b>{{ latest.name }}</b><small><a href="{{ latest.url }}" target="_blank" rel="noopener">View official release</a></small></div>{% if update_available %}<form method="post" action="/system/updates/apply" onsubmit="return confirm('Update Main Server to v{{ latest.version }}? The panel will briefly disconnect while services restart.')"><button class="button primary" type="submit">Update to v{{ latest.version }}</button></form>{% endif %}</div>{% endif %}
-</section>
+  <section class="panel main-update-overview">
+    <div class="main-update-hero">
+      <div class="main-update-hero-copy">
+        <span class="main-update-eyebrow">
+          <span class="main-update-live-dot" aria-hidden="true"></span>
+          Official release channel
+        </span>
+        <h2>Keep your Main Server current</h2>
+        <p>StreamForge checks the official GitHub Releases feed and accepts only SHA256-verified packages for installation.</p>
+      </div>
+      <div class="main-update-hero-actions">
+        <a class="button main-update-check-button" href="/system/updates" aria-label="Check GitHub for updates">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5"/></svg>
+          Check again
+        </a>
+      </div>
+    </div>
 
-{% if update_result %}<section class="panel main-update-progress">
-  <div class="panel-head"><div><h2>Last update job</h2><p>Request {{ update_result.request_id or '—' }}</p></div><span class="status {% if update_result.ok %}up{% else %}down{% endif %}">{{ update_result.status or ('completed' if update_result.ok else 'failed') }}</span></div>
-  {% if update_result.current_version %}<p><b>Processing:</b> v{{ update_result.current_version }}</p>{% endif %}
-  {% if update_result.message %}<div class="notice">{{ update_result.message }}</div>{% endif %}
-  {% if update_result.error %}<div class="error">{{ update_result.error }}</div>{% endif %}
-</section>{% endif %}
+    <div class="main-update-version-grid">
+      <article class="main-update-version-card installed">
+        <div class="main-update-card-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/></svg>
+        </div>
+        <div class="main-update-card-copy">
+          <span>Installed version</span>
+          <strong>v{{ app_version }}</strong>
+          <small>Currently running on this server</small>
+        </div>
+      </article>
 
-{% if update_result.status in ['scheduled', 'downloading', 'installing'] %}<script>setTimeout(function(){location.reload()},5000)</script>{% endif %}
+      <article class="main-update-version-card latest">
+        <div class="main-update-card-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14"/></svg>
+        </div>
+        <div class="main-update-card-copy">
+          <span>Latest release</span>
+          <strong>{% if latest %}v{{ latest.version }}{% else %}Unavailable{% endif %}</strong>
+          <small>{% if latest.published_at %}Published {{ latest.published_at[:10] }}{% else %}GitHub release information unavailable{% endif %}</small>
+        </div>
+      </article>
+
+      <article class="main-update-version-card state-{% if update_available %}available{% elif latest %}current{% else %}error{% endif %}">
+        <div class="main-update-card-icon" aria-hidden="true">
+          {% if update_available %}
+          <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14"/></svg>
+          {% elif latest %}
+          <svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg>
+          {% else %}
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 17h.01"/></svg>
+          {% endif %}
+        </div>
+        <div class="main-update-card-copy">
+          <span>Update status</span>
+          <strong>{% if update_available %}Update available{% elif latest %}Up to date{% else %}Check failed{% endif %}</strong>
+          <small>{% if update_available %}A newer verified release is ready{% elif latest %}You are running the latest release{% else %}Try checking again in a moment{% endif %}</small>
+        </div>
+      </article>
+    </div>
+
+    {% if check_error %}<div class="alert danger main-update-inline-alert" role="alert"><b>GitHub check failed.</b> {{ check_error }}</div>{% endif %}
+
+    {% if latest %}
+    <div class="main-update-release-box">
+      <div class="main-update-release-details">
+        <div class="main-update-github-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.87c-2.78.6-3.37-1.18-3.37-1.18-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.9 1.53 2.35 1.09 2.92.83.09-.65.35-1.09.64-1.34-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02A9.57 9.57 0 0 1 12 6.84a9.6 9.6 0 0 1 2.5.34c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.86V21c0 .27.18.58.69.48A10 10 0 0 0 12 2Z"/></svg>
+        </div>
+        <div>
+          <span class="main-update-release-label">Verified GitHub release</span>
+          <b>{{ latest.name }}</b>
+          <div class="main-update-release-meta">
+            <span title="{{ latest.digest }}">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.6 2.9 8.1 7 10 4.1-1.9 7-5.4 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg>
+              SHA256 {{ latest.digest[7:19] }}…
+            </span>
+            <a href="{{ latest.url }}" target="_blank" rel="noopener">
+              View release notes
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5h5v5M19 5l-9 9M18 13v6H5V6h6"/></svg>
+            </a>
+          </div>
+        </div>
+      </div>
+      <div class="main-update-release-action">
+        {% if update_available %}
+        <form method="post" action="/system/updates/apply" onsubmit="return confirm('Update Main Server to v{{ latest.version }}? The panel will briefly disconnect while services restart.')">
+          <button class="button primary main-update-install-button" type="submit">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14"/></svg>
+            Update to v{{ latest.version }}
+          </button>
+        </form>
+        {% else %}
+        <span class="main-update-current-badge">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+          Latest installed
+        </span>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </section>
+
+  <section class="main-update-security-grid" aria-label="Update security checks">
+    <article>
+      <span class="main-update-security-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.6 2.9 8.1 7 10 4.1-1.9 7-5.4 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg></span>
+      <div><b>SHA256 verified</b><p>The downloaded asset must match GitHub's official digest.</p></div>
+    </article>
+    <article>
+      <span class="main-update-security-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h6M9 17h6"/></svg></span>
+      <div><b>Package validated</b><p>Asset name, URL, size and ZIP integrity are checked.</p></div>
+    </article>
+    <article>
+      <span class="main-update-security-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10v10H7zM3 12h4M17 12h4M12 3v4M12 17v4"/></svg></span>
+      <div><b>Privileged isolation</b><p>Installation runs only through the root-owned system helper.</p></div>
+    </article>
+  </section>
+
+  {% if update_result %}
+  {% set job_status = update_result.status or ('completed' if update_result.ok else 'failed') %}
+  <section class="panel main-update-job">
+    <div class="panel-head main-update-job-head">
+      <div>
+        <h2>Last update job</h2>
+        <p>Request <span class="main-update-request-id">{{ update_result.request_id or '—' }}</span></p>
+      </div>
+      <span class="main-update-job-status {{ job_status }}">
+        <span aria-hidden="true"></span>{{ job_status }}
+      </span>
+    </div>
+    <div class="main-update-job-body">
+      <ol class="main-update-job-steps" aria-label="Update progress">
+        <li class="{% if job_status in ['scheduled','downloading','installing','completed'] %}complete{% endif %}"><span>1</span><b>Scheduled</b></li>
+        <li class="{% if job_status in ['downloading','installing','completed'] %}complete{% endif %}"><span>2</span><b>Verified</b></li>
+        <li class="{% if job_status in ['installing','completed'] %}complete{% endif %}"><span>3</span><b>Installed</b></li>
+        <li class="{% if job_status == 'completed' %}complete{% elif job_status == 'failed' %}failed{% endif %}"><span>{% if job_status == 'completed' %}✓{% elif job_status == 'failed' %}!{% else %}4{% endif %}</span><b>{% if job_status == 'failed' %}Failed{% else %}Complete{% endif %}</b></li>
+      </ol>
+      {% if update_result.current_version %}<div class="main-update-processing"><span>Release</span><b>v{{ update_result.current_version }}</b></div>{% endif %}
+      {% if update_result.message %}<div class="alert success main-update-job-message">{{ update_result.message }}</div>{% endif %}
+      {% if update_result.error %}<div class="alert danger main-update-job-message">{{ update_result.error }}</div>{% endif %}
+    </div>
+  </section>
+  {% endif %}
+</div>
+
+{% if update_result.status in ['scheduled', 'downloading', 'installing'] %}<script>setTimeout(function(){ location.reload(); }, 5000);</script>{% endif %}
 
 <style>
-.main-update-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:16px 0}.main-update-grid article{padding:18px;border:1px solid var(--line);border-radius:14px;background:var(--panel2)}.main-update-grid span,.main-update-grid small{display:block;color:var(--muted)}.main-update-grid strong{display:block;font-size:25px;margin:7px 0}.main-update-grid strong.warn{color:#ffc866}.main-update-grid strong.good{color:#74dfaf}.main-update-release{display:flex;justify-content:space-between;align-items:center;gap:18px;padding-top:16px;border-top:1px solid var(--line)}.main-update-release small{display:block;margin-top:5px}.main-update-progress{margin-top:16px}@media(max-width:760px){.main-update-grid{grid-template-columns:1fr}.main-update-release{align-items:stretch;flex-direction:column}.main-update-release form button{width:100%}}
+.main-updates-page{display:grid;gap:16px;max-width:1280px}.main-update-alert{margin:0;padding:13px 15px;line-height:1.5}.main-update-overview{position:relative;overflow:hidden}.main-update-overview::before{content:"";position:absolute;top:-150px;right:-120px;width:420px;height:320px;border-radius:50%;background:radial-gradient(circle,rgba(55,199,162,.13),transparent 68%);pointer-events:none}.main-update-hero{position:relative;display:flex;align-items:center;justify-content:space-between;gap:24px;padding:24px 26px;border-bottom:1px solid var(--line)}.main-update-hero-copy{max-width:720px}.main-update-eyebrow{display:inline-flex;align-items:center;gap:8px;margin-bottom:10px;color:#83dfc7;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.main-update-live-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px rgba(55,199,162,.12),0 0 14px rgba(55,199,162,.55)}.main-update-hero h2{margin:0;font-size:22px;line-height:1.25}.main-update-hero p{max-width:660px;margin:7px 0 0;color:var(--muted);font-size:13px;line-height:1.55}.main-update-hero-actions{position:relative;flex:0 0 auto}.main-update-check-button,.main-update-install-button{gap:8px}.main-update-check-button svg,.main-update-install-button svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.main-update-version-grid{position:relative;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;padding:18px}.main-update-version-card{display:flex;align-items:flex-start;gap:14px;min-width:0;padding:17px;border:1px solid var(--line);border-radius:11px;background:linear-gradient(145deg,var(--panel2),#101720);transition:border-color .18s ease,transform .18s ease}.main-update-version-card:hover{transform:translateY(-1px);border-color:#34485e}.main-update-card-icon{width:42px;height:42px;display:grid;place-items:center;flex:0 0 42px;border:1px solid #315267;border-radius:11px;background:#132a36;color:#79c8ef}.main-update-card-icon svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.main-update-card-copy{min-width:0}.main-update-card-copy>span{display:block;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.045em;text-transform:uppercase}.main-update-card-copy strong{display:block;margin:6px 0 5px;font-size:22px;line-height:1.2;overflow-wrap:anywhere}.main-update-card-copy small{display:block;color:var(--muted);font-size:11px;line-height:1.4}.main-update-version-card.installed .main-update-card-icon{border-color:#3d4d64;background:#192331;color:#b8c9dc}.main-update-version-card.state-current .main-update-card-icon{border-color:#276d5c;background:#14342d;color:#78dfc2}.main-update-version-card.state-current strong{color:#75ddbd}.main-update-version-card.state-available{border-color:#725727;background:linear-gradient(145deg,#251f15,#151a20)}.main-update-version-card.state-available .main-update-card-icon{border-color:#80612b;background:#352b18;color:#ffd482}.main-update-version-card.state-available strong{color:#ffd482}.main-update-version-card.state-error .main-update-card-icon{border-color:#8a3340;background:#3b1c24;color:#ff929c}.main-update-version-card.state-error strong{color:#ff929c}.main-update-inline-alert{margin:0 18px 18px;padding:12px 14px;line-height:1.5}.main-update-release-box{position:relative;display:flex;align-items:center;justify-content:space-between;gap:22px;margin:0 18px 18px;padding:17px 18px;border:1px solid #2b3c4f;border-radius:11px;background:#0c131b}.main-update-release-details{display:flex;align-items:center;gap:13px;min-width:0}.main-update-github-mark{width:39px;height:39px;display:grid;place-items:center;flex:0 0 39px;border:1px solid #34465b;border-radius:10px;background:#17212d;color:#d9e5f1}.main-update-github-mark svg{width:21px;height:21px;fill:currentColor}.main-update-release-details>div:last-child{min-width:0}.main-update-release-label{display:block;margin-bottom:4px;color:var(--muted);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}.main-update-release-details b{display:block;font-size:14px;line-height:1.35;overflow-wrap:anywhere}.main-update-release-meta{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:7px;color:var(--muted);font-size:11px}.main-update-release-meta span,.main-update-release-meta a{display:inline-flex;align-items:center;gap:5px}.main-update-release-meta a{color:#69d3b6}.main-update-release-meta svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.main-update-release-action{flex:0 0 auto}.main-update-release-action form{margin:0}.main-update-install-button{min-height:42px;padding-inline:17px;box-shadow:0 8px 24px rgba(42,157,130,.16)}.main-update-current-badge{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border:1px solid #276d5c;border-radius:999px;background:#14342d;color:#82dfc5;font-size:11px;font-weight:750}.main-update-current-badge svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.main-update-security-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.main-update-security-grid article{display:flex;align-items:flex-start;gap:12px;padding:15px 16px;border:1px solid var(--line);border-radius:11px;background:linear-gradient(180deg,var(--panel),#0f161f)}.main-update-security-icon{width:34px;height:34px;display:grid;place-items:center;flex:0 0 34px;border:1px solid #285b50;border-radius:9px;background:#13302a;color:#70d8bb}.main-update-security-icon svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.main-update-security-grid b{display:block;margin:1px 0 4px;font-size:12px}.main-update-security-grid p{margin:0;color:var(--muted);font-size:11px;line-height:1.5}.main-update-job{margin:0}.main-update-job-head{gap:18px}.main-update-request-id{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;overflow-wrap:anywhere}.main-update-job-status{display:inline-flex;align-items:center;gap:7px;width:max-content;padding:6px 10px;border:1px solid #3c4c5e;border-radius:999px;background:#1a2430;color:#b7c5d3;font-size:10px;font-weight:800;letter-spacing:.045em;text-transform:uppercase}.main-update-job-status>span{width:7px;height:7px;border-radius:50%;background:currentColor}.main-update-job-status.scheduled,.main-update-job-status.downloading,.main-update-job-status.installing{border-color:#80612b;background:#352b18;color:#ffdb91}.main-update-job-status.downloading>span,.main-update-job-status.installing>span{animation:main-update-pulse 1.2s ease-in-out infinite}.main-update-job-status.completed{border-color:#276d5c;background:#14342d;color:#7ce0c4}.main-update-job-status.failed{border-color:#8a3340;background:#3b1c24;color:#ff929c}@keyframes main-update-pulse{50%{opacity:.35;transform:scale(.72)}}.main-update-job-body{display:grid;gap:16px;padding:20px}.main-update-job-steps{position:relative;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin:0;padding:0;list-style:none}.main-update-job-steps::before{content:"";position:absolute;top:15px;left:12.5%;right:12.5%;height:2px;background:#293849}.main-update-job-steps li{position:relative;z-index:1;display:grid;justify-items:center;gap:7px;color:#718398;font-size:10px;text-align:center}.main-update-job-steps li>span{width:31px;height:31px;display:grid;place-items:center;border:2px solid #405267;border-radius:50%;background:#111821;color:#8fa2b7;font-size:11px;font-weight:800}.main-update-job-steps li.complete{color:#73d9bd}.main-update-job-steps li.complete>span{border-color:#33ad8d;background:#153c33;color:#8ce7ce;box-shadow:0 0 0 4px rgba(51,173,141,.08)}.main-update-job-steps li.failed{color:#ff929c}.main-update-job-steps li.failed>span{border-color:#b14655;background:#492029;color:#ffadb4}.main-update-processing{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 13px;border:1px solid var(--line);border-radius:8px;background:#0c131b}.main-update-processing span{color:var(--muted);font-size:11px}.main-update-job-message{margin:0;padding:12px 14px;overflow-wrap:anywhere}
+@media(max-width:900px){.main-update-version-grid,.main-update-security-grid{grid-template-columns:1fr}.main-update-version-card{align-items:center}.main-update-security-grid{gap:10px}}
+@media(max-width:700px){.main-updates-page{gap:13px}.main-update-hero{align-items:stretch;flex-direction:column;padding:20px}.main-update-hero-actions,.main-update-check-button{width:100%}.main-update-version-grid{padding:13px;gap:10px}.main-update-inline-alert{margin:0 13px 13px}.main-update-release-box{align-items:stretch;flex-direction:column;margin:0 13px 13px;padding:15px}.main-update-release-action,.main-update-release-action form,.main-update-install-button{width:100%}.main-update-current-badge{width:100%;justify-content:center}.main-update-security-grid article{padding:14px}.main-update-job-head{align-items:flex-start;flex-direction:column}.main-update-job-body{padding:16px 13px}.main-update-job-steps::before{left:11%;right:11%}}
+@media(max-width:430px){.main-update-hero h2{font-size:19px}.main-update-version-card{align-items:flex-start;padding:14px}.main-update-card-icon{width:38px;height:38px;flex-basis:38px}.main-update-card-copy strong{font-size:19px}.main-update-release-details{align-items:flex-start}.main-update-github-mark{display:none}.main-update-release-meta{align-items:flex-start;flex-direction:column;gap:7px}.main-update-job-steps li{font-size:9px}.main-update-job-steps li>span{width:27px;height:27px}.main-update-job-steps::before{top:13px}.main-update-job-status{max-width:100%}}
 </style>
 {% endblock %}

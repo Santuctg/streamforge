@@ -165,6 +165,8 @@ else:
     expiry_retry_v1298 = "STREAMFORGE_V1298_RETRY_EXPIRY_RESTORE_UPDATER" in text
     # STREAMFORGE_RELEASE_MAIN_WEB_UPDATE_V1299:
     main_web_update_v1299 = "STREAMFORGE_V1299_MAIN_WEB_UPDATE_UPDATER" in text
+    # STREAMFORGE_RELEASE_MAIN_UPDATES_UI_V1300:
+    main_updates_ui_v1300 = "STREAMFORGE_V1300_MAIN_UPDATES_UI_UPDATER" in text
 
     if "STREAMFORGE_V1284_ROLE_MANAGER_UPDATER" in text:
         for marker in (
@@ -442,6 +444,31 @@ else:
         ):
             if marker not in text:
                 errors.append(f"{updater.name} v12.98 contract missing {marker}")
+    elif main_updates_ui_v1300:
+        if 'cp -a "$SRC/." "$STAGE/"' in text:
+            errors.append(f"{updater.name} v13.00 must not copy the entire tree")
+        if re.search(r'systemctl[ \t]+(restart|reload)[ \t]+(nginx|streamforge-channel-supervisor)', text):
+            errors.append(f"{updater.name} v13.00 must not restart Nginx or the channel supervisor")
+        for marker in (
+            'STREAMFORGE_V1300_MAIN_UPDATES_UI_UPDATER',
+            'app/templates/main_updates.html',
+            '12.99|13.00',
+            'OLD_NODE_BLOB="85c42f3419a8584752e5e166230f508b6675d6a6"',
+            'NEW_NODE_BLOB="85c42f3419a8584752e5e166230f508b6675d6a6"',
+            'STREAMFORGE_V1300_LOCAL_NODE_AGENT_OPTIONAL',
+            'STREAMFORGE_V1300_TEST_FAIL_AFTER_WRITE',
+            'main-update-security-grid',
+            'main-update-job-steps',
+            'ROLLBACK=1',
+            'RESTARTED=1',
+            'systemctl restart streamforge',
+            'systemctl restart streamforge-public',
+            'systemctl is-active --quiet streamforge-public',
+            'Rolling back from',
+            'atomic_copy',
+        ):
+            if marker not in text:
+                errors.append(f"{updater.name} v13.00 contract missing {marker}")
     elif main_web_update_v1299:
         if 'cp -a "$SRC/." "$STAGE/"' in text:
             errors.append(f"{updater.name} v12.99 must not copy the entire tree")

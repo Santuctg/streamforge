@@ -1,3 +1,10 @@
+## 13.00 - 2026-11-04
+
+- Redesigned **Main Updates** with a polished release overview, clearer installed/latest/update state cards, verified GitHub release details, security-verification cards, and a structured update-job progress display.
+- Fixed the previous mobile CSS issues: alerts now use the shared theme components, controls no longer create oversized header gaps, cards use compact responsive spacing, and release details/actions no longer crowd or clip at narrow widths.
+- All page-specific rules are scoped under the Main Updates interface; the authenticated update route, confirmation, SHA256 security model, job refresh and privileged helper are unchanged.
+- New bounded updater `scripts/force_update_v1300.sh`; both VERSION files bumped to 13.00. Node Agent runtime bytes are unchanged and Remote Nodes do not require an update.
+
 ## 12.99 - 2026-11-04
 
 - Added **Main Updates** to the authenticated web panel. It checks the official `Santuctg/streamforge` GitHub Releases feed, shows installed/latest versions, and queues an update from the browser.
