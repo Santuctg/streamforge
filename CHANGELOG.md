@@ -1,3 +1,13 @@
+## 13.02 - 2026-11-04
+
+- Added the **Notification Center** (`Notifications` in the sidebar): SMTP delivery settings with an encrypted stored password, a test-email control, separate Stream User and Node Server expiry templates, manual campaigns and a persistent delivery history with retry/resend.
+- Added contact fields to both recipient types — Stream Users (`contact_email`, notifications toggle) and Node Servers (`contact_name`, `contact_email`, notifications toggle) — plus an additive, idempotent schema migration and indexes for both tables.
+- Automatic expiry reminders for Stream Users **and** Node Server owners at configurable day offsets (default 30/14/7/3/1 plus the expiry day), deduplicated per recipient/expiry/event so restarts never double-send; renewing or changing an expiry cancels queued reminders for the old date.
+- Queued, persisted delivery with up to three attempts and back-off, error capture per message, manual retry/resend, and campaign status roll-up. New permissions `notifications.view`, `notifications.send`, `notifications.manage` (Super Admin wildcard included).
+- No email is sent until SMTP is configured and delivery is explicitly enabled; the automatic-reminder switch is independent of the master delivery switch. SMTP passwords are encrypted at rest and never rendered back to the browser.
+- Hardened the Main Updates confirmation dialog so remote release data is no longer interpolated into an inline JavaScript string.
+- New bounded updater `scripts/force_update_v1302.sh`; both VERSION files bumped to 13.02. Node Agent runtime bytes are unchanged and Remote Nodes do not require an update.
+
 ## 13.01 - 2026-11-04
 
 - Made **Main Updates** fully responsive across wide desktop, laptop, tablet, phone and extra-small phone widths with dedicated 1100px, 760px, 700px, 430px and 350px breakpoints.

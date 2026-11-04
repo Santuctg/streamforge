@@ -100,6 +100,14 @@ PERMISSION_GROUPS: "OrderedDict[str, list[tuple[str, str, str]]]" = OrderedDict(
             ],
         ),
         (
+            "Notifications",
+            [
+                ("notifications.view", "View notifications", "See Stream User and Node Server email recipients, campaigns and delivery history."),
+                ("notifications.send", "Send notifications", "Compose campaigns, send test messages and retry failed email deliveries."),
+                ("notifications.manage", "Manage notification settings", "Configure SMTP, automatic expiry reminders and message templates."),
+            ],
+        ),
+        (
             "Panel Administration",
             [
                 ("panel_users.view", "View panel users", "See administrator/operator login accounts. Non-Super Admin roles cannot see Super Admin accounts."),
@@ -149,6 +157,8 @@ PERMISSION_DEPENDENCIES: dict[str, set[str]] = {
     "nodes.test": {"nodes.view"},
     "nodes.install": {"nodes.view"},
     "nodes.update": {"nodes.view"},
+    "notifications.send": {"notifications.view"},
+    "notifications.manage": {"notifications.view"},
     "channels.assign_node": {"channels.view", "nodes.view"},
     "channels.info": {"channels.view"},
     "channels.playback": {"channels.view"},

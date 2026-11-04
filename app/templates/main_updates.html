@@ -90,7 +90,7 @@
       </div>
       <div class="main-update-release-action">
         {% if update_available %}
-        <form method="post" action="/system/updates/apply" onsubmit="return confirm('Update Main Server to v{{ latest.version }}? The panel will briefly disconnect while services restart.')">
+        <form method="post" action="/system/updates/apply" onsubmit="return confirm('Update the Main Server now? The panel will briefly disconnect while services restart.')">
           <button class="button primary main-update-install-button" type="submit">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14"/></svg>
             Update to v{{ latest.version }}

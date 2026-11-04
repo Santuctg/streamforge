@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}Notifications · {{ branding.name }}{% endblock %}
+{% block heading %}<h1>Notifications</h1><p>Email notices for Stream Users and Node Server owners</p>{% endblock %}
+{% block content %}
+<div class="notification-page">
+  {% if message %}<div class="alert success">{{ message }}</div>{% endif %}
+  {% if error %}<div class="alert danger">{{ error }}</div>{% endif %}
+
+  <section class="notification-summary-grid">
+    <article><span>SMTP</span><strong class="{{ 'good' if config.ready else 'warn' }}">{{ 'Ready' if config.ready else 'Not configured' }}</strong><small>{{ config.host or 'Add an SMTP server' }}</small></article>
+    <article><span>Automatic reminders</span><strong class="{{ 'good' if config.auto_enabled and config.ready else '' }}">{{ 'Enabled' if config.auto_enabled and config.ready else 'Disabled' }}</strong><small>{{ config.reminder_days }} day schedule</small></article>
+    <article><span>Queued</span><strong>{{ delivery_stats.queued or 0 }}</strong><small>Waiting for delivery</small></article>
+    <article><span>Sent / Failed</span><strong>{{ delivery_stats.sent or 0 }} / {{ delivery_stats.failed or 0 }}</strong><small>Persistent delivery history</small></article>
+  </section>
+
+  {% if can('notifications.manage') %}
+  <section class="panel form-section notification-settings">
+    <div class="panel-head"><div><h2>Email delivery settings</h2><p>SMTP credentials are encrypted before storage. Automatic reminders remain off until explicitly enabled.</p></div><span class="status {{ 'running' if config.ready else 'stopped' }}">{{ 'ready' if config.ready else 'setup required' }}</span></div>
+    <form method="post" action="/system/notifications/settings" class="notification-settings-form">
+      <div class="notification-toggle-row">
+        <label class="check"><input type="checkbox" name="enabled" {% if config.enabled %}checked{% endif %}><span><b>Enable email delivery</b><small>Allows test, campaign and queued email sending.</small></span></label>
+        <label class="check"><input type="checkbox" name="auto_enabled" {% if config.auto_enabled %}checked{% endif %}><span><b>Automatic expiry reminders</b><small>Queues reminders for both eligible Stream Users and Nodes.</small></span></label>
+      </div>
+      <div class="form-grid notification-smtp-grid">
+        <label>SMTP host<input name="smtp_host" value="{{ config.host }}" maxlength="255" placeholder="smtp.example.com"></label>
+        <label>SMTP port<input type="number" name="smtp_port" min="1" max="65535" value="{{ config.port }}"></label>
+        <label>Encryption<select name="smtp_security"><option value="starttls" {% if config.security == 'starttls' %}selected{% endif %}>STARTTLS</option><option value="ssl" {% if config.security == 'ssl' %}selected{% endif %}>SSL/TLS</option></select></label>
+        <label>SMTP username<input name="smtp_username" value="{{ config.username }}" maxlength="320" autocomplete="off"></label>
+        <label>SMTP password<input type="password" name="smtp_password" autocomplete="new-password" placeholder="{{ 'Saved — leave blank to keep' if config.password_saved else 'Enter SMTP password' }}"></label>
+        {% if config.password_saved %}<label class="check notification-clear-secret"><input type="checkbox" name="clear_smtp_password"><span>Clear saved SMTP password</span></label>{% endif %}
+        <label>From email<input type="email" name="from_email" value="{{ config.from_email }}" maxlength="320" placeholder="service@example.com"></label>
+        <label>From name<input name="from_name" value="{{ config.from_name }}" maxlength="120"></label>
+        <label>Reply-To email<input type="email" name="reply_to" value="{{ config.reply_to }}" maxlength="320" placeholder="support@example.com"></label>
+        <label>Service name<input name="service_name" value="{{ config.service_name }}" maxlength="120"></label>
+        <label class="wide">Support contact<input name="support_contact" value="{{ config.support_contact }}" maxlength="500" placeholder="Phone, payment link or support address"></label>
+        <label class="wide">Reminder days<input name="reminder_days" value="{{ config.reminder_days }}" placeholder="30,14,7,3,1,0"><small class="field-help">Comma-separated days before expiry. Zero sends the expiry-day notice.</small></label>
+      </div>
+      <div class="notification-template-grid">
+        <fieldset><legend>Stream User template</legend><label>Subject<input name="user_subject" value="{{ config.user_subject }}" maxlength="255"></label><label>Message<textarea name="user_body" rows="7">{{ config.user_body }}</textarea></label></fieldset>
+        <fieldset><legend>Node Server template</legend><label>Subject<input name="node_subject" value="{{ config.node_subject }}" maxlength="255"></label><label>Message<textarea name="node_body" rows="7">{{ config.node_body }}</textarea></label></fieldset>
+      </div>
+      <div class="notification-template-help">Variables: <code>{customer_name}</code> <code>{node_name}</code> <code>{expiry_date}</code> <code>{days_remaining}</code> <code>{service_name}</code> <code>{support_contact}</code></div>
+      <div class="form-actions"><button class="button primary" type="submit">Save email settings</button></div>
+    </form>
+    {% if can('notifications.send') %}
+    <form method="post" action="/system/notifications/test" class="notification-test-form">
+      <label>Test recipient<input type="email" name="test_email" required placeholder="you@example.com"></label>
+      <button class="button" type="submit">Send test email</button>
+    </form>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {% if can('notifications.send') %}
+  <section class="panel form-section notification-compose">
+    <div class="panel-head"><div><h2>Compose service notice</h2><p>Select any combination of Stream Users and Node Server owners. Emails are queued and retried safely.</p></div><span class="notification-selected-count"><b data-notification-selected>0</b> selected</span></div>
+    <form method="post" action="/system/notifications/campaign" data-notification-campaign>
+      <div class="form-grid notification-message-grid">
+        <label>Campaign name<input name="campaign_name" maxlength="180" placeholder="Service discontinuation notice"></label>
+        <label>Subject<input name="subject" maxlength="255" required value="Important service notice from {service_name}"></label>
+        <label class="wide">Message<textarea name="body" rows="7" required>Hello {customer_name},
+
+This is an important notice about your {service_name} service.
+
+Support: {support_contact}</textarea><small class="field-help">Available here: {customer_name}, {node_name}, {service_name}, {support_contact}</small></label>
+      </div>
+      <div class="notification-recipient-toolbar">
+        <input type="search" data-notification-search placeholder="Search user, node or email">
+        <div><button class="button small" type="button" data-select-recipient-type="all">Select all eligible</button><button class="button small" type="button" data-clear-recipients>Clear</button></div>
+      </div>
+      <div class="notification-recipient-grid">
+        <section><div class="notification-recipient-head"><h3>Stream Users</h3><button class="button small" type="button" data-select-recipient-type="user">Select users</button></div><div class="notification-recipient-list">
+          {% for user in users %}{% set eligible = user.contact_email and user.email_notifications %}<label data-recipient-row data-search="{{ user.name }} {{ user.contact_email or '' }}"><input type="checkbox" name="recipients" value="user:{{ user.id }}" data-recipient-type="user" {% if not eligible %}disabled{% endif %}><span><b>{{ user.name }}</b><small>{{ user.contact_email or 'No notification email' }}</small><small>{% if not user.email_notifications %}Notifications disabled{% elif user.expires_at %}Expires {{ user.expires_at.strftime('%Y-%m-%d %H:%M') }}{% else %}Never expires{% endif %}</small></span></label>{% else %}<p class="empty">No Stream Users.</p>{% endfor %}
+        </div></section>
+        <section><div class="notification-recipient-head"><h3>Node Servers</h3><button class="button small" type="button" data-select-recipient-type="node">Select nodes</button></div><div class="notification-recipient-list">
+          {% for node in nodes %}{% set eligible = node.contact_email and node.email_notifications %}<label data-recipient-row data-search="{{ node.name }} {{ node.contact_name or '' }} {{ node.contact_email or '' }}"><input type="checkbox" name="recipients" value="node:{{ node.id }}" data-recipient-type="node" {% if not eligible %}disabled{% endif %}><span><b>{{ node.name }}</b><small>{{ node.contact_name or 'Owner not set' }} · {{ node.contact_email or 'No notification email' }}</small><small>{% if not node.email_notifications %}Notifications disabled{% elif node.expires_at %}Expires {{ node.expires_at.strftime('%Y-%m-%d %H:%M') }}{% else %}Never expires{% endif %}</small></span></label>{% else %}<p class="empty">No Nodes.</p>{% endfor %}
+        </div></section>
+      </div>
+      <div class="form-actions"><button class="button primary" type="submit" data-queue-campaign disabled>Queue selected emails</button></div>
+    </form>
+  </section>
+  {% endif %}
+
+  {% if campaigns %}
+  <section class="panel notification-campaigns">
+    <div class="panel-head"><div><h2>Recent campaigns</h2><p>Manual service notices queued from this page.</p></div></div>
+    <div class="table-wrap"><table><thead><tr><th>Campaign</th><th>Subject</th><th>Status</th><th>Queued by</th><th>Created</th></tr></thead><tbody>
+      {% for campaign in campaigns %}<tr><td><b>{{ campaign.name }}</b></td><td><span class="truncate">{{ campaign.subject }}</span></td><td><span class="status {{ 'running' if campaign.status == 'completed' else ('error' if campaign.status == 'completed_with_errors' else 'starting') }}">{{ campaign.status|replace('_',' ') }}</span></td><td>{{ campaign.created_by or '—' }}</td><td>{{ campaign.created_at.strftime('%Y-%m-%d %H:%M') }}</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+  {% endif %}
+
+  <section class="panel notification-history">
+    <div class="panel-head"><div><h2>Delivery history</h2><p>Latest 100 messages. Failed deliveries can be retried after correcting SMTP settings.</p></div></div>
+    <div class="table-wrap"><table><thead><tr><th>Recipient</th><th>Type</th><th>Event</th><th>Status</th><th>Attempts</th><th>Time</th><th>Action</th></tr></thead><tbody>
+      {% for item in deliveries %}<tr><td><b>{{ item.recipient_name }}</b><br><small>{{ item.email }}</small>{% if item.error %}<small class="notification-error">{{ item.error }}</small>{% endif %}</td><td>{{ 'Node Server' if item.recipient_type == 'node' else 'Stream User' }}</td><td>{{ item.event_type|replace('_',' ')|title }}</td><td><span class="status {{ 'running' if item.status == 'sent' else ('error' if item.status == 'failed' else 'starting') }}">{{ item.status }}</span></td><td>{{ item.attempts }}</td><td>{{ (item.sent_at or item.created_at).strftime('%Y-%m-%d %H:%M') }}</td><td>{% if can('notifications.send') and item.status in ['failed','sent'] %}<form method="post" action="/system/notifications/deliveries/{{ item.id }}/retry" onsubmit="return confirm('Queue this email again?')"><button class="button small" type="submit">{{ 'Retry' if item.status == 'failed' else 'Resend' }}</button></form>{% else %}—{% endif %}</td></tr>{% else %}<tr><td colspan="7" class="empty">No email delivery history yet.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+</div>
+
+<style>
+.notification-page{display:grid;gap:16px;max-width:1400px;margin-inline:auto}.notification-summary-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.notification-summary-grid article{min-width:0;padding:16px;border:1px solid var(--line);border-radius:11px;background:linear-gradient(180deg,var(--panel),#0f161f)}.notification-summary-grid span,.notification-summary-grid small{display:block;color:var(--muted)}.notification-summary-grid span{font-size:10px;font-weight:800;letter-spacing:.055em;text-transform:uppercase}.notification-summary-grid strong{display:block;margin:7px 0 5px;font-size:19px;overflow-wrap:anywhere}.notification-summary-grid strong.good{color:var(--accent)}.notification-summary-grid strong.warn{color:var(--warning)}.notification-settings-form,.notification-compose>form{display:grid;gap:16px;padding:18px}.notification-toggle-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.notification-toggle-row .check{display:flex!important;align-items:flex-start;gap:10px;min-height:0!important;margin:0;padding:14px;border:1px solid var(--line);border-radius:9px;background:#0c131b;cursor:pointer}.notification-toggle-row .check input[type="checkbox"]{width:16px;height:16px;min-width:16px;margin-top:2px;accent-color:var(--accent)}.notification-toggle-row .check span{display:grid;gap:4px;color:var(--text)}.notification-toggle-row small{color:var(--muted)}.notification-smtp-grid{padding:0}.notification-clear-secret{align-self:end;margin-bottom:10px}.notification-template-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.notification-template-grid fieldset{display:grid;gap:12px;min-width:0;margin:0;padding:15px;border:1px solid var(--line);border-radius:10px}.notification-template-grid legend{padding:0 7px;font-weight:800}.notification-template-grid label{display:grid;gap:7px;color:#b9c8d7;font-size:12px}.notification-template-grid input,.notification-template-grid textarea,.notification-test-form input,.notification-recipient-toolbar input{width:100%;border:1px solid #304156;background:#0b1118;color:var(--text);border-radius:7px;padding:10px 11px;outline:none}.notification-template-grid input:focus,.notification-template-grid textarea:focus,.notification-test-form input:focus,.notification-recipient-toolbar input:focus{border-color:var(--accent)}.notification-template-help{padding:11px 13px;border:1px solid var(--line);border-radius:8px;background:#0c131b;color:var(--muted);font-size:11px;line-height:1.7}.notification-template-help code{color:#8ce7ce}.notification-test-form{display:grid;grid-template-columns:minmax(260px,1fr) auto;align-items:end;gap:10px;padding:0 18px 18px}.notification-test-form label{display:grid;gap:6px;color:#b9c8d7;font-size:12px}.notification-selected-count{color:var(--muted);font-size:12px}.notification-selected-count b{color:var(--accent);font-size:16px}.notification-message-grid{padding:0}.notification-recipient-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px}.notification-recipient-toolbar input{max-width:430px}.notification-recipient-toolbar>div{display:flex;gap:8px;flex-wrap:wrap}.notification-recipient-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.notification-recipient-grid>section{min-width:0;border:1px solid var(--line);border-radius:10px;background:#0c131b;overflow:hidden}.notification-recipient-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 13px;border-bottom:1px solid var(--line)}.notification-recipient-head h3{margin:0;font-size:13px}.notification-recipient-list{max-height:390px;overflow:auto}.notification-recipient-list label{display:grid;grid-template-columns:18px minmax(0,1fr);align-items:start;gap:10px;padding:11px 13px;border-bottom:1px solid #1d2937;cursor:pointer}.notification-recipient-list label:last-child{border-bottom:0}.notification-recipient-list label:has(input:checked){background:#123029}.notification-recipient-list label:has(input:disabled){cursor:not-allowed;opacity:.55}.notification-recipient-list input{width:16px;height:16px;margin-top:2px;accent-color:var(--accent)}.notification-recipient-list b,.notification-recipient-list small{display:block;overflow-wrap:anywhere}.notification-recipient-list small{margin-top:3px;color:var(--muted);font-size:10px}.notification-error{max-width:390px;color:#ff929c!important;white-space:normal;overflow-wrap:anywhere}.notification-history td form{margin:0}@media(max-width:1050px){.notification-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.notification-template-grid,.notification-recipient-grid{grid-template-columns:1fr}}@media(max-width:700px){.notification-page{gap:13px}.notification-summary-grid,.notification-toggle-row{grid-template-columns:1fr}.notification-settings-form,.notification-compose>form{padding:13px}.notification-test-form{grid-template-columns:1fr;padding:0 13px 13px}.notification-test-form .button{width:100%}.notification-recipient-toolbar{align-items:stretch;flex-direction:column}.notification-recipient-toolbar input{max-width:none}.notification-recipient-toolbar>div{display:grid;grid-template-columns:1fr 1fr}.notification-recipient-head{align-items:flex-start;flex-direction:column}.notification-recipient-head .button{width:100%}}
+</style>
+{% endblock %}
+{% block scripts %}<script>
+(() => {
+  const form = document.querySelector('[data-notification-campaign]');
+  if (!form) return;
+  const boxes = Array.from(form.querySelectorAll('input[name="recipients"]'));
+  const count = document.querySelector('[data-notification-selected]');
+  const submit = form.querySelector('[data-queue-campaign]');
+  const sync = () => { const total = boxes.filter(box => box.checked && !box.disabled).length; count.textContent = String(total); submit.disabled = total === 0; };
+  form.querySelectorAll('[data-select-recipient-type]').forEach(button => button.addEventListener('click', () => {
+    const type = button.dataset.selectRecipientType;
+    boxes.forEach(box => { if (!box.disabled && (type === 'all' || box.dataset.recipientType === type)) box.checked = true; });
+    sync();
+  }));
+  form.querySelector('[data-clear-recipients]')?.addEventListener('click', () => { boxes.forEach(box => { box.checked = false; }); sync(); });
+  boxes.forEach(box => box.addEventListener('change', sync));
+  form.querySelector('[data-notification-search]')?.addEventListener('input', event => {
+    const query = event.target.value.trim().toLowerCase();
+    form.querySelectorAll('[data-recipient-row]').forEach(row => { row.hidden = !!query && !row.dataset.search.toLowerCase().includes(query); });
+  });
+  form.addEventListener('submit', event => { if (!boxes.some(box => box.checked && !box.disabled) || !confirm('Queue this email for every selected recipient?')) event.preventDefault(); });
+  sync();
+})();
+</script>{% endblock %}

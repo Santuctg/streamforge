@@ -11,7 +11,7 @@
 >
 > **Typical use:** One **Main Server** encodes every channel once; several **Remote Nodes** in other data centres relay those channels and serve the viewers, with per-user connection limits, IP/ASN access policies and automatic node selection.
 
-**v13.01:** Made Main Updates fully responsive across desktop, tablet and extra-small phone widths, including overflow-safe release details and compact mobile job steps. Requires Main v13.00; Remote Nodes do not need an update.
+**v13.02:** New **Notification Center** — queued email notices for Stream Users *and* Node Server owners, with SMTP settings/test, manual campaigns, automatic expiry reminders and a persistent delivery log. Requires Main v13.01; Remote Nodes do not need an update.
 
 > **v12.83 upgrade notes:** HTTPS connections to Remote Nodes now always verify
 > certificates; replace self-signed or name-mismatched certificates before
@@ -35,6 +35,7 @@
 | 📃 **Playlists & Xtream API** | Issue M3U playlists, Xtream `player_api.php` / `get.php` logins and direct stream URLs for IPTV apps. |
 | 🌐 **Web Player** | Branded browser player with login, quick-login and an optional Android APK download. |
 | 👥 **Users & playlists** | Viewer and restreamer accounts with channel playlists, expiry dates, connection limits and allowed source IPs. |
+| 🔔 **Notifications** | Email expiry reminders and manual service-discontinuation notices to Stream Users **and** Node Server owners, queued with retries and a full delivery log. |
 | 🛡️ **Access control** | IP/CIDR and ASN rules for Panel and playback, GeoIP lookups, a 5-failure / 3-hour Panel login IP block shared by Main and Nodes, and Xtream login limits. |
 | 🔐 **Panel users & roles** | Role-based permissions, Super Admin, encrypted password vault with audited reveal. |
 | 📊 **Monitoring** | Live CPU/RAM/network dashboard, channel bitrate/uptime, viewer sessions with kill, stream logs and metrics history. |
@@ -121,20 +122,20 @@ This is a **host-installed application**, **not a Docker Compose stack**. Review
 
 ### 1. Download the versioned package
 
-Download `streamforge-X.YY.zip` from **[Releases](https://github.com/Santuctg/streamforge/releases/tag/v13.01)** and check it:
+Download `streamforge-X.YY.zip` from **[Releases](https://github.com/Santuctg/streamforge/releases/tag/v13.02)** and check it:
 
 ```bash
 cd /root
-curl -fL -o streamforge-13.01.zip \
-  https://github.com/Santuctg/streamforge/releases/download/v13.01/streamforge-13.01.zip
-sha256sum streamforge-13.01.zip
+curl -fL -o streamforge-13.02.zip \
+  https://github.com/Santuctg/streamforge/releases/download/v13.02/streamforge-13.02.zip
+sha256sum streamforge-13.02.zip
 ```
 
 ### 2a. Fresh install (new server only)
 
 ```bash
-unzip -q streamforge-13.01.zip -d /root
-sudo bash /root/streamforge-13.01/scripts/install.sh
+unzip -q streamforge-13.02.zip -d /root
+sudo bash /root/streamforge-13.02/scripts/install.sh
 ```
 
 Open `http://SERVER_IP` and sign in as **`admin` / `ChangeMe123!`**. The Panel then requires a new password of at least 12 characters before anything else.
@@ -142,7 +143,7 @@ Open `http://SERVER_IP` and sign in as **`admin` / `ChangeMe123!`**. The Panel t
 ### 2b. Upgrade an existing server
 
 ```bash
-sudo streamforge-update --force /root/streamforge-13.01.zip
+sudo streamforge-update --force /root/streamforge-13.02.zip
 ```
 
 Releases are applied **in order** — each updater accepts only the previous version and rolls back automatically on failure. **Never run `install.sh` on an existing server.**

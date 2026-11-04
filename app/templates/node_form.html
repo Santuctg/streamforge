@@ -284,6 +284,11 @@
       </label>
     </div>
 
+    <div class="wide settings-divider"><h3>Node owner notifications</h3><p>Email expiry reminders and service-discontinuation notices to this Node Server owner.</p></div>
+    <label>Owner / company name<input name="contact_name" maxlength="150" value="{{ node.contact_name or '' if node else '' }}" placeholder="Customer or company name"></label>
+    <label>Notification email<input type="email" name="contact_email" maxlength="320" value="{{ node.contact_email or '' if node else '' }}" placeholder="billing@example.com"></label>
+    <label class="check wide"><input type="checkbox" name="email_notifications" {% if not node or node.email_notifications %}checked{% endif %}><span><b>Email notifications enabled</b><small class="field-help">Automatic reminders are sent only when SMTP and automatic expiry notifications are enabled in Notification Center.</small></span></label>
+
     <label class="wide">Strict client IP prefixes
       <textarea name="client_prefixes" rows="5" placeholder="10.20.0.0/16&#10;192.168.50.0/24&#10;2001:db8:10::/48">{{ node.client_prefixes or '' if node else '' }}</textarea>
       <small class="field-help">One CIDR per line. A matching client prefers this server first. If it is offline or not playback-ready, StreamForge automatically falls back to another eligible assigned Node.</small>

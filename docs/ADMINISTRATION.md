@@ -155,6 +155,38 @@ The **Viewer sessions** page shows live sessions and lets you end one.
 
 ---
 
+## 🔔 Notifications
+
+The **Notifications** page sends queued email to **Stream Users** and
+**Node Server owners** — expiry reminders and manual service notices such as a
+discontinuation announcement.
+
+- **Contacts** — each User form has *Notification email*; each Node form has
+  *Owner / company name* and *Notification email*. Unchecking *Email
+  notifications enabled* skips that recipient everywhere.
+- **SMTP** — set host, port (STARTTLS/SSL), optional username/password, From
+  and Reply-To, then use **Send test email**. The password is stored encrypted
+  and is never rendered back. Nothing is sent while *Enable email delivery* is
+  off.
+- **Automatic expiry reminders** — a separate switch. Default schedule is
+  30/14/7/3/1 days before expiry plus the expiry day, configurable as a
+  comma-separated list (`0` = expiry-day notice). Reminders are deduplicated
+  per recipient, expiry and event, and renewing/changing an expiry cancels
+  queued reminders for the old date.
+- **Templates** — separate subject/message templates for Stream Users and Node
+  Servers. Available variables: `{customer_name}`, `{node_name}`,
+  `{expiry_date}`, `{days_remaining}`, `{service_name}`, `{support_contact}`.
+- **Campaigns** — pick any combination of eligible recipients, compose a
+  notice, and queue it. Every message is persisted, retried up to three times
+  with back-off, and appears in **Delivery history** with its error; failed
+  items can be retried or resent.
+- **Permissions** — `notifications.view` (open the page), `notifications.send`
+  (test, campaign, retry) and `notifications.manage` (SMTP, reminders,
+  templates). Super Admins hold them through the wildcard; grant them to custom
+  roles in the role editor.
+
+---
+
 ## 🛡️ Access control
 
 - **Panel access** — allow/deny Panel and API access by IP/CIDR and ASN. If

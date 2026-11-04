@@ -46,7 +46,7 @@ from .node_manager import NodeError, ensure_local_node, node_controller, normali
 from .load_balancer import NodeSelectionError, choose_playback_node, normalize_prefixes, user_allowed_nodes, playback_candidate_nodes, validate_routed_node, pinned_node_for_ip, node_ip_whitelist_allows, node_playback_access_allows
 from .importer import ImportItem, detect_and_parse
 from .input_options import ensure_safe_input_target
-from .models import AdminUser, AppSetting, Channel, ChannelCategory, Node, Role, StreamUser, LogEntry, PlaylistProfile, channel_nodes, channel_category_links, playlist_profile_channels as playlist_profile_channel_links, user_channels as user_channel_links
+from .models import AdminUser, AppSetting, Channel, ChannelCategory, Node, Role, StreamUser, LogEntry, PlaylistProfile, NotificationCampaign, NotificationDelivery, channel_nodes, channel_category_links, playlist_profile_channels as playlist_profile_channel_links, user_channels as user_channel_links
 from .permissions import (
     ALL_PERMISSION_KEYS,
     PERMISSION_GROUPS,
@@ -64,6 +64,23 @@ from .ssh_installer import SSHInstallError, install_node_over_ssh, uninstall_nod
 from .viewer_tracking import viewer_tracker
 from .redis_state import redis_state
 from .secrets_store import encrypt_secret, decrypt_secret
+from .notification_manager import (
+    cancel_stale_expiry_deliveries,
+    DEFAULT_NODE_BODY,
+    DEFAULT_NODE_SUBJECT,
+    DEFAULT_USER_BODY,
+    DEFAULT_USER_SUBJECT,
+    SETTING_PREFIX as NOTIFICATION_SETTING_PREFIX,
+    email_config,
+    notification_worker,
+    process_delivery_queue,
+    public_email_config,
+    queue_expiry_reminders,
+    queue_manual_campaign,
+    retry_delivery,
+    send_test_email,
+    valid_email,
+)
 from .stream_keys import ensure_stream_link_secret, stream_link_hmac
 from .xtream_guard import clear_xtream_failures, record_xtream_failure, xtream_auth_blocked
 # STREAMFORGE_PANEL_CREDENTIAL_VAULT_V1263: Main-only opt-in encrypted credentials.
@@ -5266,7 +5283,9 @@ async def lifespan(_app: FastAPI):
     metrics_history.start()
     threading.Thread(target=_main_client_session_history_observer_loop, name="streamforge-client-session-history", daemon=True).start()
     threading.Thread(target=_backup_scheduler_loop, name="streamforge-backup-scheduler", daemon=True).start()
+    notification_worker.start()
     yield
+    notification_worker.stop()
     metrics_history.stop()
     system_metrics.stop()
     # STREAMFORGE_MAIN_SUPERVISOR_SURVIVES_PANEL_RESTART_V1115:
@@ -8642,6 +8661,9 @@ def node_create(
     save_ssh_password: Optional[str] = Form(None),
     agent_port: int = Form(0),
     expires_at: Optional[str] = Form(None),
+    contact_name: str = Form(""),
+    contact_email: str = Form(""),
+    email_notifications: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
     if not current_admin(request, db):
@@ -8655,6 +8677,9 @@ def node_create(
     panel_listener_port = max(1, min(65535, int(agent_port or 80)))
     playlist_listener_port = max(1, min(65535, int(playlist_port or panel_listener_port)))
     try:
+        cleaned_contact_email = contact_email.strip().lower()
+        if cleaned_contact_email and not valid_email(cleaned_contact_email):
+            raise ValueError("Enter a valid Node owner notification email address")
         normalized_api_urls, normalized_access_slug = normalize_node_access_urls(
             api_url, "Node Panel/API access URLs", access_slug, panel_listener_port
         )
@@ -8683,12 +8708,12 @@ def node_create(
         if conflict:
             raise ValueError(conflict)
     except ValueError as exc:
-        draft = type("NodeDraft", (), {"name": cleaned_name, "api_url": api_url, "client_prefixes": client_prefixes, "panel_ip_whitelist": panel_ip_whitelist, "panel_ip_blacklist": panel_ip_blacklist, "panel_asn_whitelist": panel_asn_whitelist, "panel_asn_blacklist": panel_asn_blacklist, "enabled": as_bool(enabled), "node_type": "remote", "id": None, "dns_name": dns_name, "dns_scheme": dns_scheme, "dns_only": True, "playlist_url": playlist_url, "playlist_dns_only": True, "api_urls": api_url, "playlist_urls": playlist_url, "access_slug": access_slug, "playlist_access_slug": playlist_access_slug, "local_channel_limit": max(0, int(local_channel_limit or 0)), "total_max_connections": max(0, int(total_max_connections or 0)), "node_viewer_session_timeout_seconds": max(5, min(3600, int(node_viewer_session_timeout_seconds or 5))), "node_hide_panel_hover_urls": as_bool(node_hide_panel_hover_urls), "sync_main_users": as_bool(sync_main_users), "logo_url": logo_url})()
+        draft = type("NodeDraft", (), {"name": cleaned_name, "api_url": api_url, "client_prefixes": client_prefixes, "panel_ip_whitelist": panel_ip_whitelist, "panel_ip_blacklist": panel_ip_blacklist, "panel_asn_whitelist": panel_asn_whitelist, "panel_asn_blacklist": panel_asn_blacklist, "enabled": as_bool(enabled), "node_type": "remote", "id": None, "dns_name": dns_name, "dns_scheme": dns_scheme, "dns_only": True, "playlist_url": playlist_url, "playlist_dns_only": True, "api_urls": api_url, "playlist_urls": playlist_url, "access_slug": access_slug, "playlist_access_slug": playlist_access_slug, "local_channel_limit": max(0, int(local_channel_limit or 0)), "total_max_connections": max(0, int(total_max_connections or 0)), "node_viewer_session_timeout_seconds": max(5, min(3600, int(node_viewer_session_timeout_seconds or 5))), "node_hide_panel_hover_urls": as_bool(node_hide_panel_hover_urls), "sync_main_users": as_bool(sync_main_users), "logo_url": logo_url, "contact_name": contact_name.strip(), "contact_email": contact_email.strip(), "email_notifications": as_bool(email_notifications), "expires_at": normalize_expiry(expires_at)})()
         return render(request, "node_form.html", db, node=draft, error=str(exc), suggested_token=token)
     try:
         uploaded_logo = save_node_logo(logo_file)
     except ValueError as exc:
-        draft = type("NodeDraft", (), {"name": cleaned_name, "api_url": api_url, "client_prefixes": client_prefixes, "panel_ip_whitelist": panel_ip_whitelist, "panel_ip_blacklist": panel_ip_blacklist, "panel_asn_whitelist": panel_asn_whitelist, "panel_asn_blacklist": panel_asn_blacklist, "enabled": as_bool(enabled), "node_type": "remote", "id": None, "dns_name": dns_name, "dns_scheme": dns_scheme, "dns_only": True, "playlist_url": playlist_url, "playlist_dns_only": True, "api_urls": api_url, "playlist_urls": playlist_url, "access_slug": access_slug, "playlist_access_slug": playlist_access_slug, "local_channel_limit": max(0, int(local_channel_limit or 0)), "total_max_connections": max(0, int(total_max_connections or 0)), "node_viewer_session_timeout_seconds": max(5, min(3600, int(node_viewer_session_timeout_seconds or 5))), "node_hide_panel_hover_urls": as_bool(node_hide_panel_hover_urls), "sync_main_users": as_bool(sync_main_users), "logo_url": logo_url})()
+        draft = type("NodeDraft", (), {"name": cleaned_name, "api_url": api_url, "client_prefixes": client_prefixes, "panel_ip_whitelist": panel_ip_whitelist, "panel_ip_blacklist": panel_ip_blacklist, "panel_asn_whitelist": panel_asn_whitelist, "panel_asn_blacklist": panel_asn_blacklist, "enabled": as_bool(enabled), "node_type": "remote", "id": None, "dns_name": dns_name, "dns_scheme": dns_scheme, "dns_only": True, "playlist_url": playlist_url, "playlist_dns_only": True, "api_urls": api_url, "playlist_urls": playlist_url, "access_slug": access_slug, "playlist_access_slug": playlist_access_slug, "local_channel_limit": max(0, int(local_channel_limit or 0)), "total_max_connections": max(0, int(total_max_connections or 0)), "node_viewer_session_timeout_seconds": max(5, min(3600, int(node_viewer_session_timeout_seconds or 5))), "node_hide_panel_hover_urls": as_bool(node_hide_panel_hover_urls), "sync_main_users": as_bool(sync_main_users), "logo_url": logo_url, "contact_name": contact_name.strip(), "contact_email": contact_email.strip(), "email_notifications": as_bool(email_notifications), "expires_at": normalize_expiry(expires_at)})()
         return render(request, "node_form.html", db, node=draft, error=str(exc), suggested_token=token)
     node = Node(
         name=cleaned_name,
@@ -8727,6 +8752,9 @@ def node_create(
         agent_port=panel_listener_port,
         status="unknown",
         expires_at=normalize_expiry(expires_at),
+        contact_name=contact_name.strip()[:150] or None,
+        contact_email=cleaned_contact_email or None,
+        email_notifications=as_bool(email_notifications),
     )
     db.add(node)
     db.flush()
@@ -9234,6 +9262,9 @@ def node_update(
     clear_ssh_password: Optional[str] = Form(None),
     agent_port: int = Form(0),
     expires_at: Optional[str] = Form(None),
+    contact_name: str = Form(""),
+    contact_email: str = Form(""),
+    email_notifications: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
     if not current_admin(request, db):
@@ -9254,6 +9285,7 @@ def node_update(
                 "asn_whitelist", "asn_blacklist", "dns_name", "dns_scheme",
                 "dns_only", "playlist_dns_only", "agent_port", "playlist_port",
                 "status", "last_error",
+                "contact_name", "contact_email", "email_notifications", "expires_at",
             )
         }
     cleaned_name = name.strip()[:120] or node.name
@@ -9270,6 +9302,9 @@ def node_update(
     # Keep a separate listener only when its URL explicitly includes that port.
     playlist_listener_port = max(1, min(65535, int(playlist_port or panel_listener_port)))
     try:
+        cleaned_contact_email = contact_email.strip().lower()
+        if cleaned_contact_email and not valid_email(cleaned_contact_email):
+            raise ValueError("Enter a valid Node owner notification email address")
         normalized_prefixes = normalize_prefixes(client_prefixes)
         normalized_panel_ip_whitelist = normalize_ip_rules(panel_ip_whitelist)
         normalized_panel_ip_blacklist = normalize_ip_rules(panel_ip_blacklist)
@@ -9394,6 +9429,10 @@ def node_update(
     else:
         node.agent_port = max(1, min(65535, panel_public_port))
     node.expires_at = normalize_expiry(expires_at)
+    cancel_stale_expiry_deliveries(db, "node", node.id, node.expires_at)
+    node.contact_name = contact_name.strip()[:150] or None
+    node.contact_email = cleaned_contact_email or None
+    node.email_notifications = as_bool(email_notifications)
     node.status = "online" if node.node_type == "local" else "unknown"
     node.last_error = None
     db.commit()
@@ -9460,6 +9499,177 @@ def _main_server_admin_action(node_id: int, action: str, request: Request, db: S
         actor=admin.username, details={"request_id": request_id},
     )
     return RedirectResponse(f"/nodes?message={quote_plus(label + ' scheduled')}", status_code=303)
+
+
+# STREAMFORGE_EMAIL_NOTIFICATIONS_V1302: one persistent Notification Center
+# manages Stream User and Node Server owner email without exposing SMTP secrets.
+def _notification_redirect(*, message: str = "", error: str = "") -> RedirectResponse:
+    values = {key: value for key, value in (("message", message), ("error", error)) if value}
+    suffix = "?" + urlencode(values) if values else ""
+    return RedirectResponse("/system/notifications" + suffix, status_code=303)
+
+
+@app.get("/system/notifications", response_class=HTMLResponse, dependencies=[Depends(permission_required("notifications.view"))])
+def notification_center(request: Request, db: Session = Depends(get_db)):
+    users = db.scalars(select(StreamUser).order_by(StreamUser.name)).all()
+    nodes = db.scalars(select(Node).order_by(Node.node_type, Node.name)).all()
+    deliveries = db.scalars(
+        select(NotificationDelivery).order_by(NotificationDelivery.created_at.desc(), NotificationDelivery.id.desc()).limit(100)
+    ).all()
+    campaigns = db.scalars(
+        select(NotificationCampaign).order_by(NotificationCampaign.created_at.desc(), NotificationCampaign.id.desc()).limit(30)
+    ).all()
+    delivery_stats = {"queued": 0, "sent": 0, "failed": 0}
+    for status, count in db.execute(
+        select(NotificationDelivery.status, func.count()).group_by(NotificationDelivery.status)
+    ).all():
+        delivery_stats[str(status)] = int(count or 0)
+    return render(
+        request, "notifications.html", db,
+        config=public_email_config(db), users=users, nodes=nodes,
+        deliveries=deliveries, campaigns=campaigns, delivery_stats=delivery_stats,
+        message=str(request.query_params.get("message") or "")[:500],
+        error=str(request.query_params.get("error") or "")[:500],
+    )
+
+
+@app.post("/system/notifications/settings", dependencies=[Depends(permission_required("notifications.manage"))])
+def notification_settings_save(
+    request: Request,
+    enabled: Optional[str] = Form(None),
+    auto_enabled: Optional[str] = Form(None),
+    smtp_host: str = Form(""),
+    smtp_port: int = Form(587),
+    smtp_security: str = Form("starttls"),
+    smtp_username: str = Form(""),
+    smtp_password: str = Form(""),
+    clear_smtp_password: Optional[str] = Form(None),
+    from_email: str = Form(""),
+    from_name: str = Form("StreamForge"),
+    reply_to: str = Form(""),
+    service_name: str = Form("StreamForge"),
+    support_contact: str = Form(""),
+    reminder_days: str = Form("30,14,7,3,1,0"),
+    user_subject: str = Form(DEFAULT_USER_SUBJECT),
+    user_body: str = Form(DEFAULT_USER_BODY),
+    node_subject: str = Form(DEFAULT_NODE_SUBJECT),
+    node_body: str = Form(DEFAULT_NODE_BODY),
+    db: Session = Depends(get_db),
+):
+    admin = current_admin(request, db)
+    if not admin:
+        return redirect_login()
+    host = smtp_host.strip()[:255]
+    sender = from_email.strip().lower()[:320]
+    reply = reply_to.strip().lower()[:320]
+    security = smtp_security if smtp_security in {"starttls", "ssl"} else "starttls"
+    try:
+        days = sorted(
+            {max(0, min(365, int(item.strip()))) for item in reminder_days.split(",") if item.strip()},
+            reverse=True,
+        )
+    except ValueError:
+        return _notification_redirect(error="Reminder days must be comma-separated numbers")
+    if not days:
+        return _notification_redirect(error="Set at least one reminder day")
+    if sender and not valid_email(sender):
+        return _notification_redirect(error="Enter a valid From email address")
+    if reply and not valid_email(reply):
+        return _notification_redirect(error="Enter a valid Reply-To email address")
+    if as_bool(enabled) and (not host or not sender):
+        return _notification_redirect(error="SMTP host and From email are required when email delivery is enabled")
+    if not user_subject.strip() or not user_body.strip() or not node_subject.strip() or not node_body.strip():
+        return _notification_redirect(error="All automatic email subjects and messages are required")
+    values = {
+        "enabled": "1" if as_bool(enabled) else "0",
+        "auto_enabled": "1" if as_bool(auto_enabled) else "0",
+        "smtp_host": host,
+        "smtp_port": str(max(1, min(65535, int(smtp_port or 587)))),
+        "smtp_security": security,
+        "smtp_username": smtp_username.strip()[:320],
+        "from_email": sender,
+        "from_name": from_name.strip()[:120] or "StreamForge",
+        "reply_to": reply,
+        "service_name": service_name.strip()[:120] or "StreamForge",
+        "support_contact": support_contact.strip()[:500] or "your service provider",
+        "reminder_days": ",".join(map(str, days)),
+        "user_subject": user_subject.strip()[:255],
+        "user_body": user_body.strip()[:20000],
+        "node_subject": node_subject.strip()[:255],
+        "node_body": node_body.strip()[:20000],
+    }
+    for name, value in values.items():
+        save_app_setting(db, NOTIFICATION_SETTING_PREFIX + name, value)
+    if as_bool(clear_smtp_password):
+        save_app_setting(db, NOTIFICATION_SETTING_PREFIX + "smtp_password_enc", "")
+    elif smtp_password:
+        save_app_setting(db, NOTIFICATION_SETTING_PREFIX + "smtp_password_enc", encrypt_secret(smtp_password) or "")
+    db.commit()
+    queued = queue_expiry_reminders(db) if as_bool(enabled) and as_bool(auto_enabled) else 0
+    log_event(
+        "Email notification settings updated", scope="system", actor=admin.username,
+        details={"enabled": as_bool(enabled), "automatic": as_bool(auto_enabled), "queued_reminders": queued},
+    )
+    return _notification_redirect(message=f"Email notification settings saved{f' · {queued} reminder(s) queued' if queued else ''}")
+
+
+@app.post("/system/notifications/test", dependencies=[Depends(permission_required("notifications.send"))])
+def notification_test_email(
+    request: Request, test_email: str = Form(""), db: Session = Depends(get_db),
+):
+    admin = current_admin(request, db)
+    if not admin:
+        return redirect_login()
+    recipient = test_email.strip().lower()
+    if not valid_email(recipient):
+        return _notification_redirect(error="Enter a valid test email address")
+    try:
+        send_test_email(db, recipient)
+    except Exception as exc:
+        return _notification_redirect(error=f"Test email failed: {str(exc)[:350]}")
+    log_event("Notification test email sent", scope="system", actor=admin.username, details={"recipient": recipient})
+    return _notification_redirect(message=f"Test email sent to {recipient}")
+
+
+@app.post("/system/notifications/campaign", dependencies=[Depends(permission_required("notifications.send"))])
+def notification_campaign_create(
+    request: Request,
+    campaign_name: str = Form(""),
+    subject: str = Form(""),
+    body: str = Form(""),
+    recipients: list[str] = Form(default=[]),
+    db: Session = Depends(get_db),
+):
+    admin = current_admin(request, db)
+    if not admin:
+        return redirect_login()
+    if not email_config(db).ready:
+        return _notification_redirect(error="Configure and enable SMTP before creating a campaign")
+    try:
+        campaign, count = queue_manual_campaign(
+            db, name=campaign_name, subject=subject, body=body, recipients=recipients, actor=admin.username,
+        )
+    except ValueError as exc:
+        return _notification_redirect(error=str(exc))
+    log_event(
+        "Email notification campaign queued", scope="system", actor=admin.username,
+        details={"campaign_id": campaign.id, "recipients": count},
+    )
+    return _notification_redirect(message=f"Campaign queued for {count} recipient(s)")
+
+
+@app.post("/system/notifications/deliveries/{delivery_id}/retry", dependencies=[Depends(permission_required("notifications.send"))])
+def notification_delivery_retry(delivery_id: int, request: Request, db: Session = Depends(get_db)):
+    admin = current_admin(request, db)
+    if not admin:
+        return redirect_login()
+    if not retry_delivery(db, delivery_id):
+        return _notification_redirect(error="Delivery cannot be retried")
+    log_event(
+        "Email notification delivery retried", scope="system", actor=admin.username,
+        details={"delivery_id": delivery_id},
+    )
+    return _notification_redirect(message="Delivery queued for retry")
 
 
 # STREAMFORGE_MAIN_WEB_GITHUB_UPDATE_V1299: Main update discovery is read-only
@@ -14419,6 +14629,8 @@ def user_create(
     xtream_password: str = Form(""),
     enabled: Optional[str] = Form(None),
     expires_at: str = Form(""),
+    contact_email: str = Form(""),
+    email_notifications: Optional[str] = Form(None),
     max_connections: int = Form(1),
     user_type: str = Form("viewer"),
     restream_allowed_ips: str = Form(""),
@@ -14443,6 +14655,9 @@ def user_create(
     profile = selected_playlist(db, playlist_id)
     effective_ids = [item.id for item in ordered_playlist_channels(profile)] if profile else channel_ids
     try:
+        cleaned_contact_email = contact_email.strip().lower()
+        if cleaned_contact_email and not valid_email(cleaned_contact_email):
+            raise ValueError("Enter a valid notification email address")
         clean_xtream_username, xtream_password_hash = validate_xtream_credentials(
             db, xtream_username, xtream_password
         )
@@ -14457,6 +14672,7 @@ def user_create(
         draft = type("UserDraft", (), {
             "name": name.strip() or xtream_username.strip(), "xtream_username": xtream_username.strip() or None,
             "xtream_password_hash": None, "enabled": as_bool(enabled), "expires_at": normalize_expiry(expires_at),
+            "contact_email": contact_email.strip(), "email_notifications": as_bool(email_notifications),
             "max_connections": max_connections, "user_type": ("restream" if user_type == "restream" else "viewer"),
             "restream_allowed_ips": restream_allowed_ips, "load_balance_enabled": load_balancing,
             "delivery_mode": delivery_mode, "direct_node_id": direct_node_id, "notes": notes,
@@ -14474,6 +14690,7 @@ def user_create(
         restream_allowed_ips=normalized_restream_ips or None,
         load_balance_enabled=load_balancing, delivery_mode=mode,
         direct_node=direct_node, expires_at=normalize_expiry(expires_at),
+        contact_email=cleaned_contact_email or None, email_notifications=as_bool(email_notifications),
         max_connections=max(0, min(100, int(max_connections or 0))), notes=notes.strip() or None,
         playlist=profile,
         playlist_order=(profile.channel_order if profile else json.dumps(parse_playlist_order(playlist_order, {item.id for item in channels}), separators=(",", ":"))),
@@ -14513,6 +14730,8 @@ def user_update(
     xtream_password: str = Form(""),
     enabled: Optional[str] = Form(None),
     expires_at: str = Form(""),
+    contact_email: str = Form(""),
+    email_notifications: Optional[str] = Form(None),
     max_connections: int = Form(1),
     user_type: str = Form("viewer"),
     restream_allowed_ips: str = Form(""),
@@ -14537,6 +14756,9 @@ def user_update(
     profile = selected_playlist(db, playlist_id)
     effective_ids = [item.id for item in ordered_playlist_channels(profile)] if profile else channel_ids
     try:
+        cleaned_contact_email = contact_email.strip().lower()
+        if cleaned_contact_email and not valid_email(cleaned_contact_email):
+            raise ValueError("Enter a valid notification email address")
         clean_xtream_username, xtream_password_hash = validate_xtream_credentials(
             db, xtream_username, xtream_password, current_user_id=user.id,
             existing_password_hash=user.xtream_password_hash,
@@ -14559,6 +14781,9 @@ def user_update(
         user.xtream_password_enc = None
     user.enabled = as_bool(enabled)
     user.expires_at = normalize_expiry(expires_at)
+    cancel_stale_expiry_deliveries(db, "stream_user", user.id, user.expires_at)
+    user.contact_email = cleaned_contact_email or None
+    user.email_notifications = as_bool(email_notifications)
     user.max_connections = max(0, min(100, int(max_connections or 0)))
     user.user_type = account_type
     user.restream_allowed_ips = normalized_restream_ips or None

@@ -218,6 +218,11 @@ class Node(Base):
     # treated as expired: playback/channel access is blocked until the date is
     # extended or cleared (unlimited). Leave NULL for unlimited (no expiry).
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    # STREAMFORGE_EMAIL_NOTIFICATIONS_V1302: billing contact used only by the
+    # Main notification worker. It is never synchronized to a Remote Node.
+    contact_name: Mapped[Optional[str]] = mapped_column(String(150), nullable=True)
+    contact_email: Mapped[Optional[str]] = mapped_column(String(320), nullable=True, index=True)
+    email_notifications: Mapped[bool] = mapped_column(Boolean, default=True)
     last_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
@@ -363,6 +368,8 @@ class StreamUser(Base):
         ForeignKey("playlist_profiles.id", ondelete="SET NULL"), nullable=True, index=True
     )
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    contact_email: Mapped[Optional[str]] = mapped_column(String(320), nullable=True, index=True)
+    email_notifications: Mapped[bool] = mapped_column(Boolean, default=True)
     max_connections: Mapped[int] = mapped_column(Integer, default=1)
     user_type: Mapped[str] = mapped_column(String(20), default="viewer", index=True)
     restream_allowed_ips: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -380,6 +387,45 @@ class StreamUser(Base):
         back_populates="direct_stream_users", foreign_keys=[direct_node_id]
     )
     playlist: Mapped[Optional[PlaylistProfile]] = relationship(back_populates="users")
+
+
+# STREAMFORGE_EMAIL_NOTIFICATIONS_V1302: campaigns and per-recipient deliveries
+# are persisted so retries, deduplication and audit history survive restarts.
+class NotificationCampaign(Base):
+    __tablename__ = "notification_campaigns"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(180))
+    target_type: Mapped[str] = mapped_column(String(30), default="selected", index=True)
+    subject: Mapped[str] = mapped_column(String(255))
+    body: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(30), default="queued", index=True)
+    created_by: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    scheduled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class NotificationDelivery(Base):
+    __tablename__ = "notification_deliveries"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    campaign_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("notification_campaigns.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    recipient_type: Mapped[str] = mapped_column(String(30), index=True)
+    recipient_id: Mapped[int] = mapped_column(Integer, index=True)
+    recipient_name: Mapped[str] = mapped_column(String(180))
+    email: Mapped[str] = mapped_column(String(320), index=True)
+    event_type: Mapped[str] = mapped_column(String(60), default="manual", index=True)
+    dedupe_key: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    subject: Mapped[str] = mapped_column(String(255))
+    body: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(30), default="queued", index=True)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    scheduled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+    sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 class NodeStreamUser(Base):
     __tablename__ = "node_stream_users"

@@ -169,6 +169,8 @@ else:
     main_updates_ui_v1300 = "STREAMFORGE_V1300_MAIN_UPDATES_UI_UPDATER" in text
     # STREAMFORGE_RELEASE_RESPONSIVE_MAIN_UPDATES_V1301:
     responsive_main_updates_v1301 = "STREAMFORGE_V1301_FULLY_RESPONSIVE_MAIN_UPDATES_UPDATER" in text
+    # STREAMFORGE_RELEASE_EMAIL_NOTIFICATION_CENTER_V1302:
+    email_notification_center_v1302 = "STREAMFORGE_V1302_EMAIL_NOTIFICATION_CENTER_UPDATER" in text
 
     if "STREAMFORGE_V1284_ROLE_MANAGER_UPDATER" in text:
         for marker in (
@@ -446,6 +448,34 @@ else:
         ):
             if marker not in text:
                 errors.append(f"{updater.name} v12.98 contract missing {marker}")
+    elif email_notification_center_v1302:
+        if 'cp -a "$SRC/." "$STAGE/"' in text:
+            errors.append(f"{updater.name} v13.02 must not copy the entire tree")
+        if re.search(r'systemctl[ \t]+(restart|reload)[ \t]+(nginx|streamforge-channel-supervisor)', text):
+            errors.append(f"{updater.name} v13.02 must not restart Nginx or the channel supervisor")
+        for marker in (
+            'STREAMFORGE_V1302_EMAIL_NOTIFICATION_CENTER_UPDATER',
+            'app/notification_manager.py',
+            'app/templates/notifications.html',
+            'STREAMFORGE_EMAIL_NOTIFICATIONS_V1302',
+            'notifications.manage',
+            'ix_stream_users_contact_email',
+            '13.01|13.02',
+            'OLD_NODE_BLOB="85c42f3419a8584752e5e166230f508b6675d6a6"',
+            'NEW_NODE_BLOB="85c42f3419a8584752e5e166230f508b6675d6a6"',
+            'STREAMFORGE_V1302_LOCAL_NODE_AGENT_OPTIONAL',
+            'STREAMFORGE_V1302_NEW_NOTIFICATION_FILES',
+            'STREAMFORGE_V1302_TEST_FAIL_AFTER_WRITE',
+            'ROLLBACK=1',
+            'RESTARTED=1',
+            'systemctl restart streamforge',
+            'systemctl restart streamforge-public',
+            'systemctl is-active --quiet streamforge-public',
+            'Rolling back from',
+            'atomic_copy',
+        ):
+            if marker not in text:
+                errors.append(f"{updater.name} v13.02 contract missing {marker}")
     elif responsive_main_updates_v1301:
         if 'cp -a "$SRC/." "$STAGE/"' in text:
             errors.append(f"{updater.name} v13.01 must not copy the entire tree")

@@ -173,6 +173,16 @@ def ensure_runtime_schema() -> None:
             statements.append("ALTER TABLE nodes ADD COLUMN asn_whitelist TEXT")
         if "asn_blacklist" not in node_columns:
             statements.append("ALTER TABLE nodes ADD COLUMN asn_blacklist TEXT")
+        if "contact_name" not in node_columns:
+            statements.append("ALTER TABLE nodes ADD COLUMN contact_name VARCHAR(150)")
+        if "contact_email" not in node_columns:
+            statements.append("ALTER TABLE nodes ADD COLUMN contact_email VARCHAR(320)")
+        if "email_notifications" not in node_columns:
+            statements.append(
+                "ALTER TABLE nodes ADD COLUMN email_notifications BOOLEAN NOT NULL DEFAULT 1"
+                if dialect == "sqlite" else
+                "ALTER TABLE nodes ADD COLUMN email_notifications BOOLEAN NOT NULL DEFAULT TRUE"
+            )
 
     if "channel_categories" in table_names:
         category_columns = {column["name"] for column in inspector.get_columns("channel_categories")}
@@ -216,6 +226,14 @@ def ensure_runtime_schema() -> None:
             statements.append("ALTER TABLE stream_users ADD COLUMN user_type VARCHAR(20) NOT NULL DEFAULT 'viewer'")
         if "restream_allowed_ips" not in user_columns:
             statements.append("ALTER TABLE stream_users ADD COLUMN restream_allowed_ips TEXT")
+        if "contact_email" not in user_columns:
+            statements.append("ALTER TABLE stream_users ADD COLUMN contact_email VARCHAR(320)")
+        if "email_notifications" not in user_columns:
+            statements.append(
+                "ALTER TABLE stream_users ADD COLUMN email_notifications BOOLEAN NOT NULL DEFAULT 1"
+                if dialect == "sqlite" else
+                "ALTER TABLE stream_users ADD COLUMN email_notifications BOOLEAN NOT NULL DEFAULT TRUE"
+            )
 
     if "node_stream_users" in table_names:
         node_user_columns = {column["name"] for column in inspector.get_columns("node_stream_users")}
@@ -327,12 +345,15 @@ def ensure_runtime_schema() -> None:
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_stream_users_direct_node_id ON stream_users(direct_node_id)"))
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_stream_users_playlist_id ON stream_users(playlist_id)"))
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_stream_users_xtream_username ON stream_users(xtream_username)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_stream_users_contact_email ON stream_users(contact_email)"))
             if dialect == "sqlite":
                 connection.execute(text(
                     "CREATE UNIQUE INDEX IF NOT EXISTS ux_stream_users_xtream_username_lower "
                     "ON stream_users(lower(xtream_username)) "
                     "WHERE xtream_username IS NOT NULL AND xtream_username <> ''"
                 ))
+        if "nodes" in table_names:
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_nodes_contact_email ON nodes(contact_email)"))
 
         # Base.metadata.create_all creates the association tables. Backfill them
         # from the legacy single-node column without overwriting later choices.
