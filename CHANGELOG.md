@@ -1,3 +1,7 @@
+## 13.12 - 2026-11-05
+
+- Put all Node owner controls in one large-screen row, render saved templates in Test SMS, add targeted expiry-variable tests and optically align collapsed footer glyphs.
+
 ## 13.11 - 2026-11-05
 
 - Fixed the updater version gate so installed v13.09 servers can update successfully. Aligned collapsed-sidebar account/logout icons on wide screens.

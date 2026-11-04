@@ -9,7 +9,9 @@
 # STREAMFORGE_V1308_TEMPLATE_VALUES:
 # STREAMFORGE_V1309_NOTIFICATION_CENTER:
 # STREAMFORGE_V1310_TIMEZONE_FIX:
-# STREAMFORGE_V1311_LIVE_UPDATE_AND_ICON_FIX: updater accepts every released
+# STREAMFORGE_V1311_LIVE_UPDATE_AND_ICON_FIX:
+# STREAMFORGE_V1312_EXACT_UI_TEMPLATE_FIX: Test SMS renders its saved template
+# and Node owner fields use one large-screen row. updater accepts every released
 # Main version through 13.11 and the collapsed sidebar footer is centered. expiry_date is rendered in the configured server timezone. delivery body inspection and timezone-aware settings. manual campaigns receive expiry values and
 # flexible brace syntax is rendered consistently. release package includes the complete
 # Notification Center template and the compact Node owner recipient row.
@@ -191,7 +193,14 @@ def send_sms(config: SmsConfig, recipient: str, message: str) -> str:
 
 
 def send_test_sms(db: Session, recipient: str) -> None:
-    send_sms(sms_config(db), recipient, "StreamForge SMS notification test. This test did not change any subscription or service.")
+    sms = sms_config(db)
+    email = email_config(db)
+    expiry = _utcnow() + timedelta(days=7)
+    values = _template_values(
+        recipient_name="Test Customer", expiry=expiry, days_remaining=7,
+        node_name="Test Node", config=email,
+    )
+    send_sms(sms, recipient, render_template(sms.user_body, values))
 
 
 @dataclass(frozen=True)

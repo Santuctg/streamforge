@@ -63,11 +63,27 @@ with Session() as db:
         db,
         name="Discontinuation",
         subject="Notice from {service_name}",
-        body="Hello {customer_name}; node={node_name}; support={support_contact}",
+        body="Hello {customer_name}; expires={expiry_date}; days={{ days_remaining }}; node={node_name}; support={support_contact}",
         recipients=[f"user:{user.id}", f"node:{node.id}"],
         actor="admin",
     )
     assert campaign.id and count == 2
+    manual = db.scalars(select(NotificationDelivery).where(NotificationDelivery.campaign_id == campaign.id).order_by(NotificationDelivery.id)).all()
+    assert all("{expiry_date}" not in item.body and "days={{" not in item.body for item in manual)
+    assert all("expires=—" not in item.body for item in manual)
+    assert "days=2" in manual[0].body and "days=10" in manual[1].body
+
+    # Test SMS renders the saved User template with sample expiry values; it
+    # must not send raw variables to the provider.
+    captured_sms: list[str] = []
+    original_send_sms = manager.send_sms
+    manager.send_sms = lambda _config, _phone, body: captured_sms.append(body) or "test-id"
+    try:
+        manager.send_test_sms(db, "01700000000")
+    finally:
+        manager.send_sms = original_send_sms
+    assert captured_sms and "{expiry_date}" not in captured_sms[0] and "{days_remaining}" not in captured_sms[0]
+    assert "Test Customer" in captured_sms[0]
 
     sent: list[tuple[str, str]] = []
     original_send = manager.send_email
