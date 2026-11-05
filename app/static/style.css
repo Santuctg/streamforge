@@ -3592,3 +3592,32 @@ textarea:-webkit-autofill:focus{
     transform:translateX(-10px)!important;
   }
 }
+
+/* STREAMFORGE_COLLAPSED_FOOTER_DEVICE_INDEPENDENT_CENTER:
+   Native/overlay scrollbars give #main-navigation different content widths on
+   different devices. Remove only the footer from that geometry and anchor its
+   56px box directly at x=9.5 inside the 76px sidebar. The sidebar's 1px right
+   border puts the upper navigation center at x=37.5; this anchor gives the
+   footer controls that exact same immutable center on every desktop browser. */
+@media(min-width:761px){
+  .app-shell.sidebar-collapsed .sidebar .main-nav-links{
+    padding-bottom:112px!important;
+  }
+  .app-shell.sidebar-collapsed .sidebar-bottom{
+    position:fixed!important;
+    left:9.5px!important;
+    right:auto!important;
+    bottom:18px!important;
+    z-index:20!important;
+    box-sizing:border-box!important;
+    display:grid!important;
+    grid-template-columns:44px!important;
+    width:56px!important;
+    min-width:56px!important;
+    margin:0!important;
+    padding:12px 6px 0!important;
+    justify-items:center!important;
+    transform:none!important;
+    background:#0d131b!important;
+  }
+}

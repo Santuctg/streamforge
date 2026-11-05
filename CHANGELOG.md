@@ -1,3 +1,7 @@
+## 13.15 - 2026-11-05
+
+- Removed collapsed footer alignment from the browser-dependent navigation scrollbar geometry. The two footer controls now use a fixed 56px box at x=9.5 inside the bordered 76px sidebar, matching the upper navigation center at x=37.5 on every desktop scrollbar model.
+
 ## 13.14 - 2026-11-05
 
 - Shifted only the collapsed footer controls onto the navigation icon center line. Simplified Playlist User notification labels and removed helper copy. Moved timezone from Notification Center to Settings as a worker-loaded global system timezone, preserving the previous notification timezone as fallback.
