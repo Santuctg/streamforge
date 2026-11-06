@@ -9781,6 +9781,8 @@ def notification_delivery_retry(delivery_id: int, request: Request, db: Session 
 # STREAMFORGE_MAIN_WEB_GITHUB_UPDATE_V1299: Main update discovery is read-only
 # in the web worker. The root helper independently re-fetches GitHub metadata,
 # verifies every asset SHA256, and executes sequential official updaters.
+# STREAMFORGE_MAIN_GITHUB_RATE_LIMIT_V1317: the read-only release feed cache
+# TTL is 5 minutes and optional GitHub tokens raise the hourly anonymous cap.
 STREAMFORGE_GITHUB_RELEASES_API = "https://api.github.com/repos/Santuctg/streamforge/releases?per_page=100"
 _github_release_cache: dict[str, object] = {"checked_at": 0.0, "release": {}}
 _github_release_cache_lock = threading.Lock()
@@ -9796,14 +9798,31 @@ def _release_version_key(value: object) -> tuple[int, ...]:
 def _github_latest_release() -> dict[str, str]:
     with _github_release_cache_lock:
         cached = _github_release_cache.get("release")
-        if isinstance(cached, dict) and cached and time.monotonic() - float(_github_release_cache.get("checked_at") or 0) < 60:
+        if isinstance(cached, dict) and cached and time.monotonic() - float(_github_release_cache.get("checked_at") or 0) < 300:
             return {str(key): str(value) for key, value in cached.items()}
+    # STREAMFORGE_MAIN_GITHUB_API_TOKEN_V1317: anonymous api.github.com calls
+    # are capped at 60 per hour per server IP. An optional read-only token
+    # (STREAMFORGE_GITHUB_TOKEN or GITHUB_TOKEN) raises the cap to 5000/hour.
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": f"StreamForge-Main/{APP_VERSION}"}
+    github_token = str(os.getenv("STREAMFORGE_GITHUB_TOKEN") or os.getenv("GITHUB_TOKEN") or "").strip()
+    if github_token:
+        headers["Authorization"] = f"Bearer {github_token}"
     github_request = urllib.request.Request(
         STREAMFORGE_GITHUB_RELEASES_API,
-        headers={"Accept": "application/vnd.github+json", "User-Agent": f"StreamForge-Main/{APP_VERSION}"},
+        headers=headers,
     )
-    with urllib.request.urlopen(github_request, timeout=12) as response:
-        raw = json.loads(response.read(2 * 1024 * 1024).decode("utf-8"))
+    try:
+        with urllib.request.urlopen(github_request, timeout=12) as response:
+            raw = json.loads(response.read(2 * 1024 * 1024).decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        if exc.code in (403, 429) and isinstance(cached, dict) and cached:
+            return {str(key): str(value) for key, value in cached.items()}
+        if exc.code in (403, 429):
+            raise ValueError(
+                "GitHub API rate limit exceeded. The anonymous quota resets hourly; "
+                "set STREAMFORGE_GITHUB_TOKEN in /etc/streamforge.env for a 5000 requests/hour limit."
+            ) from exc
+        raise
     if not isinstance(raw, list):
         raise ValueError("GitHub returned an invalid release list")
     releases: list[dict[str, str]] = []

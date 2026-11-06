@@ -1,3 +1,7 @@
+## 13.17 - 2026-11-07
+
+- Stopped scheduled Main updates from failing on GitHub's anonymous API quota: one tag-scoped metadata request per sequential minor update, optional STREAMFORGE_GITHUB_TOKEN auth, a 5-minute web feed cache with stale fallback and rate-limit messages that explain the reset and token option. The privileged system-control helper is refreshed by the updater. Node Agent bytes unchanged.
+
 ## 13.16 - 2026-11-07
 
 - Fixed Node WebPlayer playback failure for duplicate stream ids: media URLs use the unique channel key, grant aliasing is first-claim and resolution prefers exact key matches. One channel of a duplicated stream no longer fails with 403 "Playback path mismatch" while every other path keeps working.

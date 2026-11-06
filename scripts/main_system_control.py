@@ -93,17 +93,70 @@ def _version_key(value: object) -> tuple[int, ...]:
     return tuple(int(part) for part in cleaned.split("."))
 
 
+# STREAMFORGE_MAIN_GITHUB_API_TOKEN_V1317: anonymous api.github.com requests
+# are capped at 60 per hour per server IP, which made scheduled updates fail
+# with HTTP 403 "rate limit exceeded" before any package was even downloaded.
+# A read-only token (STREAMFORGE_GITHUB_TOKEN or GITHUB_TOKEN from the service
+# environment or /etc/streamforge.env) raises the cap to 5000 requests/hour.
+def _load_streamforge_env() -> None:
+    env_file = Path("/etc/streamforge.env")
+    try:
+        lines = env_file.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return
+    for line in lines:
+        key, _, value = line.partition("=")
+        key = key.strip()
+        if not key or key.startswith("#"):
+            continue
+        if key not in os.environ:
+            os.environ[key] = value.strip().strip('"').strip("'")
+
+
+def _github_auth_headers(user_agent: str) -> dict[str, str]:
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": user_agent}
+    token = str(os.getenv("STREAMFORGE_GITHUB_TOKEN") or os.getenv("GITHUB_TOKEN") or "").strip()
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    return headers
+
+
+def _fetch_release_json(url: str, user_agent: str) -> object:
+    request = urllib.request.Request(url, headers=_github_auth_headers(user_agent))
+    try:
+        with urllib.request.urlopen(request, timeout=20) as response:
+            return json.loads(response.read(3 * 1024 * 1024).decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        if exc.code in (403, 429):
+            raise RuntimeError(
+                "GitHub API rate limit exceeded. The anonymous quota resets "
+                "hourly; set STREAMFORGE_GITHUB_TOKEN in /etc/streamforge.env "
+                "for a 5000 requests/hour limit."
+            ) from exc
+        raise
+
+
 def _github_update_plan(installed: str, target: str) -> list[dict[str, str]]:
     installed_key = _version_key(installed)
     target_key = _version_key(target)
     if not installed_key or not target_key or target_key <= installed_key:
         raise RuntimeError("Target release is not newer than the installed version")
-    request = urllib.request.Request(
-        GITHUB_RELEASES_API,
-        headers={"Accept": "application/vnd.github+json", "User-Agent": f"StreamForge-Root-Updater/{installed}"},
-    )
-    with urllib.request.urlopen(request, timeout=20) as response:
-        releases = json.loads(response.read(3 * 1024 * 1024).decode("utf-8"))
+    _load_streamforge_env()
+    releases: object = None
+    # STREAMFORGE_MAIN_TAG_SCOPED_RELEASE_PLAN_V1317: sequential minor updates
+    # need only the target release, so one /releases/tags/{tag} request plans
+    # the whole step instead of the heavy listing request that shared server
+    # IPs burned through the anonymous 60-per-hour API cap with.
+    if installed_key[0] == target_key[0] and len(target_key) == len(installed_key) == 2 and target_key[1] == installed_key[1] + 1:
+        scoped = _fetch_release_json(
+            "https://api.github.com/repos/Santuctg/streamforge/releases/tags/v" + target,
+            f"StreamForge-Root-Updater/{installed}",
+        )
+        if isinstance(scoped, dict) and not scoped.get("draft") and not scoped.get("prerelease"):
+            releases = [scoped]
+    if releases is None:
+        releases = _fetch_release_json(
+            GITHUB_RELEASES_API, f"StreamForge-Root-Updater/{installed}")
     if not isinstance(releases, list):
         raise RuntimeError("GitHub returned an invalid release list")
     plan: list[dict[str, str]] = []
