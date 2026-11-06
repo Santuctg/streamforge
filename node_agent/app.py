@@ -11120,11 +11120,17 @@ def resolve_node_playback_key(playback_key: str, channel_ref: str, request: Requ
             mapped_key = str(channel_map.get(str(channel_ref)) or "") if isinstance(channel_map, dict) else ""
             if mapped_key:
                 return user, str(grant.get("sid") or "")[:96], mapped_key
-            channel = next(
-                (item for item in _effective_user_channels(user)
-                 if str(channel_ref) in {item.key, str(_node_stream_id(item))}),
-                None,
-            )
+            # STREAMFORGE_NODE_PLAYBACK_RESOLVE_KEY_FIRST_V1316: lineups may
+            # repeat one upstream stream_id on two channels. Exact key wins,
+            # then the stream_id alias, so duplicate entries can never make a
+            # grant resolve to the wrong channel even with older session grants.
+            catalog_channels = _effective_user_channels(user)
+            channel = next((item for item in catalog_channels if item.key == str(channel_ref)), None)
+            if channel is None:
+                channel = next(
+                    (item for item in catalog_channels if str(_node_stream_id(item)) == str(channel_ref)),
+                    None,
+                )
         else:
             channel = next((item for item in _effective_user_channels(user) if item.key == granted_channel_key), None)
             if channel and str(channel_ref) not in {granted_channel_key, str(_node_stream_id(channel))}:
@@ -16623,22 +16629,28 @@ def node_web_player_watch(channel_key: str, request: Request):
     sid = manager.catalog_session_id(user, request)
     authorized_channel_map: dict[str, str] = {}
     for authorized_channel in channels:
-        authorized_channel_map[authorized_channel.key] = authorized_channel.key
-        authorized_channel_map[str(_node_stream_id(authorized_channel))] = authorized_channel.key
+        authorized_channel_map.setdefault(authorized_channel.key, authorized_channel.key)
+        # STREAMFORGE_NODE_WEBPLAYER_UNIQUE_STREAM_REF_V1316: two assigned
+        # channels can carry the same upstream stream_id (an M3U imported with
+        # the same stream listed twice). The old "=" alias assignment let the
+        # later duplicate overwrite the earlier claim, so one channel's media
+        # URL resolved to the other channel and failed the safe-key auth path
+        # check with 403 "Playback path mismatch". Keep the first claim.
+        stream_ref = str(_node_stream_id(authorized_channel))
+        authorized_channel_map.setdefault(stream_ref, authorized_channel.key)
     playback_key = issue_node_playback_key(
         user, channel, request, sid, authorized_channels=authorized_channel_map
     )
-    stream_id = _node_stream_id(channel)
-    # STREAMFORGE_NODE_WEBPLAYER_DIRECT_NGINX_INDEX_V1230:
-    # The WebPlayer already owns a session-wide playback grant, so start at
-    # Nginx's authenticated live playlist instead of paying for an additional
-    # Python/Redis master request. External playlist clients retain the legacy
-    # /node-play/.../master.m3u8 compatibility endpoint below.
+    # STREAMFORGE_NODE_WEBPLAYER_KEY_REF_V1316: the media URL must not repeat
+    # the ambiguous numeric stream_id. The channel key is unique by KEY_RE and
+    # matches the Nginx sf_channel_ref character class, so every card resolves
+    # to its own channel even for duplicate stream_id lineups. The stream_id
+    # alias stays in the grant for playlist-client compatibility only.
     safe_channel_key = manager.safe_key(channel.key)
     stream_url = (
         f"/_sf-node-media/"
         f"{urllib.parse.quote(playback_key, safe='')}/{urllib.parse.quote(sid, safe='')}/"
-        f"{urllib.parse.quote(str(stream_id), safe='')}/"
+        f"{urllib.parse.quote(channel.key, safe='')}/"
         f"{urllib.parse.quote(safe_channel_key, safe='')}/index.m3u8"
     )
     card_items = []
@@ -16650,12 +16662,11 @@ def node_web_player_watch(channel_key: str, request: Request):
         # The grant is session-wide (channel_key="*"); reuse the one key already
         # issued above instead of making one Redis round-trip per sidebar card.
         item_playback_key = playback_key
-        item_stream_id = _node_stream_id(item)
         item_safe_channel_key = manager.safe_key(item.key)
         item_stream_url = (
             f"/_sf-node-media/"
             f"{urllib.parse.quote(item_playback_key, safe='')}/{urllib.parse.quote(sid, safe='')}/"
-            f"{urllib.parse.quote(str(item_stream_id), safe='')}/"
+            f"{urllib.parse.quote(item.key, safe='')}/"
             f"{urllib.parse.quote(item_safe_channel_key, safe='')}/index.m3u8"
         )
         item_watch_url = f"{prefix}/web-player/watch/{urllib.parse.quote(item.key, safe='')}"

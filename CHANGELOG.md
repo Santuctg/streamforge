@@ -1,3 +1,7 @@
+## 13.16 - 2026-11-07
+
+- Fixed Node WebPlayer playback failure for duplicate stream ids: media URLs use the unique channel key, grant aliasing is first-claim and resolution prefers exact key matches. One channel of a duplicated stream no longer fails with 403 "Playback path mismatch" while every other path keeps working.
+
 ## 13.15 - 2026-11-05
 
 - Removed collapsed footer alignment from the browser-dependent navigation scrollbar geometry. The two footer controls now use a fixed 56px box at x=9.5 inside the bordered 76px sidebar, matching the upper navigation center at x=37.5 on every desktop scrollbar model.
