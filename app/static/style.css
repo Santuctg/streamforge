@@ -3621,3 +3621,61 @@ textarea:-webkit-autofill:focus{
     background:#0d131b!important;
   }
 }
+
+/* STREAMFORGE_HELP_TEXT_INFO_BUTTONS_V1318:
+   Every inline field help text renders as a small ⓘ button right after its
+   caption. The original help element keeps its identity (dynamic texts such
+   as data-destination-help / data-selected-user-help keep updating) but is
+   hidden with .sf-help-source; app.js clones its HTML into a white bubble
+   fixed above the button with a downward pointer (flipped below near the
+   top edge), shown on hover/focus and pinned by click/tap. */
+body .sf-help-source{display:none!important}
+body .sf-help-title{display:inline!important}
+body .sf-help-btn.sf-help-btn{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:15px;height:15px;min-width:15px;min-height:15px;padding:0;margin:0 0 0 4px;
+  border:1.3px solid currentColor;border-radius:50%;
+  background:transparent;color:inherit;opacity:.7;
+  font:700 italic 10px/1 Georgia,'Times New Roman',serif;
+  cursor:pointer;vertical-align:middle;
+  appearance:none;-webkit-appearance:none;
+}
+.sf-help-btn:hover,.sf-help-btn:focus-visible{
+  opacity:1;color:var(--accent,#37c7a2);border-color:var(--accent,#37c7a2);outline:none;
+}
+body .sf-help-btn.sf-help-btn:hover,body .sf-help-btn.sf-help-btn:focus-visible{outline:none}
+.sf-help-btn:focus-visible{box-shadow:0 0 0 3px rgba(55,199,162,.30)}
+.sf-help-btn[hidden]{display:none!important}
+body .sf-help-bubble.sf-help-bubble{
+  position:fixed;left:0;top:0;z-index:20000;
+  box-sizing:border-box;display:block;
+  width:max-content;max-width:min(340px,calc(100vw - 24px));
+  padding:9px 12px;margin:0;
+  background:#fff;color:#24303d;
+  border:1px solid #d9e0e8;border-radius:9px;
+  box-shadow:0 14px 34px rgba(3,10,18,.30),0 2px 6px rgba(3,10,18,.18);
+  font-size:12px;font-weight:400;line-height:1.55;
+  letter-spacing:normal;text-transform:none;text-align:left;
+  opacity:0;visibility:hidden;pointer-events:none;
+  transition:opacity .12s ease,visibility .12s ease;
+}
+body .sf-help-bubble.sf-help-bubble.is-open{opacity:1;visibility:visible;pointer-events:auto}
+body .sf-help-bubble a,body .sf-help-bubble .inline-link{color:#0e56c4;text-decoration:underline}
+body .sf-help-bubble strong,body .sf-help-bubble b{color:#111c28}
+body .sf-help-bubble .mono{
+  background:#eef2f7;color:#334155;padding:1px 4px;border-radius:4px;
+  font-size:11px;word-break:break-word;
+}
+body .sf-help-bubble .sf-help-part+.sf-help-part{
+  margin-top:7px;padding-top:7px;border-top:1px dashed #dde4ec;
+}
+body .sf-help-bubble.sf-help-bubble::after{
+  content:"";position:absolute;left:var(--sf-help-arrow-x,50%);bottom:-6px;
+  width:11px;height:11px;transform:translateX(-50%) rotate(45deg);
+  background:#fff;border-right:1px solid #d9e0e8;border-bottom:1px solid #d9e0e8;
+}
+body .sf-help-bubble.sf-help-bubble.sf-help-below::after{
+  bottom:auto;top:-6px;
+  border-right:0;border-bottom:0;
+  border-left:1px solid #d9e0e8;border-top:1px solid #d9e0e8;
+}

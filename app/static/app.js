@@ -2468,3 +2468,379 @@
 
   applyFilter();
 })();
+
+
+// STREAMFORGE_HELP_TEXT_INFO_BUTTONS_V1318:
+// Turns every inline panel help text into an ⓘ button next to its caption.
+// The original help element keeps its identity (so dynamic texts such as
+// data-destination-help / data-selected-user-help keep updating) but is
+// hidden with .sf-help-source; its HTML is cloned into a white bubble that
+// is fixed above the button with a downward pointer (flipped below near the
+// top edge). The bubble opens on hover/focus, stays open while the pointer
+// is over it, and is pinned by click/tap until clicked again, Esc, or a
+// press outside. Bare <small> captions inside labels join in only when they
+// are sentence-like help ("0 means unlimited."), never value badges
+// ("Effective now", "Remote · Prefix pinned").
+(() => {
+  const CAPTION_CLASS = 'sf-help-title';
+  const SOURCE_CLASS = 'sf-help-source';
+  const BUBBLE_CLASS = 'sf-help-bubble';
+  const SKIP_TITLE = 'input,select,textarea,button,option,small,script,style,svg,img,audio,video,canvas,a,[hidden],[class~="field-help"]';
+  const hasText = (node) => !!(node && node.nodeType === 3 && node.nodeValue && node.nodeValue.trim());
+
+  // Backward search: the caption text for a source is the nearest preceding
+  // text (descending into earlier siblings), stopping at the label boundary.
+  const nearestTitleText = (src, label) => {
+    let level = src;
+    while (level) {
+      let sib = level.previousSibling;
+      while (sib) {
+        if (hasText(sib)) return sib;
+        if (sib.nodeType === 1 && !sib.matches(SKIP_TITLE)) {
+          const found = endText(sib);
+          if (found) return found;
+        }
+        sib = sib.previousSibling;
+      }
+      const parent = level.parentNode;
+      if (!parent || parent === label || parent === document.body || parent.nodeType !== 1) break;
+      level = parent;
+    }
+    return null;
+  };
+
+  // Last non-skipped text inside an element (searched from the end).
+  const endText = (el) => {
+    for (let child = el.lastChild; child; child = child.previousSibling) {
+      if (hasText(child)) return child;
+      if (child.nodeType === 1 && !child.matches(SKIP_TITLE)) {
+        const found = endText(child);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  // Forward caption: the label's first real text outside controls and helps.
+  const captionText = (label) => {
+    const walker = document.createTreeWalker(label, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode();
+    while (node) {
+      if (node.nodeValue && node.nodeValue.trim()) {
+        let el = node.parentElement;
+        let skip = false;
+        while (el && el !== label) {
+          if (el.matches(SKIP_TITLE)) { skip = true; break; }
+          el = el.parentElement;
+        }
+        if (!skip) return node;
+      }
+      node = walker.nextNode();
+    }
+    return null;
+  };
+
+  const wrapText = (textNode, withButton) => {
+    const host = textNode.parentNode;
+    if (host && host.classList && host.classList.contains(CAPTION_CLASS)) {
+      if (withButton) host.appendChild(withButton);
+      return host;
+    }
+    const wrap = document.createElement('span');
+    wrap.className = CAPTION_CLASS;
+    host.insertBefore(wrap, textNode);
+    wrap.appendChild(textNode);
+    textNode.nodeValue = textNode.nodeValue.replace(/\s+/g, ' ').trim();
+    if (withButton) wrap.appendChild(withButton);
+    return wrap;
+  };
+
+  // Grid/flex title elements: park the caption text (plus button) in an
+  // inline wrapper so the button stays on the caption's line.
+  const wrapElementTexts = (el, withButton) => {
+    const existing = Array.from(el.children).find((child) => child.classList && child.classList.contains(CAPTION_CLASS));
+    if (existing) {
+      if (withButton) existing.appendChild(withButton);
+      return existing;
+    }
+    const texts = Array.from(el.childNodes).filter(hasText);
+    if (!texts.length) {
+      if (withButton) el.appendChild(withButton);
+      return el;
+    }
+    const wrap = document.createElement('span');
+    wrap.className = CAPTION_CLASS;
+    el.insertBefore(wrap, texts[0]);
+    texts.forEach((text) => {
+      text.nodeValue = text.nodeValue.replace(/\s+/g, ' ').trim();
+      wrap.appendChild(text);
+    });
+    if (withButton) wrap.appendChild(withButton);
+    return wrap;
+  };
+
+  // Resolve the stable element that anchors a label source's ⓘ button.
+  const resolveLabelKey = (src, label) => {
+    let title = nearestTitleText(src, label) || captionText(label);
+    if (!title) return null;
+    if (title.nodeType === 3) return wrapText(title, null);
+    const display = getComputedStyle(title).display;
+    if (display.includes('grid') || display.includes('flex')) return wrapElementTexts(title, null);
+    return title;
+  };
+
+  const sentenceHelp = (el) => {
+    const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
+    return text.length >= 10 && /[.!?]$/.test(text);
+  };
+
+  // First element (self or ancestor) whose computed display is none; when it
+  // is the source itself the page hides that help by its own rule.
+  const firstHidden = (el) => {
+    let node = el;
+    while (node && node.nodeType === 1) {
+      if (getComputedStyle(node).display === 'none') return node;
+      node = node.parentElement;
+    }
+    return null;
+  };
+
+  // Is the source hidden by the page's own rules? Our .sf-help-source class
+  // hides every converted source, so probe by lifting it for one read.
+  const ownHidden = (el) => {
+    if (getComputedStyle(el).display !== 'none') return false;
+    if (!el.classList.contains(SOURCE_CLASS)) return firstHidden(el) === el;
+    el.classList.remove(SOURCE_CLASS);
+    const hiddenByPage = getComputedStyle(el).display === 'none';
+    el.classList.add(SOURCE_CLASS);
+    return hiddenByPage;
+  };
+  const cleanText = (el) => (el.textContent || '').replace(/\s+/g, ' ').trim();
+
+  const groups = [];
+  let active = null;
+  let bubbleSeq = 0;
+  let placeFrame = 0;
+
+  const makeButton = (text) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'sf-help-btn';
+    btn.textContent = 'i';
+    btn.setAttribute('aria-label', text ? `Help: ${text.slice(0, 180)}` : 'Help');
+    btn.setAttribute('aria-expanded', 'false');
+    return btn;
+  };
+
+  const visibleParts = (group) => group.sources
+    .filter((source) => !ownHidden(source))
+    .map((source) => source.innerHTML.trim())
+    .filter(Boolean);
+
+  const syncButton = (group) => {
+    group.btn.hidden = group.sources.every((source) => ownHidden(source));
+    if (group.btn.hidden && active === group) closeNow(group);
+  };
+
+  const renderContent = (group) => {
+    const parts = visibleParts(group);
+    if (!parts.length) return false;
+    group.bubble.innerHTML = parts.length === 1
+      ? parts[0]
+      : parts.map((part) => `<div class="sf-help-part">${part}</div>`).join('');
+    return true;
+  };
+
+  const ensureBubble = (group) => {
+    if (group.bubble) return group.bubble;
+    const bubble = document.createElement('div');
+    bubble.className = BUBBLE_CLASS;
+    bubble.id = `sf-help-bubble-${++bubbleSeq}`;
+    bubble.setAttribute('role', 'tooltip');
+    document.body.appendChild(bubble);
+    group.bubble = bubble;
+    group.btn.setAttribute('aria-controls', bubble.id);
+    bubble.addEventListener('mouseenter', () => { group.overBubble = true; cancelClose(group); });
+    bubble.addEventListener('mouseleave', () => { group.overBubble = false; scheduleClose(group); });
+    return bubble;
+  };
+
+  const place = (group) => {
+    if (!group.bubble || active !== group) return;
+    const rect = group.btn.getBoundingClientRect();
+    if (!rect.width && !rect.height) return;
+    const viewW = document.documentElement.clientWidth;
+    const viewH = window.innerHeight;
+    const width = group.bubble.offsetWidth;
+    const height = group.bubble.offsetHeight;
+    let centerX = rect.left + rect.width / 2;
+    const half = width / 2 + 10;
+    if (centerX < half) centerX = half;
+    if (centerX > viewW - half) centerX = viewW - half;
+    const left = centerX - width / 2;
+    let top = rect.top - height - 9;
+    let below = false;
+    if (top < 8) {
+      below = true;
+      top = rect.bottom + 9;
+      if (top + height > viewH - 8) {
+        below = false;
+        top = Math.max(8, rect.top - height - 9);
+      }
+    }
+    group.bubble.classList.toggle('sf-help-below', below);
+    group.bubble.style.left = `${Math.round(left)}px`;
+    group.bubble.style.top = `${Math.round(top)}px`;
+    let arrowX = rect.left + rect.width / 2 - left;
+    if (arrowX < 8) arrowX = 8;
+    if (arrowX > width - 8) arrowX = width - 8;
+    group.bubble.style.setProperty('--sf-help-arrow-x', `${Math.round(arrowX)}px`);
+  };
+
+  const schedulePlace = () => {
+    if (placeFrame) return;
+    placeFrame = requestAnimationFrame(() => {
+      placeFrame = 0;
+      if (active) place(active);
+    });
+  };
+
+  const observeSources = (group) => {
+    if (group.observer) return;
+    group.observer = new MutationObserver(() => {
+      if (active !== group) return;
+      if (!renderContent(group)) { closeNow(group); return; }
+      const text = cleanText(group.sources.find((source) => !ownHidden(source)) || group.sources[0]);
+      group.btn.setAttribute('aria-label', text ? `Help: ${text.slice(0, 180)}` : 'Help');
+      place(group);
+    });
+    group.sources.forEach((source) => {
+      group.observer.observe(source, { childList: true, characterData: true, subtree: true });
+    });
+  };
+
+  const cancelClose = (group) => {
+    if (group.closeTimer) { clearTimeout(group.closeTimer); group.closeTimer = 0; }
+  };
+
+  const open = (group, pin) => {
+    if (pin) group.pinned = true;
+    if (active && active !== group) closeNow(active);
+    cancelClose(group);
+    if (group.btn.hidden) return;
+    ensureBubble(group);
+    if (!renderContent(group)) { group.btn.hidden = true; return; }
+    active = group;
+    group.bubble.classList.add('is-open');
+    group.btn.setAttribute('aria-expanded', 'true');
+    place(group);
+    observeSources(group);
+  };
+
+  const closeIfIdle = (group) => {
+    if (!group || group.pinned || group.hovered || group.focused || group.overBubble) return;
+    closeNow(group);
+  };
+
+  function closeNow(group) {
+    if (!group) return;
+    cancelClose(group);
+    group.pinned = false;
+    if (group.observer) { group.observer.disconnect(); group.observer = 0; }
+    if (group.bubble) group.bubble.classList.remove('is-open');
+    group.btn.setAttribute('aria-expanded', 'false');
+    if (active === group) active = null;
+  }
+
+  const scheduleClose = (group) => {
+    cancelClose(group);
+    group.closeTimer = setTimeout(() => { group.closeTimer = 0; closeIfIdle(group); }, 170);
+  };
+
+  const bindGroup = (group) => {
+    const { btn } = group;
+    btn.addEventListener('mouseenter', () => { group.hovered = true; open(group, false); });
+    btn.addEventListener('mouseleave', () => { group.hovered = false; scheduleClose(group); });
+    btn.addEventListener('focus', () => { group.focused = true; open(group, false); });
+    btn.addEventListener('blur', () => { group.focused = false; scheduleClose(group); });
+    btn.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (group.pinned) {
+        group.pinned = false;
+        closeIfIdle(group);
+      } else {
+        open(group, true);
+      }
+    });
+  };
+
+  // Standalone helps keep their exact grid/flex slot: a 1:1 wrapper replaces
+  // the source so inserting the button never shifts later siblings.
+  const wrapStandalone = (source, btn) => {
+    const host = source.parentNode;
+    if (!host) return null;
+    const wrap = document.createElement('span');
+    wrap.className = 'sf-help-standalone';
+    if (source.style && source.style.gridColumn) wrap.style.gridColumn = source.style.gridColumn;
+    host.insertBefore(wrap, source);
+    wrap.appendChild(btn);
+    wrap.appendChild(source);
+    source.classList.add(SOURCE_CLASS);
+    return wrap;
+  };
+
+  const init = () => {
+    const sources = [];
+    document.querySelectorAll('.field-help').forEach((el) => sources.push(el));
+    document.querySelectorAll('label small').forEach((el) => {
+      if (el.attributes.length === 0 && sentenceHelp(el)) sources.push(el);
+    });
+    const keys = new Map();
+    const standalone = [];
+    sources.forEach((source) => {
+      if (firstHidden(source) === source) return; // hidden by its own page rule
+      if (!cleanText(source)) return;
+      source.classList.add(SOURCE_CLASS);
+      const label = source.closest('label');
+      let key = null;
+      if (label) key = resolveLabelKey(source, label);
+      if (key && keys.has(key)) { keys.get(key).sources.push(source); return; }
+      const group = { sources: [source], btn: null, bubble: null, observer: 0, pinned: false, hovered: false, focused: false, overBubble: false, closeTimer: 0 };
+      group.btn = makeButton(cleanText(source));
+      if (key) {
+        key.appendChild(group.btn);
+        keys.set(key, group);
+      } else {
+        const wrap = wrapStandalone(source, group.btn);
+        if (!wrap) { source.classList.remove(SOURCE_CLASS); return; }
+        keys.set(wrap, group);
+      }
+      groups.push(group);
+      bindGroup(group);
+    });
+    groups.forEach(syncButton);
+
+    document.addEventListener('pointerdown', (event) => {
+      if (!active) return;
+      if (active.btn.contains(event.target)) return;
+      if (active.bubble && active.bubble.contains(event.target)) return;
+      closeNow(active);
+    }, true);
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && active) closeNow(active);
+    });
+    window.addEventListener('scroll', schedulePlace, { capture: true, passive: true });
+    window.addEventListener('resize', () => {
+      schedulePlace();
+      groups.forEach(syncButton);
+    });
+    window.STREAMFORGE_HELP_BUTTONS_V1318 = { groups, open, closeNow, place };
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init, { once: true });
+  } else {
+    init();
+  }
+})();

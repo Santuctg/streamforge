@@ -1,3 +1,7 @@
+## 13.18 - 2026-11-09
+
+- Turned every inline panel help text into a small ⓘ button next to its caption: hover or focus opens a white bubble with a downward pointer above the button (flipping below near the top edge, clamped to the viewport), click/tap pins it until clicked again, an outside press or Escape closes it, and moving into the bubble keeps it open. The original help elements keep their identity so dynamic texts keep updating, value badges such as "Effective now" stay inline, and hidden sections get their button when revealed. Main-only release; Remote Nodes do not need an update.
+
 ## 13.17 - 2026-11-07
 
 - Stopped scheduled Main updates from failing on GitHub's anonymous API quota: one tag-scoped metadata request per sequential minor update, optional STREAMFORGE_GITHUB_TOKEN auth, a 5-minute web feed cache with stale fallback and rate-limit messages that explain the reset and token option. The privileged system-control helper is refreshed by the updater. Node Agent bytes unchanged.
