@@ -44,7 +44,7 @@ for marker in (
     "sync_main_static_cache.py",
     "13.01|13.02|13.03|13.04|13.05|13.06|13.07|13.08|13.09|13.10|13.11|13.12|13.13|13.14|13.15|13.16|13.17|13.19",
     'OLD_NODE_BLOB="f8b125c8bb0f6081d881d180b88308db24866a36"',
-    'NEW_NODE_BLOB="228626b81c23199b71cee9f2586f5eeaa6010bc2"',
+    'NEW_NODE_BLOB="e68553e66bb4dfa07a1502c5d8e7b8621e5c99e3"',
     "app/static/app.js",
     "STREAMFORGE_HELP_TEXT_INFO_BUTTONS_V1318",
 ):
@@ -60,6 +60,9 @@ app_js = (PACKAGE / "app/static/app.js").read_text(encoding="utf-8")
 assert "STREAMFORGE_HELP_TEXT_INFO_BUTTONS_V1318" in app_js
 assert "btn.type = 'button'" in app_js
 assert "sf-help-bubble" in app_js and "sf-help-source" in app_js
+node_agent = (PACKAGE / "node_agent/app.py").read_text(encoding="utf-8")
+assert "STREAMFORGE_NODE_UPDATE_SUPERVISOR_RECOVERY_V1319" in node_agent
+assert '"supervisor_recovery": "pending_until_service_ready"' in node_agent
 manager = (PACKAGE / "app/notification_manager.py").read_text(encoding="utf-8")
 main = (PACKAGE / "app/main.py").read_text(encoding="utf-8")
 assert "STREAMFORGE_V1314_GLOBAL_SYSTEM_TIMEZONE" in main
@@ -67,7 +70,7 @@ assert "STREAMFORGE_MAIN_GITHUB_RATE_LIMIT_V1317" in main
 helper = (PACKAGE / "scripts/main_system_control.py").read_text(encoding="utf-8")
 for marker in ("STREAMFORGE_MAIN_GITHUB_API_TOKEN_V1317", "STREAMFORGE_MAIN_TAG_SCOPED_RELEASE_PLAN_V1317"):
     assert marker in helper, marker
-assert 'NEW_NODE_BLOB="228626b81c23199b71cee9f2586f5eeaa6010bc2"' in text
+assert 'NEW_NODE_BLOB="e68553e66bb4dfa07a1502c5d8e7b8621e5c99e3"' in text
 assert "STREAMFORGE_COLLAPSED_FOOTER_DEVICE_INDEPENDENT_CENTER" in style
 assert "position:fixed!important" in style and "left:9.5px!important" in style
 assert "DEFAULT_SMS_USER_BODY" in manager and "DEFAULT_SMS_NODE_BODY" in manager

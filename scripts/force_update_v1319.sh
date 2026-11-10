@@ -21,7 +21,7 @@ TEST="${STREAMFORGE_HOTFIX_TEST_MODE:-0}"
 TARGET="13.19"
 HELPER_BIN="${STREAMFORGE_MAIN_HELPER_BIN:-/usr/local/sbin/streamforge-main-system-control}"
 OLD_NODE_BLOB="f8b125c8bb0f6081d881d180b88308db24866a36"
-NEW_NODE_BLOB="228626b81c23199b71cee9f2586f5eeaa6010bc2"
+NEW_NODE_BLOB="e68553e66bb4dfa07a1502c5d8e7b8621e5c99e3"
 log(){ echo "[StreamForge v13.19] $*"; }
 die(){ echo "[StreamForge v13.19] ERROR: $*" >&2; exit 1; }
 [[ "$TEST" == 1 || $EUID -eq 0 ]] || die "root required"

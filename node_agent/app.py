@@ -10983,6 +10983,9 @@ async def update_agent(request: Request, x_streamforge_version: str | None = Hea
         "Node Agent update package accepted", scope="update",
         details=f"target={x_streamforge_version or 'unknown'}; preserved_encoders={preserved_encoders}",
     )
+    # STREAMFORGE_NODE_UPDATE_SUPERVISOR_RECOVERY_V1319: the response is sent
+    # before this worker exits, so callers must treat supervisor readiness as
+    # pending until the replacement service answers its first health request.
     threading.Thread(target=restart_self, daemon=True).start()
     return {
         "ok": True,
@@ -10991,6 +10994,7 @@ async def update_agent(request: Request, x_streamforge_version: str | None = Hea
         "target_version": x_streamforge_version or "unknown",
         "preserved_encoders": preserved_encoders,
         "zero_channel_restart": True,
+        "supervisor_recovery": "pending_until_service_ready",
     }
 
 
