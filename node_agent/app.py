@@ -346,6 +346,20 @@ def _supervisor_process_identity(pid: int) -> tuple[str, int] | None:
         return None
 
 
+def _supervisor_coordination_owned() -> bool:
+    """Return whether this process still owns the supervisor PID/socket pair."""
+    try:
+        fields = NODE_CHANNEL_SUPERVISOR_PID_FILE.read_text(encoding="utf-8").split()
+        if int(fields[0]) != os.getpid():
+            return False
+        identity = _supervisor_process_identity(os.getpid())
+        if not identity:
+            return False
+        return len(fields) == 1 or not fields[1].isdigit() or int(fields[1]) == identity[1]
+    except (OSError, ValueError, IndexError):
+        return False
+
+
 @contextmanager
 def _supervisor_lifecycle_lock():
     SUPERVISOR_LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -4593,6 +4607,19 @@ class AgentManager:
                         self._retry_pending_expiry_restore()
                         return True
                     time.sleep(0.2)
+                # STREAMFORGE_NODE_SUPERVISOR_UNRESPONSIVE_REPLACE_V1319: the
+                # PID was verified as this supervisor but it stopped answering;
+                # terminate that exact process before replacing its socket.
+                try:
+                    old_pid = int(NODE_CHANNEL_SUPERVISOR_PID_FILE.read_text(encoding="utf-8").split()[0])
+                    os.kill(old_pid, signal.SIGTERM)
+                    deadline = time.monotonic() + 4.0
+                    while time.monotonic() < deadline and self._supervisor_pid_alive():
+                        time.sleep(0.1)
+                    if self._supervisor_pid_alive():
+                        os.kill(old_pid, signal.SIGKILL)
+                except (OSError, ValueError, IndexError):
+                    pass
             try:
                 NODE_CHANNEL_SUPERVISOR_SOCKET.parent.mkdir(parents=True, exist_ok=True)
                 NODE_CHANNEL_SUPERVISOR_SOCKET.unlink(missing_ok=True)
@@ -9222,12 +9249,12 @@ def _run_channel_supervisor() -> int:
             manager.persist_channel_supervisor_runtime()
         except Exception:
             pass
-        try:
-            if NODE_CHANNEL_SUPERVISOR_PID_FILE.read_text(encoding="utf-8").strip() == str(os.getpid()):
+        # STREAMFORGE_NODE_SUPERVISOR_OWNED_CLEANUP_V1319: an old supervisor
+        # must not unlink a replacement supervisor's socket during shutdown.
+        with _supervisor_lifecycle_lock():
+            if _supervisor_coordination_owned():
                 NODE_CHANNEL_SUPERVISOR_PID_FILE.unlink(missing_ok=True)
-        except OSError:
-            pass
-        NODE_CHANNEL_SUPERVISOR_SOCKET.unlink(missing_ok=True)
+                NODE_CHANNEL_SUPERVISOR_SOCKET.unlink(missing_ok=True)
         manager.log("Dedicated channel supervisor process exited; FFmpeg groups preserved", scope="channel")
     return 0
 

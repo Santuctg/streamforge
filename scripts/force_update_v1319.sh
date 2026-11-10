@@ -21,13 +21,13 @@ TEST="${STREAMFORGE_HOTFIX_TEST_MODE:-0}"
 TARGET="13.19"
 HELPER_BIN="${STREAMFORGE_MAIN_HELPER_BIN:-/usr/local/sbin/streamforge-main-system-control}"
 OLD_NODE_BLOB="f8b125c8bb0f6081d881d180b88308db24866a36"
-NEW_NODE_BLOB="e68553e66bb4dfa07a1502c5d8e7b8621e5c99e3"
+NEW_NODE_BLOB="43d18ca8056512029e2628ab8314b498b2c9fff4"
 log(){ echo "[StreamForge v13.19] $*"; }
 die(){ echo "[StreamForge v13.19] ERROR: $*" >&2; exit 1; }
 [[ "$TEST" == 1 || $EUID -eq 0 ]] || die "root required"
 [[ "$(< "$SRC/VERSION")" == "$TARGET" && "$(< "$SRC/node_agent/VERSION")" == "$TARGET" ]] || die "package version mismatch"
-case "$(< "$ROOT/VERSION")" in 13.01|13.02|13.03|13.04|13.05|13.06|13.07|13.08|13.09|13.10|13.11|13.12|13.13|13.14|13.15|13.16|13.17|13.19) ;; *) die "requires installed Main v13.01 through v13.19";; esac
-case "$(< "$ROOT/node_agent/VERSION")" in 13.01|13.02|13.03|13.04|13.05|13.06|13.07|13.08|13.09|13.10|13.11|13.12|13.13|13.14|13.15|13.16|13.17|13.19) ;; *) die "requires bundled Node Agent v13.01 through v13.19";; esac
+case "$(< "$ROOT/VERSION")" in 13.01|13.02|13.03|13.04|13.05|13.06|13.07|13.08|13.09|13.10|13.11|13.12|13.13|13.14|13.15|13.16|13.17|13.18|13.19) ;; *) die "requires installed Main v13.01 through v13.19";; esac
+case "$(< "$ROOT/node_agent/VERSION")" in 13.01|13.02|13.03|13.04|13.05|13.06|13.07|13.08|13.09|13.10|13.11|13.12|13.13|13.14|13.15|13.16|13.17|13.18|13.19) ;; *) die "requires bundled Node Agent v13.01 through v13.19";; esac
 [[ -f "$SRC/scripts/sync_main_static_cache.py" ]] || die "missing package file scripts/sync_main_static_cache.py"
 FILES=(
   app/db.py

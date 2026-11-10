@@ -61,12 +61,12 @@ for marker in (
     "STREAMFORGE_V1319_STATIC_CACHE",
     "sync_main_static_cache.py",
     "STREAMFORGE_V1319_TEST_FAIL_AFTER_WRITE",
-    "13.01|13.02|13.03|13.04|13.05|13.06|13.07|13.08|13.09|13.10|13.11|13.12|13.13|13.14|13.15|13.16|13.17|13.19",
+    "13.01|13.02|13.03|13.04|13.05|13.06|13.07|13.08|13.09|13.10|13.11|13.12|13.13|13.14|13.15|13.16|13.17|13.18|13.19",
     "contact_phone",
     "sms_notifications",
     "sms.maestro.com.bd",
     'OLD_NODE_BLOB="f8b125c8bb0f6081d881d180b88308db24866a36"',
-    'NEW_NODE_BLOB="e68553e66bb4dfa07a1502c5d8e7b8621e5c99e3"',
+    'NEW_NODE_BLOB="43d18ca8056512029e2628ab8314b498b2c9fff4"',
     MARKER,
 ):
     assert marker in updater, marker
@@ -136,7 +136,7 @@ for marker in (
 assert "urllib.parse.quote(str(item_stream_id), safe='')/" not in node_app
 import hashlib
 node_digest = hashlib.sha1((ROOT / "node_agent" / "app.py").read_bytes()).hexdigest()
-assert node_digest == "e68553e66bb4dfa07a1502c5d8e7b8621e5c99e3", node_digest
+assert node_digest == "43d18ca8056512029e2628ab8314b498b2c9fff4", node_digest
 
 # --- v13.17 GitHub rate-limit contract carried unchanged -------------------
 helper = (ROOT / "scripts" / "main_system_control.py").read_text(encoding="utf-8")

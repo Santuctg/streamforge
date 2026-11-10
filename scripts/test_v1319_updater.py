@@ -42,9 +42,9 @@ for marker in (
     "STREAMFORGE_V1319_TEST_FAIL_AFTER_WRITE",
     "STREAMFORGE_V1319_STATIC_CACHE",
     "sync_main_static_cache.py",
-    "13.01|13.02|13.03|13.04|13.05|13.06|13.07|13.08|13.09|13.10|13.11|13.12|13.13|13.14|13.15|13.16|13.17|13.19",
+    "13.01|13.02|13.03|13.04|13.05|13.06|13.07|13.08|13.09|13.10|13.11|13.12|13.13|13.14|13.15|13.16|13.17|13.18|13.19",
     'OLD_NODE_BLOB="f8b125c8bb0f6081d881d180b88308db24866a36"',
-    'NEW_NODE_BLOB="e68553e66bb4dfa07a1502c5d8e7b8621e5c99e3"',
+    'NEW_NODE_BLOB="43d18ca8056512029e2628ab8314b498b2c9fff4"',
     "app/static/app.js",
     "STREAMFORGE_HELP_TEXT_INFO_BUTTONS_V1318",
 ):
@@ -70,7 +70,7 @@ assert "STREAMFORGE_MAIN_GITHUB_RATE_LIMIT_V1317" in main
 helper = (PACKAGE / "scripts/main_system_control.py").read_text(encoding="utf-8")
 for marker in ("STREAMFORGE_MAIN_GITHUB_API_TOKEN_V1317", "STREAMFORGE_MAIN_TAG_SCOPED_RELEASE_PLAN_V1317"):
     assert marker in helper, marker
-assert 'NEW_NODE_BLOB="e68553e66bb4dfa07a1502c5d8e7b8621e5c99e3"' in text
+assert 'NEW_NODE_BLOB="43d18ca8056512029e2628ab8314b498b2c9fff4"' in text
 assert "STREAMFORGE_COLLAPSED_FOOTER_DEVICE_INDEPENDENT_CENTER" in style
 assert "position:fixed!important" in style and "left:9.5px!important" in style
 assert "DEFAULT_SMS_USER_BODY" in manager and "DEFAULT_SMS_NODE_BODY" in manager
