@@ -1,0 +1,33 @@
+#!/usr/bin/env python3
+"""v13.19 dedicated supervisor and expiry-restore contract tests."""
+from pathlib import Path
+import shutil
+import subprocess
+
+ROOT = Path(__file__).resolve().parents[1]
+assert (ROOT / "VERSION").read_text().strip() == "13.19"
+assert (ROOT / "node_agent/VERSION").read_text().strip() == "13.19"
+
+agent = (ROOT / "node_agent/app.py").read_text(encoding="utf-8")
+for marker in (
+    "STREAMFORGE_NODE_SUPERVISOR_SINGLE_OWNER_V1319",
+    "STREAMFORGE_NODE_SUPERVISOR_STALE_COORDINATION_V1319",
+    "STREAMFORGE_NODE_EXPIRY_RESTORE_READY_RETRY_V1319",
+    "SUPERVISOR_LOCK_FILE",
+    "def _supervisor_process_identity",
+    "def _retry_pending_expiry_restore",
+):
+    assert marker in agent, marker
+
+for marker in (
+    "expiry_restore_desired",
+    "self._persist_expiry_restore(pending_restore)",
+    "Node subscription active; expired lock released",
+):
+    assert marker in agent, marker
+
+node = shutil.which("python3")
+if node:
+    subprocess.run([node, "-m", "py_compile", str(ROOT / "node_agent/app.py")], check=True)
+
+print("PASS: v13.19 Node supervisor ownership and expiry restore contract")
