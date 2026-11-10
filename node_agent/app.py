@@ -27,7 +27,7 @@ from concurrent.futures import ThreadPoolExecutor
 import threading
 import time
 from collections import deque
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, contextmanager
 from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -320,10 +320,43 @@ NODE_MODE = os.getenv("STREAMFORGE_NODE_MODE", "control").strip().lower() or "co
 NODE_DEDICATED_CHANNEL_SUPERVISOR = os.getenv("STREAMFORGE_NODE_CHANNEL_SUPERVISOR", "1").strip().lower() in {"1", "true", "yes", "on"}
 NODE_CHANNEL_SUPERVISOR_SOCKET = Path(os.getenv("STREAMFORGE_NODE_CHANNEL_SUPERVISOR_SOCKET", "/var/lib/streamforge-node/channel-supervisor.sock"))
 NODE_CHANNEL_SUPERVISOR_PID_FILE = Path(os.getenv("STREAMFORGE_NODE_CHANNEL_SUPERVISOR_PID_FILE", "/var/lib/streamforge-node/channel-supervisor.pid"))
+# STREAMFORGE_NODE_SUPERVISOR_SINGLE_OWNER_V1319: every control worker that
+# notices a missing supervisor must serialize the ping, stale-file decision,
+# spawn and readiness wait through one filesystem lock.
+SUPERVISOR_LOCK_FILE = Path(os.getenv(
+    "STREAMFORGE_NODE_CHANNEL_SUPERVISOR_LOCK_FILE",
+    str(NODE_CHANNEL_SUPERVISOR_SOCKET.with_name("channel-supervisor.lock")),
+))
 NODE_CHANNEL_SUPERVISOR_RUNTIME_FILE = Path(os.getenv("STREAMFORGE_NODE_CHANNEL_SUPERVISOR_RUNTIME_FILE", "/var/lib/streamforge-node/channel-supervisor-runtime.json"))
 NODE_CHANNEL_SUPERVISOR_LOG = Path(os.getenv("STREAMFORGE_NODE_CHANNEL_SUPERVISOR_LOG", "/var/lib/streamforge-node/channel-supervisor.log"))
 NODE_CHANNEL_SUPERVISOR_IO_ROOT = Path(os.getenv("STREAMFORGE_NODE_CHANNEL_SUPERVISOR_IO_ROOT", "/var/lib/streamforge-node/supervisor-io"))
 NODE_CHANNEL_OWNER = bool(NODE_MODE == "supervisor" or (NODE_MODE == "control" and not NODE_DEDICATED_CHANNEL_SUPERVISOR))
+
+
+# STREAMFORGE_NODE_SUPERVISOR_PID_START_TIME_V1319: a PID file is not an
+# identity. Pair the command line with Linux's process start tick so a reused
+# PID cannot be mistaken for the dedicated channel supervisor.
+def _supervisor_process_identity(pid: int) -> tuple[str, int] | None:
+    try:
+        command = Path(f"/proc/{int(pid)}/cmdline").read_bytes().replace(b"\0", b" ").decode(errors="replace")
+        stat = Path(f"/proc/{int(pid)}/stat").read_text(encoding="utf-8")
+        after_name = stat.rsplit(")", 1)[1].split()
+        return command.strip(), int(after_name[19])
+    except (OSError, ValueError, IndexError):
+        return None
+
+
+@contextmanager
+def _supervisor_lifecycle_lock():
+    SUPERVISOR_LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with SUPERVISOR_LOCK_FILE.open("a+") as handle:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
 NODE_PUBLIC_WORKER_COUNT = max(1, int(os.getenv("STREAMFORGE_NODE_PUBLIC_WORKER_COUNT", "1")))
 # STREAMFORGE_NODE_PUBLIC_SYSTEMD_SPLIT_V79: modern Remote Nodes run the high-volume
 # Playlist/API pool in streamforge-node-public.service, never as a child of the
@@ -4509,8 +4542,14 @@ class AgentManager:
 
     def _supervisor_pid_alive(self) -> bool:
         try:
-            pid = int(NODE_CHANNEL_SUPERVISOR_PID_FILE.read_text(encoding="utf-8").strip())
+            fields = NODE_CHANNEL_SUPERVISOR_PID_FILE.read_text(encoding="utf-8").split()
+            pid = int(fields[0])
             if pid <= 1:
+                return False
+            identity = _supervisor_process_identity(pid)
+            if not identity or "--channel-supervisor" not in identity[0]:
+                return False
+            if len(fields) > 1 and fields[1].isdigit() and int(fields[1]) != identity[1]:
                 return False
             os.kill(pid, 0)
             return True
@@ -4520,6 +4559,13 @@ class AgentManager:
     def ensure_channel_supervisor(self) -> bool:
         if NODE_MODE != "control" or not NODE_DEDICATED_CHANNEL_SUPERVISOR:
             return False
+        with _supervisor_lifecycle_lock():
+            return self._ensure_channel_supervisor_locked()
+
+    def _ensure_channel_supervisor_locked(self) -> bool:
+        # STREAMFORGE_NODE_SUPERVISOR_STALE_COORDINATION_V1319: this method is
+        # called only while SUPERVISOR_LOCK_FILE is held. Never unlink a socket
+        # until a fresh ping confirms it is not a live owner.
         if self.channel_supervisor_ping():
             return True
         with self._channel_supervisor_spawn_lock:
@@ -4533,6 +4579,7 @@ class AgentManager:
                         return True
                     time.sleep(0.2)
             try:
+                NODE_CHANNEL_SUPERVISOR_SOCKET.parent.mkdir(parents=True, exist_ok=True)
                 NODE_CHANNEL_SUPERVISOR_SOCKET.unlink(missing_ok=True)
             except OSError:
                 pass
@@ -9094,7 +9141,11 @@ class _ChannelSupervisorRPCServer:
         os.chmod(NODE_CHANNEL_SUPERVISOR_SOCKET, 0o600)
         sock.listen(64)
         sock.settimeout(1.0)
-        NODE_CHANNEL_SUPERVISOR_PID_FILE.write_text(str(os.getpid()) + "\n", encoding="utf-8")
+        identity = _supervisor_process_identity(os.getpid())
+        start_ticks = identity[1] if identity else 0
+        NODE_CHANNEL_SUPERVISOR_PID_FILE.write_text(
+            f"{os.getpid()} {start_ticks}\n", encoding="utf-8"
+        )
         os.chmod(NODE_CHANNEL_SUPERVISOR_PID_FILE, 0o600)
         while not self._stop.is_set():
             try:
