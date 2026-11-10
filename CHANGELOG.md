@@ -1,3 +1,7 @@
+## 13.20 - 2026-11-10
+
+- Fixed stale public Node/WebPlayer workers retaining the old Node subscription expiry. WebPlayer expiry pages and channel enforcement now refresh the shared Main-owned expiry snapshot on every decision, so renewed Nodes recover without stale Expired pages and actually expired Nodes cannot remain playable through an old worker.
+
 ## 13.19 - 2026-11-10
 
 - Node Agent supervisor startup is now single-owner and stale Unix socket/PID coordination is recovered safely. Expiry-renewal restore intents retry after supervisor readiness and remain pending when a source is genuinely unavailable. Remote Nodes can receive the fix through the existing Main API update flow.

@@ -4260,11 +4260,30 @@ class AgentManager:
             self.enforce_node_expiry()
         return True
 
+    # STREAMFORGE_NODE_EXPIRY_DISK_REFRESH_V1320: public Gunicorn workers do
+    # not receive the control worker's in-memory heartbeat update. Read the
+    # small shared panel-users snapshot before every expiry decision so a
+    # renewed date is visible immediately and an expired date cannot be
+    # bypassed by a stale WebPlayer worker.
+    def refresh_node_expiry_from_disk(self) -> bool:
+        try:
+            raw = json.loads(PANEL_USERS_FILE.read_text(encoding="utf-8"))
+            if not isinstance(raw, dict):
+                return False
+            cleaned = str(raw.get("node_expires_at") or "").strip()[:64]
+        except (OSError, ValueError, TypeError):
+            return False
+        with self.lock:
+            changed = cleaned != self.node_expires_at
+            self.node_expires_at = cleaned
+        return changed
+
     # STREAMFORGE_NODE_EXPIRY_SERVICE_LOCK_V1290: Bangladesh time (UTC+6) with a
     # 12-hour clock is the operator-facing subscription display everywhere on
     # the Node dashboard.
     def node_expiry_bd_display(self) -> tuple[str, str]:
         """Return ``(display, css_class)`` for the Node dashboard expiry card."""
+        self.refresh_node_expiry_from_disk()
         raw = str(self.node_expires_at or "").strip()
         if not raw:
             return "Unlimited", "node-expiry-card-active"
@@ -4284,6 +4303,7 @@ class AgentManager:
 
     def node_expiry_lock_reason(self) -> str:
         """Return a lock reason once the subscription is past its expiry (BD)."""
+        self.refresh_node_expiry_from_disk()
         raw = str(self.node_expires_at or "").strip()
         if not raw:
             return ""
