@@ -33,7 +33,7 @@ FILES = (
     "scripts/main_system_control.py",
 )
 NEW_FILES = ("app/notification_manager.py", "app/templates/notifications.html")
-PREVIOUS = "v13.02"
+PREVIOUS = "bcf8557"
 text = SCRIPT.read_text(encoding="utf-8")
 for marker in (
     "STREAMFORGE_V1319_HELP_TEXT_INFO_BUTTONS_UPDATER",
@@ -43,8 +43,8 @@ for marker in (
     "STREAMFORGE_V1319_STATIC_CACHE",
     "sync_main_static_cache.py",
     "13.01|13.02|13.03|13.04|13.05|13.06|13.07|13.08|13.09|13.10|13.11|13.12|13.13|13.14|13.15|13.16|13.17|13.19",
-    'OLD_NODE_BLOB="85c42f3419a8584752e5e166230f508b6675d6a6"',
-    'NEW_NODE_BLOB="f8b125c8bb0f6081d881d180b88308db24866a36"',
+    'OLD_NODE_BLOB="f8b125c8bb0f6081d881d180b88308db24866a36"',
+    'NEW_NODE_BLOB="228626b81c23199b71cee9f2586f5eeaa6010bc2"',
     "app/static/app.js",
     "STREAMFORGE_HELP_TEXT_INFO_BUTTONS_V1318",
 ):
@@ -67,7 +67,7 @@ assert "STREAMFORGE_MAIN_GITHUB_RATE_LIMIT_V1317" in main
 helper = (PACKAGE / "scripts/main_system_control.py").read_text(encoding="utf-8")
 for marker in ("STREAMFORGE_MAIN_GITHUB_API_TOKEN_V1317", "STREAMFORGE_MAIN_TAG_SCOPED_RELEASE_PLAN_V1317"):
     assert marker in helper, marker
-assert 'NEW_NODE_BLOB="f8b125c8bb0f6081d881d180b88308db24866a36"' in text
+assert 'NEW_NODE_BLOB="228626b81c23199b71cee9f2586f5eeaa6010bc2"' in text
 assert "STREAMFORGE_COLLAPSED_FOOTER_DEVICE_INDEPENDENT_CENTER" in style
 assert "position:fixed!important" in style and "left:9.5px!important" in style
 assert "DEFAULT_SMS_USER_BODY" in manager and "DEFAULT_SMS_NODE_BODY" in manager

@@ -4301,6 +4301,49 @@ class AgentManager:
         temporary.write_text(json.dumps(settings_data, separators=(",", ":")), encoding="utf-8")
         temporary.replace(OPERATIONS_SETTINGS_FILE)
 
+    # STREAMFORGE_NODE_EXPIRY_RESTORE_READY_RETRY_V1319: renewal can arrive
+    # while the dedicated supervisor is still restarting. Keep each intent
+    # until a delegated start reports a live/running channel, and retry from
+    # both supervisor readiness and the periodic expiry loop.
+    def _retry_pending_expiry_restore(self) -> str:
+        restore = self._expiry_restore_settings()
+        if not restore:
+            return ""
+        rows: list[tuple[str, ChannelConfig]] = []
+        pending_restore = dict(restore)
+        with self.lock:
+            for key, desired in restore.items():
+                rt = self.channels.get(key)
+                if rt and desired:
+                    rt.desired_running = True
+                    rt.intentional_stop = False
+                    rows.append((key, rt.config))
+            self._expiry_lock_active = False
+        resumed = 0
+        for key, config in rows:
+            try:
+                result = self.start(key, config)
+                status = str((result or {}).get("status") or "").strip().lower()
+                healthy = bool((result or {}).get("alive")) and status in {"running", "degraded"}
+                if healthy:
+                    pending_restore.pop(key, None)
+                    resumed += 1
+            except Exception:
+                # STREAMFORGE_NODE_EXPIRY_RESTORE_READY_RETRY_V1319: a missing
+                # supervisor or source failure stays queued for the next tick.
+                continue
+        try:
+            self._persist_expiry_restore(pending_restore)
+        except (OSError, ValueError, TypeError):
+            pass
+        if rows:
+            self.log(
+                "Node subscription restore attempted",
+                scope="settings",
+                details=f"resumed={resumed}; pending={len(pending_restore)}",
+            )
+        return "resumed" if resumed else ("pending" if pending_restore else "")
+
     def enforce_node_expiry(self) -> str:
         """Enforce the subscription state on channel capacity.
 
@@ -4349,45 +4392,14 @@ class AgentManager:
             locked = self._expiry_lock_active
             if not locked and not restore:
                 return ""
-            rows: list[tuple[str, ChannelConfig]] = []
-            pending_restore = dict(restore)
-            with self.lock:
-                for key, desired in restore.items():
-                    rt = self.channels.get(key)
-                    if rt and desired:
-                        # Retry channels with a saved restore intent even when
-                        # desired_running was already set by a prior failed
-                        # attempt. start() is idempotent for live processes.
-                        rt.desired_running = True
-                        rt.intentional_stop = False
-                        rows.append((key, rt.config))
-                self._expiry_lock_active = False
-            resumed = 0
-            for key, config in rows:
-                try:
-                    result = self.start(key, config)
-                    status = str((result or {}).get("status") or "").strip().lower()
-                    if status in {"error", "stopped", "expired"} or (result or {}).get("error"):
-                        continue
-                    pending_restore.pop(key, None)
-                    resumed += 1
-                except Exception:
-                    # Keep the restore intent durable; the next enforcement
-                    # tick retries instead of silently losing the channel.
-                    continue
-            try:
-                # Missing runtime/catalog entries and unsuccessful starts stay
-                # queued across the next enforcement tick and process restart.
-                self._persist_expiry_restore(pending_restore)
-            except (OSError, ValueError, TypeError):
-                pass
-            if locked or rows:
+            result = self._retry_pending_expiry_restore()
+            if locked or restore:
                 self.log(
                     "Node subscription active; expired lock released",
                     scope="settings",
-                    details=f"resumed={resumed}; pending={len(pending_restore)}",
+                    details=f"restore={result or 'none'}",
                 )
-            return "resumed" if resumed else ("pending" if pending_restore else "")
+            return result
 
     def sync_panel_users(self, payload: PanelUserSyncPayload) -> dict[str, Any]:
         with self.lock:
@@ -4567,15 +4579,18 @@ class AgentManager:
         # called only while SUPERVISOR_LOCK_FILE is held. Never unlink a socket
         # until a fresh ping confirms it is not a live owner.
         if self.channel_supervisor_ping():
+            self._retry_pending_expiry_restore()
             return True
         with self._channel_supervisor_spawn_lock:
             if self.channel_supervisor_ping():
+                self._retry_pending_expiry_restore()
                 return True
             # An already-spawned daemon may still be importing the application.
             if self._supervisor_pid_alive():
                 deadline = time.monotonic() + 8.0
                 while time.monotonic() < deadline:
                     if self.channel_supervisor_ping(timeout=0.4):
+                        self._retry_pending_expiry_restore()
                         return True
                     time.sleep(0.2)
             try:
@@ -4612,6 +4627,7 @@ class AgentManager:
                 if process.poll() is not None:
                     break
                 if self.channel_supervisor_ping(timeout=0.5):
+                    self._retry_pending_expiry_restore()
                     self.log(
                         "Dedicated channel supervisor ready",
                         scope="channel", details=f"pid={process.pid}; socket={NODE_CHANNEL_SUPERVISOR_SOCKET}",

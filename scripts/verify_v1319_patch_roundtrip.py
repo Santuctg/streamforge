@@ -65,8 +65,8 @@ for marker in (
     "contact_phone",
     "sms_notifications",
     "sms.maestro.com.bd",
-    'OLD_NODE_BLOB="85c42f3419a8584752e5e166230f508b6675d6a6"',
-    'NEW_NODE_BLOB="f8b125c8bb0f6081d881d180b88308db24866a36"',
+    'OLD_NODE_BLOB="f8b125c8bb0f6081d881d180b88308db24866a36"',
+    'NEW_NODE_BLOB="228626b81c23199b71cee9f2586f5eeaa6010bc2"',
     MARKER,
 ):
     assert marker in updater, marker
