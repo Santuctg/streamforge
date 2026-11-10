@@ -90,7 +90,7 @@ installation = (ROOT / "docs" / "INSTALLATION.md").read_text(encoding="utf-8")
 assert "VERSION=13.19\n" in installation
 
 api = (ROOT / "docs" / "API_AND_TESTING.md").read_text(encoding="utf-8")
-for name in ("test_v1319_updater.py", "verify_v1319_patch_roundtrip.py", "test_v1319_help_buttons.py"):
+for name in ("test_v1319_updater.py", "verify_v1319_patch_roundtrip.py", "test_v1318_help_buttons.py"):
     assert name in api, name
 
 # --- v13.11 Notification Center contract still intact ----------------------
@@ -136,7 +136,7 @@ for marker in (
 assert "urllib.parse.quote(str(item_stream_id), safe='')/" not in node_app
 import hashlib
 node_digest = hashlib.sha1((ROOT / "node_agent" / "app.py").read_bytes()).hexdigest()
-assert node_digest == "f8b125c8bb0f6081d881d180b88308db24866a36", node_digest
+assert node_digest == "e68553e66bb4dfa07a1502c5d8e7b8621e5c99e3", node_digest
 
 # --- v13.17 GitHub rate-limit contract carried unchanged -------------------
 helper = (ROOT / "scripts" / "main_system_control.py").read_text(encoding="utf-8")
@@ -154,6 +154,6 @@ assert "< 300:" in release_credit
 
 # --- v13.19 help buttons contract -----------------------------------------
 import subprocess
-subprocess.run(["python3", str(ROOT / "scripts" / "test_v1319_help_buttons.py")], check=True)
+subprocess.run(["python3", str(ROOT / "scripts" / "test_v1319_node_supervisor.py")], check=True)
 
 print("PASS: v13.19 info-button help text release contract")

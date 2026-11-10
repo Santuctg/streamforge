@@ -1,3 +1,7 @@
+## 13.19 - 2026-11-10
+
+- Node Agent supervisor startup is now single-owner and stale Unix socket/PID coordination is recovered safely. Expiry-renewal restore intents retry after supervisor readiness and remain pending when a source is genuinely unavailable. Remote Nodes can receive the fix through the existing Main API update flow.
+
 ## 13.18 - 2026-11-09
 
 - Turned every inline panel help text into a small ⓘ button next to its caption: hover or focus opens a white bubble with a downward pointer above the button (flipping below near the top edge, clamped to the viewport), click/tap pins it until clicked again, an outside press or Escape closes it, and moving into the bubble keeps it open. The original help elements keep their identity so dynamic texts keep updating, value badges such as "Effective now" stay inline, and hidden sections get their button when revealed. Main-only release; Remote Nodes do not need an update.
