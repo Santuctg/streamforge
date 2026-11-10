@@ -11,7 +11,7 @@
 >
 > **Typical use:** One **Main Server** encodes every channel once; several **Remote Nodes** in other data centres relay those channels and serve the viewers, with per-user connection limits, IP/ASN access policies and automatic node selection.
 
-**v13.19:** Every inline panel help text is now a small ⓘ button next to its caption: hover or focus opens a white bubble with a downward pointer, click/tap pins it, Escape or an outside press closes it. Dynamic help texts keep updating live. Main-only; Remote Nodes do not need an update.
+**v13.19:** Dedicated Node supervisor startup is now single-owner with stale Unix socket/PID recovery, and renewing an expired Node retries pending channel restores after the supervisor is ready. Main distributes the Node Agent fix through the existing Node Updates API; source-down channels remain Down. The v13.18 panel help buttons remain included.
 
 > **v12.83 upgrade notes:** HTTPS connections to Remote Nodes now always verify
 > certificates; replace self-signed or name-mismatched certificates before
