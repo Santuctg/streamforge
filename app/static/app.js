@@ -2543,11 +2543,22 @@
   };
 
   // STREAMFORGE_HELP_CONTAINER_CAPTION_MOUNT_V1326:
+  // STREAMFORGE_HELP_EXPLICIT_CONTAINER_CAPTION_MOUNT_V1327:
   // Standalone <small class="field-help"> elements next to section captions
   // (for example Remote output URLs and Encoding nodes) belong beside the
   // nearest heading, not on their own empty row.
   const nearestContainerCaption = (source) => {
     const headingSelector = '.field-label,h1,h2,h3,h4,h5,h6,.stream-source-head b,.panel-head h2';
+    const explicit = [
+      ['.stream-source-editor', '.stream-source-head b'],
+      ['.remote-output-head', '.field-label'],
+      ['.node-assignment-head', '.field-label'],
+    ];
+    for (const [containerSelector, titleSelector] of explicit) {
+      const container = source.closest(containerSelector);
+      const title = container && container.querySelector(titleSelector);
+      if (title && cleanText(title)) return title;
+    }
     let current = source;
     while (current && current !== document.body) {
       const parent = current.parentElement;

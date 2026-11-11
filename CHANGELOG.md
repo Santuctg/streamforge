@@ -1,3 +1,7 @@
+## 13.27 - 2026-11-11
+
+- Added explicit section-caption anchors for standalone help buttons so Stream links, Remote output URLs and Encoding nodes keep their ⓘ beside the heading.
+
 ## 13.26 - 2026-11-11
 
 - Fixed standalone help-button mounting beside section captions, including Remote output URLs, Encoding nodes and Logo URL; buttons no longer drop to separate rows.
