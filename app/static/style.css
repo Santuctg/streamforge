@@ -887,14 +887,20 @@ body.channel-log-open{overflow:hidden}.channel-log-overlay{position:fixed;inset:
 /* STREAMFORGE_CATEGORY_FIELD_SAME_ROW_V1329: fourth grid column restored so
    the Categories picker sits on the first line beside the failback checkbox
    and both interval fields instead of dropping to its own row. */
-.channel-editor-form .identity-compact-row{grid-template-columns:max-content minmax(200px,220px) minmax(180px,220px) minmax(70px,1fr)}
+/* STREAMFORGE_DEAD_INPUT_HELP_BUTTON_SAME_ROW_V1331: the dead-input column's
+   220px ceiling left its one-line caption (~219px) no room for the 15px help
+   button, dropping the button to its own line below the caption. Raise the
+   ceiling to 260px so caption plus button share one line whenever the row
+   has space; on narrower rows the caption wraps and the button parks beside
+   its last line instead of overflowing the panel. */
+.channel-editor-form .identity-compact-row{grid-template-columns:max-content minmax(200px,220px) minmax(180px,260px) minmax(70px,1fr)}
 .channel-editor-form .stream-source-info{display:grid!important;grid-template-columns:minmax(0,1fr);gap:6px;align-content:center}
 .channel-editor-form .stream-source-scan-summary{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0}
 .channel-editor-form .stream-source-scan-summary>span{white-space:nowrap;font-size:12px}
 .channel-editor-form .source-program-field{display:block;margin:0;min-width:0}
 .channel-editor-form .source-program-field[hidden]{display:none!important}
 .channel-editor-form .source-program-field select{width:100%;max-width:320px;height:34px!important;min-height:34px!important;padding:0 30px 0 9px!important;font-size:11px}
-@media(max-width:1080px){.channel-editor-form .identity-compact-row{grid-template-columns:1fr 150px minmax(220px,1fr)}.channel-editor-form .identity-compact-row>.category-field{grid-column:auto}}
+@media(max-width:1080px){.channel-editor-form .identity-compact-row{grid-template-columns:1fr 150px minmax(240px,1fr)}.channel-editor-form .identity-compact-row>.category-field{grid-column:auto}}
 @media(max-width:760px){.channel-editor-form .identity-compact-row{grid-template-columns:1fr}.channel-editor-form .source-program-field select{max-width:none}}
 
 

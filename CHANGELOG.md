@@ -1,3 +1,7 @@
+## 13.31 - 2026-11-11
+
+- Widened the dead-input interval column ceiling (220px to 260px) so its help button sits beside the "Dead-input recovery interval (minutes)" caption on one line instead of dropping below it; the <=1080px layout now guarantees 240px for the same column.
+
 ## 13.30 - 2026-11-11
 
 - Capped the closed Categories picker at 260px so it no longer stretches across the remaining identity-row space.
