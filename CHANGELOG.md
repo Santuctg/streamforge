@@ -1,3 +1,7 @@
+## 13.28 - 2026-11-11
+
+- Fixed standalone help initialization so section captions without labels mount their ⓘ buttons beside the heading instead of leaving lone icons on separate rows.
+
 ## 13.27 - 2026-11-11
 
 - Added explicit section-caption anchors for standalone help buttons so Stream links, Remote output URLs and Encoding nodes keep their ⓘ beside the heading.

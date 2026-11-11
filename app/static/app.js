@@ -2855,7 +2855,10 @@
       source.classList.add(SOURCE_CLASS);
       const label = source.closest('label');
       let key = null;
-      if (label) key = resolveLabelKey(source, label);
+      // STREAMFORGE_HELP_STANDALONE_CAPTION_RESOLUTION_V1328:
+      // Standalone help next to section headings has no <label>; still mount
+      // its button beside the nearest explicit container caption.
+      key = resolveLabelKey(source, label);
       if (key && keys.has(key)) { keys.get(key).sources.push(source); return; }
       const group = { sources: [source], btn: null, bubble: null, observer: 0, pinned: false, hovered: false, focused: false, overBubble: false, closeTimer: 0 };
       group.btn = makeButton(cleanText(source));

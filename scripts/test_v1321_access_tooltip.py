@@ -19,6 +19,7 @@ for marker in (
     "sf-help-caption-text",
     "STREAMFORGE_HELP_CONTAINER_CAPTION_MOUNT_V1326",
     "STREAMFORGE_HELP_EXPLICIT_CONTAINER_CAPTION_MOUNT_V1327",
+    "STREAMFORGE_HELP_STANDALONE_CAPTION_RESOLUTION_V1328",
 ):
     assert marker in js, marker
 for marker in (
