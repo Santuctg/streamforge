@@ -773,6 +773,19 @@ body.channel-log-open{overflow:hidden}.channel-log-overlay{position:fixed;inset:
   .channel-editor-form .identity-compact-row>.category-field,
   .channel-editor-form .audio-output-grid>.output-url-field{grid-column:auto!important;width:100%!important}
   .channel-editor-form .identity-compact-row>.failback-toggle{white-space:normal;height:auto;min-height:42px;padding:9px 12px}
+  /* STREAMFORGE_MOBILE_INPUT_FULL_WIDTH_V1332: the desktop compact caps on
+     these numeric inputs kept them at 220px inside the stacked single-column
+     phone layout, leaving ragged half-empty rows beside full-width controls
+     such as the dead-input interval. Same selectors as the desktop cap, so
+     this later block wins below 760px. */
+  .channel-editor-form input[name="program_id"],
+  .channel-editor-form input[name="failback_interval"],
+  .channel-editor-form input[name="video_bitrate"],
+  .channel-editor-form input[name="audio_bitrate"],
+  .channel-editor-form input[name="fps"],
+  .channel-editor-form input[name="width"],
+  .channel-editor-form input[name="height"],
+  .channel-editor-form input[name="hls_segment_time"]{max-width:100%}
 }
 
 
@@ -2456,6 +2469,13 @@ html body .channel-editor-form .category-picker[open]:not(#streamforge-dropdown-
 html body .channel-editor-form .category-picker:not(#streamforge-dropdown-never){
   width:100%!important;
   max-width:260px!important;
+}
+/* STREAMFORGE_CATEGORY_PICKER_MOBILE_FULL_WIDTH_V1332: the desktop compact
+   cap above also shrank the picker on phones, where every other control
+   fills the stacked single column. Below 760px the picker fills the column
+   again (same selector, later in the cascade, still !important). */
+@media(max-width:760px){
+  html body .channel-editor-form .category-picker:not(#streamforge-dropdown-never){max-width:none!important}
 }
 html body .channel-editor-form .category-picker:not(#streamforge-dropdown-never)>summary{
   position:relative!important;
