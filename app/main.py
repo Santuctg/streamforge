@@ -2307,9 +2307,12 @@ def node_public_base(node: Node) -> str:
 
 
 # STREAMFORGE_CLIENT_LOG_UNAUTHORIZED_ATTEMPTS_V99R17:
+# STREAMFORGE_ACCESS_LOG_UNAUTHENTICATED_ACTOR_V1321: an IP/policy denial can
+# happen before login form parsing, so never label that request as a real
+# Guest user; failed /login requests still carry their submitted username.
 def _client_log_identity(request: Request, supplied: str = "") -> str:
     value = str(supplied or request.query_params.get("username") or "").strip()
-    return value[:120] or "Guest"
+    return value[:120] or "Unauthenticated"
 
 
 def _log_client_denied(request: Request, message: str, *, username: str = "", reason: str = "", db: Session | None = None) -> None:

@@ -1,3 +1,7 @@
+## 13.21 - 2026-11-11
+
+- Access-denied logs now distinguish failed username attempts from unauthenticated policy blocks without logging secrets. Wrapped panel help captions keep their ⓘ button below the complete title instead of overlapping the second line or input border.
+
 ## 13.20 - 2026-11-10
 
 - Fixed stale public Node/WebPlayer workers retaining the old Node subscription expiry. WebPlayer expiry pages and channel enforcement now refresh the shared Main-owned expiry snapshot on every decision, so renewed Nodes recover without stale Expired pages and actually expired Nodes cannot remain playable through an old worker.

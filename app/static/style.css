@@ -3631,6 +3631,15 @@ textarea:-webkit-autofill:focus{
    top edge), shown on hover/focus and pinned by click/tap. */
 body .sf-help-source{display:none!important}
 body .sf-help-title{display:inline!important}
+/* STREAMFORGE_HELP_BUTTON_WRAPPED_TITLE_LAYOUT_V1321:
+   A title such as "Primary-input check interval" may wrap before its
+   button. Keep the caption text as one measured block and move the button
+   below that complete block instead of letting it occupy the second line or
+   the input's top border. */
+body .sf-help-title .sf-help-caption-text{display:inline}
+body .sf-help-title.sf-help-title-wrapped{display:block!important;line-height:1.25}
+body .sf-help-title.sf-help-title-wrapped .sf-help-caption-text{display:block}
+body .sf-help-title.sf-help-title-wrapped .sf-help-btn{display:inline-flex!important;margin-left:0;margin-top:3px}
 body .sf-help-btn.sf-help-btn{
   display:inline-flex;align-items:center;justify-content:center;
   width:15px;height:15px;min-width:15px;min-height:15px;padding:0;margin:0 0 0 4px;

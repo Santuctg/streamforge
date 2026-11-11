@@ -2471,6 +2471,7 @@
 
 
 // STREAMFORGE_HELP_TEXT_INFO_BUTTONS_V1318:
+// STREAMFORGE_HELP_BUTTON_CAPTION_TEXT_V1321:
 // Turns every inline panel help text into an ⓘ button next to its caption.
 // The original help element keeps its identity (so dynamic texts such as
 // data-destination-help / data-selected-user-help keep updating) but is
@@ -2483,6 +2484,7 @@
 // ("Effective now", "Remote · Prefix pinned").
 (() => {
   const CAPTION_CLASS = 'sf-help-title';
+  const CAPTION_TEXT_CLASS = 'sf-help-caption-text';
   const SOURCE_CLASS = 'sf-help-source';
   const BUBBLE_CLASS = 'sf-help-bubble';
   const SKIP_TITLE = 'input,select,textarea,button,option,small,script,style,svg,img,audio,video,canvas,a,[hidden],[class~="field-help"]';
@@ -2543,14 +2545,23 @@
   const wrapText = (textNode, withButton) => {
     const host = textNode.parentNode;
     if (host && host.classList && host.classList.contains(CAPTION_CLASS)) {
+      if (!textNode.parentElement.classList.contains(CAPTION_TEXT_CLASS)) {
+        const caption = document.createElement('span');
+        caption.className = CAPTION_TEXT_CLASS;
+        host.insertBefore(caption, textNode);
+        caption.appendChild(textNode);
+      }
       if (withButton) host.appendChild(withButton);
       return host;
     }
     const wrap = document.createElement('span');
     wrap.className = CAPTION_CLASS;
     host.insertBefore(wrap, textNode);
-    wrap.appendChild(textNode);
     textNode.nodeValue = textNode.nodeValue.replace(/\s+/g, ' ').trim();
+    const caption = document.createElement('span');
+    caption.className = CAPTION_TEXT_CLASS;
+    wrap.appendChild(caption);
+    caption.appendChild(textNode);
     if (withButton) wrap.appendChild(withButton);
     return wrap;
   };
@@ -2571,9 +2582,12 @@
     const wrap = document.createElement('span');
     wrap.className = CAPTION_CLASS;
     el.insertBefore(wrap, texts[0]);
+    const caption = document.createElement('span');
+    caption.className = CAPTION_TEXT_CLASS;
+    wrap.appendChild(caption);
     texts.forEach((text) => {
       text.nodeValue = text.nodeValue.replace(/\s+/g, ' ').trim();
-      wrap.appendChild(text);
+      caption.appendChild(text);
     });
     if (withButton) wrap.appendChild(withButton);
     return wrap;
@@ -2810,6 +2824,7 @@
       group.btn = makeButton(cleanText(source));
       if (key) {
         key.appendChild(group.btn);
+        group.title = key;
         keys.set(key, group);
       } else {
         const wrap = wrapStandalone(source, group.btn);
@@ -2820,6 +2835,14 @@
       bindGroup(group);
     });
     groups.forEach(syncButton);
+    const markWrappedTitles = () => groups.forEach((group) => {
+      const title = group.title;
+      if (!title || !title.classList || !title.classList.contains(CAPTION_CLASS)) return;
+      const style = getComputedStyle(title);
+      const lineHeight = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.2 || 16;
+      title.classList.toggle('sf-help-title-wrapped', title.getBoundingClientRect().height > lineHeight * 1.6);
+    });
+    requestAnimationFrame(markWrappedTitles);
 
     document.addEventListener('pointerdown', (event) => {
       if (!active) return;
@@ -2834,6 +2857,7 @@
     window.addEventListener('resize', () => {
       schedulePlace();
       groups.forEach(syncButton);
+      requestAnimationFrame(markWrappedTitles);
     });
     window.STREAMFORGE_HELP_BUTTONS_V1318 = { groups, open, closeNow, place };
   };
