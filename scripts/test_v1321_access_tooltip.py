@@ -23,6 +23,7 @@ for marker in (
     "STREAMFORGE_HELP_BUTTON_WRAPPED_TITLE_LAYOUT_V1321",
     "sf-help-caption-text",
     "sf-help-title-wrapped{display:inline-block!important",
+    "STREAMFORGE_CHANNEL_FAILBACK_COMPACT_BOX_V1323",
 ):
     assert marker in css, marker
 

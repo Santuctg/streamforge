@@ -680,8 +680,9 @@ body.channel-log-open{overflow:hidden}.channel-log-overlay{position:fixed;inset:
 /* v1.11.63 compact single-line channel editor groups */
 .channel-editor-form .compact-panel-head{padding:13px 18px}
 .channel-editor-form .identity-compact-row{
-  display:grid;
-  grid-template-columns:minmax(330px,1fr) 150px 190px minmax(220px,300px);
+   display:grid;
+   /* STREAMFORGE_CHANNEL_FAILBACK_COMPACT_BOX_V1323 */
+   grid-template-columns:max-content 150px 190px minmax(220px,300px);
   gap:12px;
   align-items:end;
   justify-content:start;

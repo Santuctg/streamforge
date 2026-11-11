@@ -1,3 +1,7 @@
+## 13.23 - 2026-11-11
+
+- Made the channel failback checkbox compact instead of stretching across the row; wrapped help-button placement remains beside the completed title.
+
 ## 13.22 - 2026-11-11
 
 - Corrected wrapped help-title layout so the ⓘ button stays beside the completed caption line rather than dropping below it.

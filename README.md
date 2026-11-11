@@ -11,7 +11,7 @@
 >
 > **Typical use:** One **Main Server** encodes every channel once; several **Remote Nodes** in other data centres relay those channels and serve the viewers, with per-user connection limits, IP/ASN access policies and automatic node selection.
 
-**v13.22:** Dedicated Node supervisor startup is now single-owner with stale Unix socket/PID recovery, and renewing an expired Node retries pending channel restores after the supervisor is ready. Main distributes the Node Agent fix through the existing Node Updates API; source-down channels remain Down. The v13.18 panel help buttons remain included.
+**v13.23:** Dedicated Node supervisor startup is now single-owner with stale Unix socket/PID recovery, and renewing an expired Node retries pending channel restores after the supervisor is ready. Main distributes the Node Agent fix through the existing Node Updates API; source-down channels remain Down. The v13.18 panel help buttons remain included.
 
 > **v12.83 upgrade notes:** HTTPS connections to Remote Nodes now always verify
 > certificates; replace self-signed or name-mismatched certificates before
@@ -122,20 +122,20 @@ This is a **host-installed application**, **not a Docker Compose stack**. Review
 
 ### 1. Download the versioned package
 
-Download `streamforge-X.YY.zip` from **[Releases](https://github.com/Santuctg/streamforge/releases/tag/v13.22)** and check it:
+Download `streamforge-X.YY.zip` from **[Releases](https://github.com/Santuctg/streamforge/releases/tag/v13.23)** and check it:
 
 ```bash
 cd /root
-curl -fL -o streamforge-13.22.zip \
-  https://github.com/Santuctg/streamforge/releases/download/v13.22/streamforge-13.22.zip
-sha256sum streamforge-13.22.zip
+curl -fL -o streamforge-13.23.zip \
+  https://github.com/Santuctg/streamforge/releases/download/v13.23/streamforge-13.23.zip
+sha256sum streamforge-13.23.zip
 ```
 
 ### 2a. Fresh install (new server only)
 
 ```bash
-unzip -q streamforge-13.22.zip -d /root
-sudo bash /root/streamforge-13.22/scripts/install.sh
+unzip -q streamforge-13.23.zip -d /root
+sudo bash /root/streamforge-13.23/scripts/install.sh
 ```
 
 Open `http://SERVER_IP` and sign in as **`admin` / `ChangeMe123!`**. The Panel then requires a new password of at least 12 characters before anything else.
@@ -143,7 +143,7 @@ Open `http://SERVER_IP` and sign in as **`admin` / `ChangeMe123!`**. The Panel t
 ### 2b. Upgrade an existing server
 
 ```bash
-sudo streamforge-update --force /root/streamforge-13.22.zip
+sudo streamforge-update --force /root/streamforge-13.23.zip
 ```
 
 Releases are applied **in order** — each updater accepts only the previous version and rolls back automatically on failure. **Never run `install.sh` on an existing server.**
