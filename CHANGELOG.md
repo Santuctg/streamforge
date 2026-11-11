@@ -1,3 +1,8 @@
+## 13.29 - 2026-11-11
+
+- Kept the Categories picker on the first identity row beside the checkbox and interval fields.
+- Widened the last Audio & output column so "HLS segment seconds" no longer breaks across lines, and made encoding-grid label rows grow with wrapped captions.
+
 ## 13.28 - 2026-11-11
 
 - Fixed standalone help initialization so section captions without labels mount their ⓘ buttons beside the heading instead of leaving lone icons on separate rows.

@@ -729,7 +729,9 @@ body.channel-log-open{overflow:hidden}.channel-log-overlay{position:fixed;inset:
   min-width:0;
   min-height:0!important;
   display:grid!important;
-  grid-template-rows:14px 38px!important;
+  /* STREAMFORGE_ENCODING_LABEL_ROW_AUTO_V1329: wrapped encoding-grid
+     captions keep their full height instead of overlapping the input. */
+  grid-template-rows:auto 38px!important;
   gap:5px!important;
 }
 .channel-editor-form .compact-encoding-grid input,
@@ -737,8 +739,10 @@ body.channel-log-open{overflow:hidden}.channel-log-overlay{position:fixed;inset:
 .channel-editor-form .video-encoding-grid{
   grid-template-columns:300px 130px 240px 105px 110px 110px 155px;
 }
+/* STREAMFORGE_HLS_SEGMENT_LABEL_ONE_LINE_V1329: the last output column is
+   wide enough that the "HLS segment seconds" caption stays on one line. */
 .channel-editor-form .audio-output-grid{
-  grid-template-columns:300px 130px 300px 125px;
+  grid-template-columns:300px 130px 300px 160px;
 }
 .channel-editor-form .audio-output-grid>.output-url-field{
   grid-column:1/4!important;
@@ -880,7 +884,10 @@ body.channel-log-open{overflow:hidden}.channel-log-overlay{position:fixed;inset:
 /* v1.11.67 source-specific MPTS program selectors */
 /* STREAMFORGE_CHANNEL_FAILBACK_COMPACT_BOX_V1325: keep the long checkbox
    content-sized while giving the wrapped interval label enough width. */
-.channel-editor-form .identity-compact-row{grid-template-columns:max-content 220px minmax(220px,300px)}
+/* STREAMFORGE_CATEGORY_FIELD_SAME_ROW_V1329: fourth grid column restored so
+   the Categories picker sits on the first line beside the failback checkbox
+   and both interval fields instead of dropping to its own row. */
+.channel-editor-form .identity-compact-row{grid-template-columns:max-content minmax(200px,220px) minmax(180px,220px) minmax(70px,1fr)}
 .channel-editor-form .stream-source-info{display:grid!important;grid-template-columns:minmax(0,1fr);gap:6px;align-content:center}
 .channel-editor-form .stream-source-scan-summary{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0}
 .channel-editor-form .stream-source-scan-summary>span{white-space:nowrap;font-size:12px}
