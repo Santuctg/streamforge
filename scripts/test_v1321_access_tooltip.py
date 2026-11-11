@@ -25,6 +25,7 @@ for marker in (
     "sf-help-title-wrapped{display:inline-block!important",
     "STREAMFORGE_CHANNEL_FAILBACK_COMPACT_BOX_V1323",
     "STREAMFORGE_HELP_BUTTON_LABEL_ROW_AUTO_V1324",
+    "STREAMFORGE_CHANNEL_FAILBACK_COMPACT_BOX_V1325",
 ):
     assert marker in css, marker
 

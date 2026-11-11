@@ -878,7 +878,9 @@ body.channel-log-open{overflow:hidden}.channel-log-overlay{position:fixed;inset:
 
 
 /* v1.11.67 source-specific MPTS program selectors */
-.channel-editor-form .identity-compact-row{grid-template-columns:minmax(330px,1fr) 150px minmax(220px,300px)}
+/* STREAMFORGE_CHANNEL_FAILBACK_COMPACT_BOX_V1325: keep the long checkbox
+   content-sized while giving the wrapped interval label enough width. */
+.channel-editor-form .identity-compact-row{grid-template-columns:max-content 220px minmax(220px,300px)}
 .channel-editor-form .stream-source-info{display:grid!important;grid-template-columns:minmax(0,1fr);gap:6px;align-content:center}
 .channel-editor-form .stream-source-scan-summary{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0}
 .channel-editor-form .stream-source-scan-summary>span{white-space:nowrap;font-size:12px}

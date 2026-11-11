@@ -1,3 +1,7 @@
+## 13.25 - 2026-11-11
+
+- Fixed the final channel-editor grid override that stretched the failback checkbox; the box is now compact and the primary interval title gets a wider column for its ⓘ button.
+
 ## 13.24 - 2026-11-11
 
 - Fixed compact channel-editor label rows to grow for wrapped titles, keeping the ⓘ button and input separated.
