@@ -22,6 +22,7 @@ for marker in (
 for marker in (
     "STREAMFORGE_HELP_BUTTON_WRAPPED_TITLE_LAYOUT_V1321",
     "sf-help-caption-text",
+    "sf-help-title-wrapped{display:inline-block!important",
 ):
     assert marker in css, marker
 

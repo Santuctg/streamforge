@@ -1,3 +1,7 @@
+## 13.22 - 2026-11-11
+
+- Corrected wrapped help-title layout so the ⓘ button stays beside the completed caption line rather than dropping below it.
+
 ## 13.21 - 2026-11-11
 
 - Access-denied logs now distinguish failed username attempts from unauthenticated policy blocks without logging secrets. Wrapped panel help captions keep their ⓘ button below the complete title instead of overlapping the second line or input border.
