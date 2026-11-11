@@ -1,3 +1,7 @@
+## 13.24 - 2026-11-11
+
+- Fixed compact channel-editor label rows to grow for wrapped titles, keeping the ⓘ button and input separated.
+
 ## 13.23 - 2026-11-11
 
 - Made the channel failback checkbox compact instead of stretching across the row; wrapped help-button placement remains beside the completed title.

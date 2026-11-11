@@ -697,8 +697,9 @@ body.channel-log-open{overflow:hidden}.channel-log-overlay{position:fixed;inset:
   white-space:nowrap;
 }
 .channel-editor-form .identity-compact-row>.compact-field{
-  display:grid;
-  grid-template-rows:14px 38px;
+   display:grid;
+   /* STREAMFORGE_HELP_BUTTON_LABEL_ROW_AUTO_V1324 */
+   grid-template-rows:auto 38px;
   gap:5px;
   width:100%;
   color:#b9c8d7;
