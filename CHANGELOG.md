@@ -1,3 +1,7 @@
+## 13.26 - 2026-11-11
+
+- Fixed standalone help-button mounting beside section captions, including Remote output URLs, Encoding nodes and Logo URL; buttons no longer drop to separate rows.
+
 ## 13.25 - 2026-11-11
 
 - Fixed the final channel-editor grid override that stretched the failback checkbox; the box is now compact and the primary interval title gets a wider column for its ⓘ button.

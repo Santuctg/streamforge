@@ -2542,6 +2542,30 @@
     return null;
   };
 
+  // STREAMFORGE_HELP_CONTAINER_CAPTION_MOUNT_V1326:
+  // Standalone <small class="field-help"> elements next to section captions
+  // (for example Remote output URLs and Encoding nodes) belong beside the
+  // nearest heading, not on their own empty row.
+  const nearestContainerCaption = (source) => {
+    const headingSelector = '.field-label,h1,h2,h3,h4,h5,h6,.stream-source-head b,.panel-head h2';
+    let current = source;
+    while (current && current !== document.body) {
+      const parent = current.parentElement;
+      if (!parent) break;
+      const own = parent.querySelector(headingSelector);
+      if (own && own !== source && !source.contains(own) && cleanText(own)) return own;
+      const siblings = Array.from(parent.children);
+      const index = siblings.indexOf(current);
+      for (let i = index - 1; i >= 0; i -= 1) {
+        const candidate = siblings[i].matches && siblings[i].matches(headingSelector)
+          ? siblings[i] : siblings[i].querySelector && siblings[i].querySelector(headingSelector);
+        if (candidate && cleanText(candidate)) return candidate;
+      }
+      current = parent;
+    }
+    return null;
+  };
+
   const wrapText = (textNode, withButton) => {
     const host = textNode.parentNode;
     if (host && host.classList && host.classList.contains(CAPTION_CLASS)) {
@@ -2595,7 +2619,9 @@
 
   // Resolve the stable element that anchors a label source's ⓘ button.
   const resolveLabelKey = (src, label) => {
-    let title = nearestTitleText(src, label) || captionText(label);
+    let title = label
+      ? (nearestTitleText(src, label) || captionText(label))
+      : nearestContainerCaption(src);
     if (!title) return null;
     if (title.nodeType === 3) return wrapText(title, null);
     const display = getComputedStyle(title).display;

@@ -17,6 +17,7 @@ for marker in (
 for marker in (
     "STREAMFORGE_HELP_BUTTON_CAPTION_TEXT_V1321",
     "sf-help-caption-text",
+    "STREAMFORGE_HELP_CONTAINER_CAPTION_MOUNT_V1326",
 ):
     assert marker in js, marker
 for marker in (
