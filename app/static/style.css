@@ -2444,9 +2444,12 @@ html body .channel-editor-form .category-picker[open]:not(#streamforge-dropdown-
 /* STREAMFORGE_CATEGORY_DROPDOWN_UNIFIED
    Channel Editor Categories is a custom multi-category picker. Make its
    closed control visually identical to every normal dropdown. */
+/* STREAMFORGE_CATEGORY_PICKER_COMPACT_WIDTH_V1330: cap the closed
+   Categories control so it stops stretching across the whole remaining
+   grid column; it now matches the compact interval-field sizing. */
 html body .channel-editor-form .category-picker:not(#streamforge-dropdown-never){
   width:100%!important;
-  max-width:none!important;
+  max-width:260px!important;
 }
 html body .channel-editor-form .category-picker:not(#streamforge-dropdown-never)>summary{
   position:relative!important;

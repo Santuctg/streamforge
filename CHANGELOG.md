@@ -1,3 +1,7 @@
+## 13.30 - 2026-11-11
+
+- Capped the closed Categories picker at 260px so it no longer stretches across the remaining identity-row space.
+
 ## 13.29 - 2026-11-11
 
 - Kept the Categories picker on the first identity row beside the checkbox and interval fields.
