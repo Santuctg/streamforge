@@ -1,3 +1,7 @@
+## 13.33 - 2026-11-16
+
+- Added Node-panel HLS segment overrides for Main-synced channels, persisted per Node/channel on Main with `Keep current` and `Use Main default` controls.
+
 ## 13.32 - 2026-11-11
 
 - Phone layout: capped numeric inputs (failback interval, bitrates, fps, resolution, HLS segment, program) and the Categories picker now fill the stacked single column instead of staying shrunk at 220px/260px beside full-width controls.
