@@ -1,3 +1,7 @@
+## 13.47 - 2026-11-16
+
+- Fixed light-mode dashboard chart cards and canvas colors so titles, legends, axes, and graph lines remain readable.
+
 ## 13.46 - 2026-11-16
 
 - Fixed light-theme CSS in Main Node Updates tables, toolbars, cards, buttons, and checkboxes.

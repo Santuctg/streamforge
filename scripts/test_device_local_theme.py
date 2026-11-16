@@ -21,5 +21,7 @@ assert "data-theme-toggle" in webplayer, "Web Player theme toggle is missing"
 assert "[data-theme=\"light\"]" in main_css, "Main light variable overrides are missing"
 assert "node-update-table thead th" in main_css, "Node Updates light table override is missing"
 assert "node-update-bulk-toolbar" in main_css, "Node Updates light toolbar override is missing"
+assert "node-metrics-history" in node and "data-theme" in node, "Node dashboard light chart override is missing"
+assert "theme-aware" in node or "dataset.theme==='light'" in node, "Node chart drawing is not theme-aware"
 
 print("PASS: device-local theme contract")
