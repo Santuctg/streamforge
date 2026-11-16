@@ -3233,17 +3233,7 @@ button:disabled,select:disabled,input:disabled,[aria-disabled="true"]{cursor:not
   cursor:pointer;
 }
 .main-channel-control-table input[type=checkbox]:checked{border-color:#37c7a2!important;background:#37c7a2!important}
-.main-channel-control-table input[type=checkbox]:checked::after{
-  content:"";
-  position:absolute;
-  left:5px;
-  top:2px;
-  width:4px;
-  height:8px;
-  border:solid #071c18;
-  border-width:0 2px 2px 0;
-  transform:rotate(45deg);
-}
+.main-channel-control-table input[type=checkbox]:checked::after{content:"✓";position:absolute;inset:0;display:grid;place-items:center;font-size:13px;font-weight:900;line-height:1;color:#071c18;transform:none;}
 
 /* STREAMFORGE_GLOBAL_CHECKBOX_THEME_V1337: every Main checkbox uses the same
    dark unchecked surface and centered accent checkmark, not browser-native
@@ -3263,17 +3253,7 @@ input[type=checkbox]{
   cursor:pointer;
 }
 input[type=checkbox]:checked{border-color:#37c7a2!important;background:#37c7a2!important}
-input[type=checkbox]:checked::after{
-  content:"";
-  position:absolute;
-  left:5px;
-  top:2px;
-  width:4px;
-  height:8px;
-  border:solid #071c18;
-  border-width:0 2px 2px 0;
-  transform:rotate(45deg);
-}
+input[type=checkbox]:checked::after{content:"✓";position:absolute;inset:0;display:grid;place-items:center;font-size:13px;font-weight:900;line-height:1;color:#071c18;transform:none;}
 
 
 /* STREAMFORGE_MAIN_LOG_MOBILE_NODE_LAYOUT_V73: Main Logs use the same compact

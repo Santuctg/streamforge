@@ -10,9 +10,11 @@ for source, name in ((main_css, "Main"), (node_source, "Node")):
     assert "appearance:none" in source, f"{name} checkbox still uses native appearance"
     assert "input[type=checkbox]:checked" in source, f"{name} checked checkbox theme is missing"
     assert "#101b27" in source, f"{name} unchecked checkbox background is missing"
-    assert "transform:rotate(45deg)" in source, f"{name} checkmark alignment is missing"
+    assert "place-items:center" in source, f"{name} checkmark alignment is missing"
 
 assert "STREAMFORGE_GLOBAL_CHECKBOX_THEME_V1337" in main_css, "Main global checkbox theme is missing"
 assert "STREAMFORGE_GLOBAL_CHECKBOX_THEME_V1337" in node_source, "Node global checkbox theme is missing"
+assert 'content:"✓"' in main_css, "Main checkmark is not centered as a glyph"
+assert 'content:"✓"' in node_source, "Node checkmark is not centered as a glyph"
 
 print("PASS: Main and Node checkbox theme contract")

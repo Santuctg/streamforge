@@ -1,3 +1,7 @@
+## 13.38 - 2026-11-16
+
+- Centered the checkbox `✓` mark in Main and Node panels so it sits correctly inside the green checked box.
+
 ## 13.37 - 2026-11-16
 
 - Applied unified dark checkbox styling globally across Main and Node panels, including forms, category/permission selectors, assignments, and bulk controls.
