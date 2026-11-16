@@ -1,3 +1,7 @@
+## 13.40 - 2026-11-16
+
+- Optically centered the checkbox `✓` mark by moving it 1px upward in Main and Node panels.
+
 ## 13.39 - 2026-11-16
 
 - Main Updates Check again now forces a fresh GitHub release check instead of reusing the five-minute cache.
