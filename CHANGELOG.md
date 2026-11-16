@@ -1,3 +1,7 @@
+## 13.43 - 2026-11-16
+
+- Anchored Main and Node checkbox marks at the exact center of their boxes using a shared centered transform.
+
 ## 13.42 - 2026-11-16
 
 - Unified Main and Node checkbox tick geometry using a font-independent CSS shape.

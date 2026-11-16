@@ -16,6 +16,10 @@ assert "STREAMFORGE_GLOBAL_CHECKBOX_THEME_V1337" in main_css, "Main global check
 assert "STREAMFORGE_GLOBAL_CHECKBOX_THEME_V1337" in node_source, "Node global checkbox theme is missing"
 assert "clip-path:polygon" in main_css, "Main checkmark needs a font-independent geometric shape"
 assert "clip-path:polygon" in node_source, "Node checkmark needs a font-independent geometric shape"
+assert "left:50%" in main_css and "top:50%" in main_css
+assert "transform:translate(-50%,-50%)" in main_css
+assert "left:50%" in node_source and "top:50%" in node_source
+assert "transform:translate(-50%,-50%)" in node_source
 assert "transform:none" in main_css
 assert "transform:none" in node_source
 
