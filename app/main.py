@@ -14988,6 +14988,67 @@ def _node_control_identity(request: Request, db: Session) -> Node:
     return node
 
 
+# STREAMFORGE_NODE_SHARED_HLS_OVERRIDE_API_V1333:
+@app.post("/api/v1/node-channel-hls-segment/{node_slug}/{channel_key}")
+async def node_channel_hls_segment_override(
+    node_slug: str,
+    channel_key: str,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    node = _node_control_identity(request, db)
+    if node.slug != node_slug:
+        raise HTTPException(403, "Node identity does not match the requested Node")
+    match = re.fullmatch(r"sf-(\d+)-([A-Za-z0-9_-]+)", channel_key)
+    if not match:
+        raise HTTPException(400, "Invalid channel key")
+    channel = db.get(Channel, int(match.group(1)))
+    if not channel or channel.slug != match.group(2) or channel.output_type != "hls":
+        raise HTTPException(404, "HLS channel not found")
+    assigned_ids = {int(item.id) for item in node_controller.assigned_nodes(channel)}
+    if int(node.id) not in assigned_ids:
+        raise HTTPException(403, "Channel is not assigned to this Node")
+    try:
+        payload = await request.json()
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(400, "Invalid JSON payload") from exc
+    raw_value = payload.get("hls_segment_time") if isinstance(payload, dict) else None
+    if raw_value is None:
+        hls_segment_time = None
+    elif isinstance(raw_value, bool):
+        raise HTTPException(400, "HLS segment seconds must be between 1 and 20")
+    else:
+        try:
+            hls_segment_time = int(raw_value)
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(400, "Invalid HLS segment seconds") from exc
+        if not 1 <= hls_segment_time <= 20:
+            raise HTTPException(400, "HLS segment seconds must be between 1 and 20")
+    db.execute(
+        text(
+            "UPDATE channel_nodes SET hls_segment_time=:hls_segment_time "
+            "WHERE channel_id=:channel_id AND node_id=:node_id"
+        ),
+        {"hls_segment_time": hls_segment_time, "channel_id": channel.id, "node_id": node.id},
+    )
+    db.commit()
+    try:
+        sync_result = node_controller.sync_channel_config(
+            channel, node, restart_running=True, bypass_transport_backoff=True
+        )
+    except Exception as exc:
+        raise HTTPException(502, f"Node configuration sync failed: {exc}") from exc
+    effective = hls_segment_time if hls_segment_time is not None else int(channel.hls_segment_time or 1)
+    return {
+        "ok": True,
+        "node_id": int(node.id),
+        "channel_key": channel_key,
+        "hls_segment_time": hls_segment_time,
+        "effective_hls_segment_time": effective,
+        "restarted": bool(sync_result.get("restarted")),
+    }
+
+
 def _node_compatible_channels(node: Node) -> list[Channel]:
     return [
         channel for channel in node.channels

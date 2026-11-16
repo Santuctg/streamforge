@@ -639,6 +639,9 @@ class ChannelConfig(BaseModel):
     output_type: str = "hls"
     output_url: str | None = None
     hls_segment_time: int = 1
+    # Main-owned channels keep the nullable per-Node override separate from
+    # the effective segment duration used by FFmpeg.
+    hls_segment_override: int | None = None
     # Main catalogue number (101+). Node-local rows calculate their own 1+ ID.
     display_id: int | None = None
     # main = synchronized from Main Server; local = created on this Independent Node.
@@ -1589,6 +1592,10 @@ class AgentManager:
             "audio_codec": audio_aliases.get(audio, audio),
             "output_type": output_aliases.get(output, output),
             "hls_segment_time": max(1, min(20, int(getattr(config, "hls_segment_time", 1) or 1))),
+            "hls_segment_override": (
+                max(1, min(20, int(config.hls_segment_override)))
+                if getattr(config, "hls_segment_override", None) is not None else None
+            ),
             "catalog_owner": owner if owner in {"main", "local"} else "main",
             "category_order": max(0, int(getattr(config, "category_order", 100000) or 100000)),
             "channel_order": max(0, int(getattr(config, "channel_order", 100000) or 100000)),
@@ -14005,7 +14012,7 @@ def independent_channels(request: Request, message: str = '', error: str = ''):
         global_buttons.append('<button class=danger name=action value=stop_all onclick="return confirm(\'Stop all channels on this node?\')">Stop all</button>')
         selected_buttons.append('<button class=danger name=action value=stop_selected data-node-selected-action disabled>Stop selected</button>')
     if _has_panel_permission(user,'channels.edit'):
-        segment_options = ''.join(f'<option value="{seconds}">{seconds}s</option>' for seconds in range(1, 21))
+        segment_options = '<option value="keep" selected>Keep current</option><option value="inherit">Use Main default</option>' + ''.join(f'<option value="{seconds}">{seconds}s</option>' for seconds in range(1, 21))
         selected_buttons.append(
             '<label class=node-bulk-segment><span>HLS segment</span>'
             f'<select name=hls_segment_time>{segment_options}</select></label>'
@@ -14097,20 +14104,45 @@ async def independent_channels_bulk(request: Request):
     with manager.lock:
         runtimes = [(key, rt) for key, rt in manager.channels.items() if not selected_mode or key in selected]
     if action == 'hls_selected':
-        try:
-            seconds = int(str(form.get('hls_segment_time') or '1'))
-        except ValueError:
-            raise HTTPException(400, 'Invalid HLS segment seconds')
-        if not 1 <= seconds <= 20:
-            raise HTTPException(400, 'HLS segment seconds must be between 1 and 20')
+        selected_value = str(form.get('hls_segment_time') or 'keep').strip().lower()
+        if selected_value == 'keep':
+            return RedirectResponse('/panel/manage/channels?message=' + urllib.parse.quote_plus('HLS segment unchanged'), 303)
+        if selected_value == 'inherit':
+            seconds = None
+        else:
+            try:
+                seconds = int(selected_value)
+            except ValueError:
+                raise HTTPException(400, 'Invalid HLS segment seconds')
+            if not 1 <= seconds <= 20:
+                raise HTTPException(400, 'HLS segment seconds must be between 1 and 20')
         local_runtimes = [(key, rt) for key, rt in runtimes if rt.config.catalog_owner == 'local']
+        shared_runtimes = [(key, rt) for key, rt in runtimes if rt.config.catalog_owner == 'main']
+        errors = []
         for key, rt in local_runtimes:
-            manager.sync_channel(key, rt.config.model_copy(update={'hls_segment_time': seconds}))
-        skipped = len(runtimes) - len(local_runtimes)
-        manager.log(f'Bulk HLS segment changed to {seconds}s for {len(local_runtimes)} local channel(s)', scope='channel', details=f'actor={user.username}')
-        query = {'message': f'HLS segment set to {seconds}s for {len(local_runtimes)} local channel(s)'}
-        if skipped:
-            query['error'] = f'{skipped} Main Server channel(s) skipped because they are read-only here'
+            try:
+                if seconds is not None:
+                    manager.sync_channel(key, rt.config.model_copy(update={'hls_segment_time': seconds}))
+            except Exception as exc:
+                errors.append(f'{rt.config.name}: {exc}')
+        for key, rt in shared_runtimes:
+            try:
+                if not manager.panel_node_slug:
+                    raise RuntimeError('Main panel control settings are incomplete')
+                manager.panel_control_request(
+                    'POST',
+                    f'/api/v1/node-channel-hls-segment/{urllib.parse.quote(manager.panel_node_slug, safe="")}/{urllib.parse.quote(key, safe="")}',
+                    {'hls_segment_time': seconds},
+                    timeout=20.0,
+                )
+            except Exception as exc:
+                errors.append(f'{rt.config.name}: {exc}')
+        changed = len(local_runtimes) + len(shared_runtimes) - len(errors)
+        value_text = 'Main default' if seconds is None else f'{seconds}s'
+        manager.log(f'Bulk HLS segment changed to {value_text} for {changed} channel(s)', scope='channel', details=f'actor={user.username}')
+        query = {'message': f'HLS segment set to {value_text} for {changed} channel(s)'}
+        if errors:
+            query['error'] = '; '.join(errors)[:1800]
         return RedirectResponse('/panel/manage/channels?' + urllib.parse.urlencode(query), 303)
     operation = action.split('_',1)[0]
     errors=[]; completed=0

@@ -654,6 +654,7 @@ class NodeController:
             "output_type": channel.output_type,
             "output_url": channel.output_url,
             "hls_segment_time": profile.get("hls_segment_time") or channel.hls_segment_time,
+            "hls_segment_override": profile.get("hls_segment_time"),
         }
 
     @staticmethod
