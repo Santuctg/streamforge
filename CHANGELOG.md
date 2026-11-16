@@ -1,3 +1,7 @@
+## 13.34 - 2026-11-16
+
+- Fixed the shared-channel HLS override timeout/deadlock and added Node channel list sorting by Main order, name, ID, status, or HLS segment.
+
 ## 13.33 - 2026-11-16
 
 - Added Node-panel HLS segment overrides for Main-synced channels, persisted per Node/channel on Main with `Keep current` and `Use Main default` controls.

@@ -15032,12 +15032,6 @@ async def node_channel_hls_segment_override(
         {"hls_segment_time": hls_segment_time, "channel_id": channel.id, "node_id": node.id},
     )
     db.commit()
-    try:
-        sync_result = node_controller.sync_channel_config(
-            channel, node, restart_running=True, bypass_transport_backoff=True
-        )
-    except Exception as exc:
-        raise HTTPException(502, f"Node configuration sync failed: {exc}") from exc
     effective = hls_segment_time if hls_segment_time is not None else int(channel.hls_segment_time or 1)
     return {
         "ok": True,
@@ -15045,7 +15039,10 @@ async def node_channel_hls_segment_override(
         "channel_key": channel_key,
         "hls_segment_time": hls_segment_time,
         "effective_hls_segment_time": effective,
-        "restarted": bool(sync_result.get("restarted")),
+        # The request originates from this Node's panel. Return first to avoid
+        # a Node -> Main -> same Node synchronous deadlock; the Node applies the
+        # returned effective value locally after persistence succeeds.
+        "restarted": False,
     }
 
 
