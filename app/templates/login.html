@@ -31,6 +31,7 @@
 }
 </style>
 <div class="login-wrap">
+  <button type="button" class="theme-toggle login-theme-toggle" data-theme-toggle aria-label="Switch to light theme" title="Switch theme">☼</button>
   <form class="login-card" method="post" action="/login">
     <div class="brand login-brand">{% if branding.logo_url %}<img class="brand-logo" src="{{ branding.logo_url|versioned_asset }}" alt="{{ branding.name }} logo">{% else %}<span class="brand-mark">{{ branding.name[:2]|upper }}</span>{% endif %}<div class="brand-copy"><b>{{ branding.name }}</b><small>{{ branding.subtitle }}</small></div></div>
     {% if error %}<div class="alert danger">{{ error }}</div>{% endif %}

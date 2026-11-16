@@ -107,14 +107,6 @@ button{height:46px;border:0;border-radius:10px;background:var(--accent);color:wh
 @media(max-width:380px){.header-viewer,.header-buttons{grid-template-columns:1fr}}
 
 </style>
-<style>
-/* STREAMFORGE_WEBPLAYER_DEVICE_THEME_LIGHT_V1344 */
-:root[data-theme="light"]{color-scheme:light;--panel:#fff;--panel2:#e5edf3;--line:#c7d4df;--text:#172535;--muted:#5d7183;--accent:#168f76}
-:root[data-theme="light"] body{background:linear-gradient(180deg,#eef3f7,#e1eaf1 45%,#f4f7f9);color:var(--text)}
-:root[data-theme="light"] input,:root[data-theme="light"] select{background:#fff;color:var(--text)}
-.theme-toggle{min-width:42px;height:42px;border:1px solid var(--line);border-radius:12px;background:var(--panel2);color:var(--text);font-size:19px;line-height:1}
-.login{position:relative}.login-theme-toggle{position:absolute;top:14px;right:14px}
-</style>
 {% if webplayer_settings %}
 <style>
 :root{--sf-page:{{ webplayer_settings.page_rgba }};--sf-panel:{{ webplayer_settings.panel_rgba }};--sf-accent:{{ webplayer_settings.accent_rgba }};--sf-text:{{ webplayer_settings.text_rgba }}}
@@ -134,6 +126,28 @@ h1,h2,h3,.brand,.brand-copy,.brand-copy b,.brand-copy small,.meta,.meta b,.meta 
 .logout:hover,.category-chip:hover,.card:hover{border-color:var(--sf-accent)!important}
 .card:hover{transform:translateY(-1px);box-shadow:0 15px 28px rgba(0,0,0,.18)!important}
 .category-chip.active{box-shadow:none!important}
+</style>
+{% endif %}
+<style>
+/* STREAMFORGE_WEBPLAYER_DEVICE_THEME_LIGHT_V1344 */
+:root[data-theme="light"]{color-scheme:light;--panel:#fff;--panel2:#e5edf3;--line:#c7d4df;--text:#172535;--muted:#5d7183;--accent:#168f76}
+.theme-toggle{min-width:42px;height:42px;border:1px solid var(--line);border-radius:12px;background:var(--panel2);color:var(--text);font-size:19px;line-height:1;cursor:pointer}
+.login{position:relative}.login-theme-toggle{position:absolute;top:14px;right:14px}
+/* The saved appearance block above uses !important, so light mode needs a more
+   specific selector to keep panels, labels and inputs readable. */
+:root[data-theme="light"] body{background:linear-gradient(180deg,#eef3f7,#e1eaf1 45%,#f4f7f9)!important;color:var(--text)!important}
+:root[data-theme="light"] .top,:root[data-theme="light"] .toolbar,:root[data-theme="light"] .login,:root[data-theme="light"] .card,:root[data-theme="light"] .logout,:root[data-theme="light"] .count,:root[data-theme="light"] .category-chip,:root[data-theme="light"] .channel-library,:root[data-theme="light"] .header-info-group,:root[data-theme="light"] .manual-login-toggle,:root[data-theme="light"] .manual-login-back{background:#fff!important;color:var(--text)!important;border-color:var(--line)!important;box-shadow:none!important}
+:root[data-theme="light"] .logout,:root[data-theme="light"] .count,:root[data-theme="light"] .manual-login-toggle,:root[data-theme="light"] .manual-login-back{background:#f2f6fa!important}
+:root[data-theme="light"] input,:root[data-theme="light"] select{background:#fff!important;color:var(--text)!important;border-color:#aebfcd!important}
+:root[data-theme="light"] h1,:root[data-theme="light"] h2,:root[data-theme="light"] h3,:root[data-theme="light"] .brand,:root[data-theme="light"] .brand-copy,:root[data-theme="light"] .brand-copy b,:root[data-theme="light"] .meta,:root[data-theme="light"] .meta b,:root[data-theme="light"] .empty,:root[data-theme="light"] label,:root[data-theme="light"] .header-info-group b{color:var(--text)!important}
+:root[data-theme="light"] .brand-copy small,:root[data-theme="light"] .meta small,:root[data-theme="light"] .header-info-group label{color:var(--muted)!important}
+:root[data-theme="light"] .mark,:root[data-theme="light"] button[type=submit],:root[data-theme="light"] .category-chip.active,:root[data-theme="light"] .download-button{background:var(--accent)!important;border-color:var(--accent)!important;color:#fff!important}
+:root[data-theme="light"] .login-divider{color:var(--muted)!important}
+:root[data-theme="light"] .login-divider:before,:root[data-theme="light"] .login-divider:after{background:var(--line)!important}
+:root[data-theme="light"] .card:hover{border-color:var(--accent)!important;box-shadow:0 12px 24px rgba(23,37,53,.10)!important}
+:root[data-theme="light"] .alert{background:#fdecee!important;color:var(--danger)!important;border-color:#f0bcc3!important}
+:root[data-theme="light"] .brand-logo,:root[data-theme="light"] .logo,:root[data-theme="light"] .fallback{background:#f2f6fa!important}
+:root[data-theme="light"] body>div[style*="position:fixed"]{color:#6a7d8e!important}
 </style>
 {% endif %}
 </head>
@@ -238,9 +252,9 @@ const onlineEl=document.getElementById('header-online-use'),onlineEndpoint={{ (p
 async function refreshOnlineUse(){if(!onlineEl||onlineBusy)return;onlineBusy=true;try{const r=await fetch(onlineEndpoint,{cache:'no-store',credentials:'same-origin',headers:{'Accept':'application/json'}});if(r.ok){const data=await r.json();if(Number.isFinite(Number(data.online_use)))onlineEl.textContent=String(Math.max(0,Number(data.online_use)))}}catch(_){ }finally{onlineBusy=false}}
 if(onlineEl){refreshOnlineUse();setInterval(refreshOnlineUse,2000)}
 })();</script>
-<script>/* STREAMFORGE_DEVICE_LOCAL_THEME_TOGGLE_V1344 */(()=>{const b=document.querySelector('[data-theme-toggle]');if(!b)return;const k='streamforge.theme',apply=()=>{const light=document.documentElement.dataset.theme==='light';b.textContent=light?'☾':'☼';b.setAttribute('aria-label',light?'Switch to dark theme':'Switch to light theme');b.onclick=()=>{const next=document.documentElement.dataset.theme==='light'?'dark':'light';document.documentElement.dataset.theme=next;try{localStorage.setItem(k,next)}catch(_){};apply()}};apply()})();</script>
 {% endif %}
 <div style="position:fixed;right:10px;bottom:8px;color:#5f7186;font:10px system-ui">v{{ app_version if app_version else "" }}</div>
+<script>/* STREAMFORGE_DEVICE_LOCAL_THEME_TOGGLE_V1344 */ (()=>{const k='streamforge.theme',buttons=document.querySelectorAll('[data-theme-toggle]');if(!buttons.length)return;const paint=()=>{const light=document.documentElement.dataset.theme==='light';buttons.forEach(b=>{b.textContent=light?'☾':'☼';const label=light?'Switch to dark theme':'Switch to light theme';b.setAttribute('aria-label',label);b.title=label})};buttons.forEach(b=>b.addEventListener('click',()=>{const next=document.documentElement.dataset.theme==='light'?'dark':'light';document.documentElement.dataset.theme=next;try{localStorage.setItem(k,next)}catch(_){}paint();window.dispatchEvent(new CustomEvent('streamforge:themechange',{detail:{theme:next}}))}));paint()})();</script>
 {% if webplayer_settings and webplayer_settings.hide_hover_urls %}
 <!-- STREAMFORGE_MAIN_WEBPLAYER_HIDE_HOVER_URLS_V2293 -->
 <script>

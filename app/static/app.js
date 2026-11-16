@@ -6,6 +6,8 @@
     const next = theme === 'light' ? 'light' : 'dark';
     document.documentElement.dataset.theme = next;
     try { localStorage.setItem(themeKey, next); } catch (_) {}
+    // STREAMFORGE_MAIN_THEME_CHANGE_EVENT_V1348: canvas charts repaint on toggle.
+    window.dispatchEvent(new CustomEvent('streamforge:themechange', { detail: { theme: next } }));
     if (themeButton) {
       const light = next === 'light';
       themeButton.textContent = light ? '☾' : '☼';

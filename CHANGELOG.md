@@ -1,3 +1,7 @@
+## 13.48 - 2026-11-16
+
+- Completed the device-local light theme: a late, fully scoped `theme-light.css`, theme-aware Main dashboard charts, Node hardcoded-colour overrides, Main login toggle and a working Web Player toggle on both login and header.
+
 ## 13.47 - 2026-11-16
 
 - Fixed light-mode dashboard chart cards and canvas colors so titles, legends, axes, and graph lines remain readable.

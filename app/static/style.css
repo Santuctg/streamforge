@@ -3799,7 +3799,10 @@ body .sf-help-bubble.sf-help-bubble.sf-help-below::after{
 :root[data-theme="light"] button,
 :root[data-theme="light"] .button{color:var(--text)}
 .theme-toggle{min-width:34px!important;width:34px!important;height:30px!important;min-height:30px!important;padding:0!important;margin-left:8px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--text);font-size:18px;line-height:1}
+.topbar-actions{display:flex;align-items:center;gap:10px;margin-left:auto}
 .topbar-theme-toggle{align-self:center;margin-left:0}
+.login-wrap{position:relative}
+.login-theme-toggle{position:absolute;top:16px;right:16px;z-index:2}
 
 /* STREAMFORGE_MAIN_LIGHT_NODE_UPDATES_CSS_V1346 */
 :root[data-theme="light"]{--border:var(--line);--panel-soft:#f4f7f9}
