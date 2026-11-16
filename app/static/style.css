@@ -3769,3 +3769,33 @@ body .sf-help-bubble.sf-help-bubble.sf-help-below::after{
   border-right:0;border-bottom:0;
   border-left:1px solid #d9e0e8;border-top:1px solid #d9e0e8;
 }
+
+/* STREAMFORGE_DEVICE_LOCAL_THEME_LIGHT_V1344 */
+:root[data-theme="light"]{
+  --bg:#eef3f7;
+  --panel:#ffffff;
+  --panel2:#e5edf3;
+  --line:#c7d4df;
+  --text:#172535;
+  --muted:#5d7183;
+  --accent:#168f76;
+  --accent2:#11725f;
+  --danger:#c83f50;
+  --warning:#a56b00;
+  --blue:#2877bd;
+  color-scheme:light;
+}
+:root[data-theme="light"] body{background:var(--bg);color:var(--text)}
+:root[data-theme="light"] .sidebar{background:#e3ebf1;border-color:var(--line)}
+:root[data-theme="light"] .sidebar nav a{color:#40576a}
+:root[data-theme="light"] .sidebar nav a:hover,
+:root[data-theme="light"] .sidebar nav a.active{background:#d3e0e9;color:#172535}
+:root[data-theme="light"] .panel,
+:root[data-theme="light"] .stat,
+:root[data-theme="light"] .main-channel-control-table tbody td{background:var(--panel)}
+:root[data-theme="light"] input,
+:root[data-theme="light"] select,
+:root[data-theme="light"] textarea{background:#fff;color:var(--text);border-color:#aebfcd}
+:root[data-theme="light"] button,
+:root[data-theme="light"] .button{color:var(--text)}
+.theme-toggle{min-width:34px!important;width:34px!important;height:30px!important;min-height:30px!important;padding:0!important;margin-left:8px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--text);font-size:18px;line-height:1}

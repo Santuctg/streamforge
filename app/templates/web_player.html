@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <title>{{ (branding.name if branding else 'StreamForge') }} · Web Player</title>
+<script>/* STREAMFORGE_DEVICE_LOCAL_THEME_BOOTSTRAP_V1344 */(()=>{try{const k='streamforge.theme',v=localStorage.getItem(k);if(v==='light')document.documentElement.dataset.theme='light'}catch(_){}})();</script>
 <!-- STREAMFORGE_MAIN_WEBPLAYER_FAVICON_HEAD_V2289 -->
 {% if branding and branding.favicon_url %}
 <link rel="icon" type="image/x-icon" href="{{ prefix }}/web-player/favicon?v={{ app_version }}">
@@ -106,6 +107,13 @@ button{height:46px;border:0;border-radius:10px;background:var(--accent);color:wh
 @media(max-width:380px){.header-viewer,.header-buttons{grid-template-columns:1fr}}
 
 </style>
+<style>
+/* STREAMFORGE_WEBPLAYER_DEVICE_THEME_LIGHT_V1344 */
+:root[data-theme="light"]{color-scheme:light;--panel:#fff;--panel2:#e5edf3;--line:#c7d4df;--text:#172535;--muted:#5d7183;--accent:#168f76}
+:root[data-theme="light"] body{background:linear-gradient(180deg,#eef3f7,#e1eaf1 45%,#f4f7f9);color:var(--text)}
+:root[data-theme="light"] input,:root[data-theme="light"] select{background:#fff;color:var(--text)}
+.theme-toggle{min-width:42px;height:42px;border:1px solid var(--line);border-radius:12px;background:var(--panel2);color:var(--text);font-size:19px;line-height:1}
+</style>
 {% if webplayer_settings %}
 <style>
 :root{--sf-page:{{ webplayer_settings.page_rgba }};--sf-panel:{{ webplayer_settings.panel_rgba }};--sf-accent:{{ webplayer_settings.accent_rgba }};--sf-text:{{ webplayer_settings.text_rgba }}}
@@ -180,6 +188,7 @@ h1,h2,h3,.brand,.brand-copy,.brand-copy b,.brand-copy small,.meta,.meta b,.meta 
       </div>
     </div>
     <div class="header-actions">
+      <button type="button" class="theme-toggle" data-theme-toggle aria-label="Switch to light theme" title="Switch theme">☼</button>
       {% if not hide_quick_user_info %}
       <!-- STREAMFORGE_WEBPLAYER_QUICK_USER_PRIVACY_V3056 -->
       <div class="header-viewer">
@@ -227,6 +236,7 @@ const onlineEl=document.getElementById('header-online-use'),onlineEndpoint={{ (p
 async function refreshOnlineUse(){if(!onlineEl||onlineBusy)return;onlineBusy=true;try{const r=await fetch(onlineEndpoint,{cache:'no-store',credentials:'same-origin',headers:{'Accept':'application/json'}});if(r.ok){const data=await r.json();if(Number.isFinite(Number(data.online_use)))onlineEl.textContent=String(Math.max(0,Number(data.online_use)))}}catch(_){ }finally{onlineBusy=false}}
 if(onlineEl){refreshOnlineUse();setInterval(refreshOnlineUse,2000)}
 })();</script>
+<script>/* STREAMFORGE_DEVICE_LOCAL_THEME_TOGGLE_V1344 */(()=>{const b=document.querySelector('[data-theme-toggle]');if(!b)return;const k='streamforge.theme',apply=()=>{const light=document.documentElement.dataset.theme==='light';b.textContent=light?'☾':'☼';b.setAttribute('aria-label',light?'Switch to dark theme':'Switch to light theme');b.onclick=()=>{const next=document.documentElement.dataset.theme==='light'?'dark':'light';document.documentElement.dataset.theme=next;try{localStorage.setItem(k,next)}catch(_){};apply()}};apply()})();</script>
 {% endif %}
 <div style="position:fixed;right:10px;bottom:8px;color:#5f7186;font:10px system-ui">v{{ app_version if app_version else "" }}</div>
 {% if webplayer_settings and webplayer_settings.hide_hover_urls %}

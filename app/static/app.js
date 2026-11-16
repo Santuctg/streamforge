@@ -1,4 +1,20 @@
 (() => {
+  // STREAMFORGE_DEVICE_LOCAL_THEME_TOGGLE_V1344
+  const themeKey = 'streamforge.theme';
+  const themeButton = document.querySelector('[data-theme-toggle]');
+  const applyTheme = (theme) => {
+    const next = theme === 'light' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem(themeKey, next); } catch (_) {}
+    if (themeButton) {
+      const light = next === 'light';
+      themeButton.textContent = light ? '☾' : '☼';
+      themeButton.setAttribute('aria-label', light ? 'Switch to dark theme' : 'Switch to light theme');
+      themeButton.title = light ? 'Switch to dark theme' : 'Switch to light theme';
+    }
+  };
+  applyTheme(document.documentElement.dataset.theme === 'light' ? 'light' : 'dark');
+  themeButton?.addEventListener('click', () => applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light'));
   const escapeHtml = (value) => String(value ?? '')
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')

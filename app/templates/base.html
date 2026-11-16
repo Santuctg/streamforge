@@ -9,6 +9,8 @@
   window.STREAMFORGE_APP_ROOT={{ request.scope.get('root_path','')|tojson }};
   window.STREAMFORGE_PANEL_INTERNAL_INITIAL={{ panel_internal_url|default('/', true)|tojson }};
   window.STREAMFORGE_HIDE_PANEL_HOVER_URLS={{ hide_panel_hover_urls|default(false)|tojson }};
+  // STREAMFORGE_DEVICE_LOCAL_THEME_BOOTSTRAP_V1344
+  (()=>{try{const k='streamforge.theme',v=localStorage.getItem(k);if(v==='light')document.documentElement.dataset.theme='light';window.STREAMFORGE_THEME_KEY=k;}catch(_){}})();
   </script>
   {% if not admin %}
   <script>
@@ -105,7 +107,7 @@
   <main class="main-content">
     <header class="topbar">
       <div>{% block heading %}{% endblock %}</div>
-      <div class="admin-chip"><b>{{ admin.username }}</b><small>{{ admin.role.name if admin.role else 'No role' }}</small></div>
+      <div class="admin-chip"><b>{{ admin.username }}</b><small>{{ admin.role.name if admin.role else 'No role' }}</small><button type="button" class="theme-toggle" data-theme-toggle aria-label="Switch to light theme" title="Switch theme">☼</button></div>
     </header>
     {% block content %}{% endblock %}
   </main>

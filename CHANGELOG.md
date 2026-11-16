@@ -1,3 +1,7 @@
+## 13.44 - 2026-11-16
+
+- Added device-local Dark/Light theme toggles across Main Server, Node Server, and Web Player with browser persistence.
+
 ## 13.43 - 2026-11-16
 
 - Anchored Main and Node checkbox marks at the exact center of their boxes using a shared centered transform.
