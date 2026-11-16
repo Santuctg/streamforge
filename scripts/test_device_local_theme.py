@@ -19,5 +19,7 @@ assert "dataset.theme=t" in node, "Node light theme bootstrap is missing"
 assert "data-theme-toggle" in node, "Node theme toggle is missing"
 assert "data-theme-toggle" in webplayer, "Web Player theme toggle is missing"
 assert "[data-theme=\"light\"]" in main_css, "Main light variable overrides are missing"
+assert "node-update-table thead th" in main_css, "Node Updates light table override is missing"
+assert "node-update-bulk-toolbar" in main_css, "Node Updates light toolbar override is missing"
 
 print("PASS: device-local theme contract")

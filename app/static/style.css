@@ -3800,3 +3800,44 @@ body .sf-help-bubble.sf-help-bubble.sf-help-below::after{
 :root[data-theme="light"] .button{color:var(--text)}
 .theme-toggle{min-width:34px!important;width:34px!important;height:30px!important;min-height:30px!important;padding:0!important;margin-left:8px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--text);font-size:18px;line-height:1}
 .topbar-theme-toggle{align-self:center;margin-left:0}
+
+/* STREAMFORGE_MAIN_LIGHT_NODE_UPDATES_CSS_V1346 */
+:root[data-theme="light"]{--border:var(--line);--panel-soft:#f4f7f9}
+:root[data-theme="light"] button,
+:root[data-theme="light"] .button,
+:root[data-theme="light"] .btn{
+  background:var(--panel2)!important;
+  border-color:var(--line)!important;
+  color:var(--text)!important;
+}
+:root[data-theme="light"] input[type=checkbox]{
+  border-color:#7890a2!important;
+  background:#fff!important;
+}
+:root[data-theme="light"] input[type=checkbox]:checked{
+  border-color:var(--accent)!important;
+  background:var(--accent)!important;
+}
+:root[data-theme="light"] .node-update-bulk-toolbar,
+:root[data-theme="light"] .node-update-advanced-grid,
+:root[data-theme="light"] .node-update-advanced-card{
+  background:#f4f7f9!important;
+  border-color:var(--line)!important;
+}
+:root[data-theme="light"] .node-update-table{
+  background:#fff!important;
+  color:var(--text)!important;
+}
+:root[data-theme="light"] .node-update-table thead th{
+  background:#dce6ed!important;
+  color:#31475a!important;
+  border-color:var(--line)!important;
+}
+:root[data-theme="light"] .node-update-table tbody td{
+  background:#fff!important;
+  color:var(--text)!important;
+  border-color:var(--line)!important;
+}
+:root[data-theme="light"] .node-update-table tbody tr:nth-child(even) td{
+  background:#f4f7f9!important;
+}

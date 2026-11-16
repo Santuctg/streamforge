@@ -1,3 +1,7 @@
+## 13.46 - 2026-11-16
+
+- Fixed light-theme CSS in Main Node Updates tables, toolbars, cards, buttons, and checkboxes.
+
 ## 13.45 - 2026-11-16
 
 - Fixed theme toggle placement in Main and Node panels and added the toggle to both Web Player login and logged-in screens.
