@@ -113,6 +113,7 @@ button{height:46px;border:0;border-radius:10px;background:var(--accent);color:wh
 :root[data-theme="light"] body{background:linear-gradient(180deg,#eef3f7,#e1eaf1 45%,#f4f7f9);color:var(--text)}
 :root[data-theme="light"] input,:root[data-theme="light"] select{background:#fff;color:var(--text)}
 .theme-toggle{min-width:42px;height:42px;border:1px solid var(--line);border-radius:12px;background:var(--panel2);color:var(--text);font-size:19px;line-height:1}
+.login{position:relative}.login-theme-toggle{position:absolute;top:14px;right:14px}
 </style>
 {% if webplayer_settings %}
 <style>
@@ -141,6 +142,7 @@ h1,h2,h3,.brand,.brand-copy,.brand-copy b,.brand-copy small,.meta,.meta b,.meta 
 {% if not user %}
 <!-- STREAMFORGE_WEB_PLAYER_LOGIN_CENTER_V2200 -->
 <section class="login">
+  <button type="button" class="theme-toggle login-theme-toggle" data-theme-toggle aria-label="Switch to light theme" title="Switch theme">☼</button>
   <div class="brand brand--login">
     {% if branding and branding.logo_url %}
       <img class="brand-logo" src="{{ branding.logo_url|versioned_asset }}" alt="{{ branding.name if branding else 'StreamForge' }}" loading="eager">

@@ -1,3 +1,7 @@
+## 13.45 - 2026-11-16
+
+- Fixed theme toggle placement in Main and Node panels and added the toggle to both Web Player login and logged-in screens.
+
 ## 13.44 - 2026-11-16
 
 - Added device-local Dark/Light theme toggles across Main Server, Node Server, and Web Player with browser persistence.

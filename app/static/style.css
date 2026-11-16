@@ -3799,3 +3799,4 @@ body .sf-help-bubble.sf-help-bubble.sf-help-below::after{
 :root[data-theme="light"] button,
 :root[data-theme="light"] .button{color:var(--text)}
 .theme-toggle{min-width:34px!important;width:34px!important;height:30px!important;min-height:30px!important;padding:0!important;margin-left:8px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--text);font-size:18px;line-height:1}
+.topbar-theme-toggle{align-self:center;margin-left:0}
