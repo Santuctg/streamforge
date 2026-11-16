@@ -1,3 +1,7 @@
+## 13.35 - 2026-11-16
+
+- Matched the Node channel table to Main Server behavior: clickable sortable headers with arrow indicators and dark themed selection checkboxes.
+
 ## 13.34 - 2026-11-16
 
 - Fixed the shared-channel HLS override timeout/deadlock and added Node channel list sorting by Main order, name, ID, status, or HLS segment.

@@ -19,9 +19,12 @@ assert "manager.sync_channel(key, rt.config.model_copy" in node
 assert "hls_segment_override" in node
 
 # The channel list exposes persistent sorting choices and applies them before paging.
-assert "data-node-channel-sort" in node
-assert "Sort by" in node
+assert "data-node-sort-key" in node, "Node table needs clickable sortable headers"
+assert "channel-sort-indicator" in node, "Node sortable headers need the Main-style arrow indicator"
+assert "appearance:none" in node and "input[type=checkbox]" in node, "Node checkboxes need the dark themed custom appearance"
+assert "data-node-channel-sort" not in node, "Sorting must be in table headers, not a separate dropdown"
+assert "data-node-sort-key=\"name\"" in node
 assert "channelPage" in node and "sort" in node
-assert "data-node-channel-sort" in node
+assert "data-node-sort-status" in node
 
 print("PASS: shared HLS timeout prevention and channel sort contract")
