@@ -14,9 +14,9 @@ for source, name in ((main_css, "Main"), (node_source, "Node")):
 
 assert "STREAMFORGE_GLOBAL_CHECKBOX_THEME_V1337" in main_css, "Main global checkbox theme is missing"
 assert "STREAMFORGE_GLOBAL_CHECKBOX_THEME_V1337" in node_source, "Node global checkbox theme is missing"
-assert 'content:"✓"' in main_css, "Main checkmark is not centered as a glyph"
-assert 'content:"✓"' in node_source, "Node checkmark is not centered as a glyph"
+assert "clip-path:polygon" in main_css, "Main checkmark needs a font-independent geometric shape"
+assert "clip-path:polygon" in node_source, "Node checkmark needs a font-independent geometric shape"
 assert "transform:none" in main_css
-assert "transform:translateY(-1px)" in node_source
+assert "transform:none" in node_source
 
 print("PASS: Main and Node checkbox theme contract")

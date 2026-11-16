@@ -1,3 +1,7 @@
+## 13.42 - 2026-11-16
+
+- Unified Main and Node checkbox tick geometry using a font-independent CSS shape.
+
 ## 13.41 - 2026-11-16
 
 - Restored Main Server checkbox alignment and kept the optical checkmark adjustment isolated to Node.
