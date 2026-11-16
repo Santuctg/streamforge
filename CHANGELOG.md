@@ -1,3 +1,7 @@
+## 13.39 - 2026-11-16
+
+- Main Updates Check again now forces a fresh GitHub release check instead of reusing the five-minute cache.
+
 ## 13.38 - 2026-11-16
 
 - Centered the checkbox `✓` mark in Main and Node panels so it sits correctly inside the green checked box.

@@ -9798,7 +9798,11 @@ def _release_version_key(value: object) -> tuple[int, ...]:
     return tuple(int(part) for part in cleaned.split("."))
 
 
-def _github_latest_release() -> dict[str, str]:
+def _github_latest_release(*, force_refresh: bool = False) -> dict[str, str]:
+    if force_refresh:
+        with _github_release_cache_lock:
+            _github_release_cache["checked_at"] = 0.0
+            _github_release_cache["release"] = {}
     with _github_release_cache_lock:
         cached = _github_release_cache.get("release")
         if isinstance(cached, dict) and cached and time.monotonic() - float(_github_release_cache.get("checked_at") or 0) < 300:
@@ -9876,7 +9880,7 @@ def main_updates_page(request: Request, db: Session = Depends(get_db)):
     latest: dict[str, str] = {}
     check_error = ""
     try:
-        latest = _github_latest_release()
+        latest = _github_latest_release(force_refresh=request.query_params.get("refresh") == "1")
     except (OSError, ValueError, urllib.error.URLError, json.JSONDecodeError) as exc:
         check_error = str(exc)[:300]
     installed_key = _release_version_key(APP_VERSION)
@@ -9915,7 +9919,7 @@ def main_updates_apply(request: Request, db: Session = Depends(get_db)):
     if not admin:
         return redirect_login()
     try:
-        latest = _github_latest_release()
+        latest = _github_latest_release(force_refresh=True)
         if _release_version_key(latest["version"]) <= _release_version_key(APP_VERSION):
             return RedirectResponse("/system/updates?message=" + quote_plus("Main Server is already up to date."), status_code=303)
         request_id = _write_main_system_request(
