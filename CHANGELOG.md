@@ -1,3 +1,7 @@
+## 13.36 - 2026-11-16
+
+- Unified Main Server and Node channel table checkbox styling with dark unchecked controls and centered accent checkmarks.
+
 ## 13.35 - 2026-11-16
 
 - Matched the Node channel table to Main Server behavior: clickable sortable headers with arrow indicators and dark themed selection checkboxes.

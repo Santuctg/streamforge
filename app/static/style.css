@@ -3215,6 +3215,36 @@ button:disabled,select:disabled,input:disabled,[aria-disabled="true"]{cursor:not
 /* STREAMFORGE_CHANNEL_TABLE_SORT_UI_V65R10 */
 .main-channel-control-table .channel-sort-button{display:inline-flex;align-items:center;justify-content:center;gap:5px;width:100%;padding:0;border:0;background:transparent;color:inherit;font:inherit;text-transform:inherit;letter-spacing:inherit;white-space:nowrap;cursor:pointer}.main-channel-control-table .channel-sort-button.channel-sort-left{justify-content:flex-start}.main-channel-control-table .channel-sort-button:hover,.main-channel-control-table .channel-sort-button.active{color:#dcecff}.main-channel-control-table .channel-sort-indicator{display:inline-block;min-width:10px;color:#6f8499;font-size:9px;line-height:1}.main-channel-control-table .channel-sort-button.active .channel-sort-indicator{color:#37d4b5}
 
+/* STREAMFORGE_UNIFIED_CHECKBOX_THEME_V1336: replace browser-native white
+   checkboxes in Main tables with the same dark, centered control used by Node. */
+.main-channel-control-table input[type=checkbox]{
+  appearance:none!important;
+  -webkit-appearance:none!important;
+  position:relative;
+  width:16px!important;
+  height:16px!important;
+  min-width:16px!important;
+  margin:0!important;
+  border:1px solid #466078!important;
+  border-radius:3px!important;
+  background:#101b27!important;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.2)!important;
+  vertical-align:middle;
+  cursor:pointer;
+}
+.main-channel-control-table input[type=checkbox]:checked{border-color:#37c7a2!important;background:#37c7a2!important}
+.main-channel-control-table input[type=checkbox]:checked::after{
+  content:"";
+  position:absolute;
+  left:5px;
+  top:2px;
+  width:4px;
+  height:8px;
+  border:solid #071c18;
+  border-width:0 2px 2px 0;
+  transform:rotate(45deg);
+}
+
 
 /* STREAMFORGE_MAIN_LOG_MOBILE_NODE_LAYOUT_V73: Main Logs use the same compact
    horizontally scrollable table model as Node Logs on phones. Generic mobile
