@@ -1,3 +1,7 @@
+## 13.49 - 2026-11-17
+
+- Completed the device-local light theme by tokenising every neutral surface, border and text colour in `app/static/style.css` and the page-level `<style>` blocks (`--sf-bg-*`, `--sf-bd-*`, `--sf-fg-*`), so all panels, tables, dialogs, forms and login fields flip together. Dark theme computed colours are unchanged.
+
 ## 13.48 - 2026-11-16
 
 - Completed the device-local light theme: a late, fully scoped `theme-light.css`, theme-aware Main dashboard charts, Node hardcoded-colour overrides, Main login toggle and a working Web Player toggle on both login and header.

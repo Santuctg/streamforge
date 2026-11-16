@@ -69,14 +69,14 @@
   align-items:center;
   gap:8px;
   padding:4px 6px 4px 10px;
-  border:1px solid #2d445d;
+  border:1px solid var(--sf-bd-2d445d);
   border-radius:9px;
-  background:#0c1621;
+  background:var(--sf-bg-0c1621);
   font-size:12px;
-  color:#9eb2c6;
+  color:var(--sf-fg-9eb2c6);
 }
 .live-refresh-control>span{
-  color:#9eb2c6;
+  color:var(--sf-fg-9eb2c6);
   white-space:nowrap;
 }
 .live-refresh-control select{
@@ -85,10 +85,10 @@
   min-width:104px;
   height:34px;
   padding:0 28px 0 10px!important;
-  border:1px solid #3b5b7c!important;
+  border:1px solid var(--sf-bd-3b5b7c)!important;
   border-radius:7px!important;
-  background:#111e2b!important;
-  color:#f0f6fc!important;
+  background:var(--sf-bg-111e2b)!important;
+  color:var(--sf-fg-f0f6fc)!important;
   -webkit-text-fill-color:#f0f6fc!important;
   color-scheme:dark!important;
   box-shadow:
@@ -98,7 +98,7 @@
 }
 .live-refresh-control select:hover{
   border-color:#4e7399!important;
-  background:#142334!important;
+  background:var(--sf-bg-142334)!important;
 }
 .live-refresh-control select:focus{
   border-color:#4fd4b4!important;
@@ -106,8 +106,8 @@
   box-shadow:0 0 0 2px rgba(79,212,180,.16)!important;
 }
 .live-refresh-control select option{
-  background:#0b1118!important;
-  color:#edf4fb!important;
+  background:var(--sf-bg-0b1118)!important;
+  color:var(--sf-fg-edf4fb)!important;
 }
 .live-refresh-status{
   display:inline-flex;
@@ -116,9 +116,9 @@
   min-width:58px;
   height:34px;
   padding:0 10px;
-  border:1px solid #2d445d;
+  border:1px solid var(--sf-bd-2d445d);
   border-radius:999px;
-  background:#0c1621;
+  background:var(--sf-bg-0c1621);
   font-size:12px;
   font-variant-numeric:tabular-nums;
   color:var(--muted);
@@ -126,7 +126,7 @@
 }
 .live-refresh-status.live{color:#60d9b0;border-color:#23594d}
 .live-refresh-status.paused{color:#f0b85a;border-color:#5f4b22}
-.live-refresh-status.refreshing{color:#8dbfff;border-color:#2a4c70}
+.live-refresh-status.refreshing{color:#8dbfff;border-color:var(--sf-bd-2a4c70)}
 @media(max-width:700px){
   .live-session-head-actions{width:100%;justify-content:space-between}
   .live-refresh-control{order:1}

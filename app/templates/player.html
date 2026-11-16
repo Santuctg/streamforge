@@ -15,7 +15,7 @@
     /* STREAMFORGE_WEB_PLAYER_CINEMA_LAYOUT_V2207 */
     /* STREAMFORGE_WEB_PLAYER_FULL_WIDTH_V2208 */
     /* STREAMFORGE_WEB_PLAYER_CLEAN_INFO_V2210 */
-    .player-body{margin:0;background:radial-gradient(circle at top,#11333b 0%,#071017 28%,#04080d 78%);color:#f6fbff}
+    .player-body{margin:0;background:radial-gradient(circle at top,#11333b 0%,var(--sf-bg-071017) 28%,var(--sf-bg-04080d) 78%);color:var(--sf-fg-f6fbff)}
     .watch-shell{width:100%;max-width:none;margin:0;padding:18px 22px 30px}
     .watch-grid{display:grid;grid-template-columns:minmax(0,1fr) clamp(360px,26vw,520px);gap:20px;align-items:start;width:100%}
     .player-panel,.browser-panel{background:rgba(7,12,18,.92);border:1px solid rgba(120,152,190,.14);border-radius:22px;box-shadow:0 18px 48px rgba(0,0,0,.28)}
@@ -27,8 +27,8 @@
     .watch-frame video{display:block;width:100%;aspect-ratio:16/9;min-height:min(68vh,760px);max-height:82vh;object-fit:contain;background:#000}
     .now-card{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:14px;padding:16px 18px;border-radius:18px;background:linear-gradient(180deg,rgba(10,16,24,.98),rgba(6,11,18,.98));border:1px solid rgba(120,152,190,.14)}
     .now-meta{display:flex;align-items:center;gap:14px;min-width:0}
-    .now-logo,.now-logo-fallback{width:52px;height:52px;border-radius:16px;background:#0a111b;border:1px solid rgba(120,152,190,.16);display:flex;align-items:center;justify-content:center;overflow:hidden;flex:0 0 52px}
-    /* STREAMFORGE_PLAYER_INFO_LOGO_CONTAIN_V2214 */.now-logo img{display:block;width:100%;height:100%;object-fit:contain;background:#08101a;padding:4px}
+    .now-logo,.now-logo-fallback{width:52px;height:52px;border-radius:16px;background:var(--sf-bg-0a111b);border:1px solid rgba(120,152,190,.16);display:flex;align-items:center;justify-content:center;overflow:hidden;flex:0 0 52px}
+    /* STREAMFORGE_PLAYER_INFO_LOGO_CONTAIN_V2214 */.now-logo img{display:block;width:100%;height:100%;object-fit:contain;background:var(--sf-bg-08101a);padding:4px}
     .now-logo-fallback{font-size:22px;color:#8ab4ff;font-weight:800}
     .now-copy{min-width:0}
     .now-copy strong{display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -38,11 +38,11 @@
 .viewer-info-group{display:grid;align-content:center;gap:4px;min-width:170px;padding:9px 12px;border:1px solid rgba(120,152,190,.16);border-radius:13px;background:rgba(5,12,19,.45)}
 .viewer-info-group.connection{min-width:210px}
 .viewer-info-group div{display:flex;justify-content:space-between;gap:14px;align-items:center;font-size:12px}
-.viewer-info label{color:#7890a5;font-weight:700}.viewer-info b{color:#f1f7fd;font-weight:800;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.viewer-info .expiry{color:#8de3d3}
-    .now-copy small{display:block;margin-top:4px;color:#8ea8bf;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.viewer-info label{color:var(--sf-fg-7890a5);font-weight:700}.viewer-info b{color:#f1f7fd;font-weight:800;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.viewer-info .expiry{color:#8de3d3}
+    .now-copy small{display:block;margin-top:4px;color:var(--sf-fg-8ea8bf);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .player-tools{display:flex;align-items:center;justify-content:flex-end;gap:10px;min-width:280px}
     .copy-row.player-copy{width:min(440px,100%)}
-    .copy-row.player-copy input{background:#08101a;color:#edf6ff}
+    .copy-row.player-copy input{background:var(--sf-bg-08101a);color:var(--sf-fg-edf6ff)}
     .player-copy button{white-space:nowrap}
     /* STREAMFORGE_MAIN_WEBPLAYER_INFO_DOWNLOAD_V3046 */.player-download-button{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 24px;border-radius:12px;background:#ff2020;color:#fff;text-decoration:none;font-weight:850;border:1px solid #ff4a4a;cursor:pointer;user-select:none}.player-download-button:hover{filter:brightness(1.08)}
     /* STREAMFORGE_PLAYER_CARD_GRID_STABLE_V2214 */.browser-panel{padding:16px;position:sticky;top:18px;box-sizing:border-box;height:var(--watch-panel-height,auto);max-height:var(--watch-panel-height,none);overflow:hidden;display:flex;flex-direction:column}
@@ -50,21 +50,21 @@
     .browser-head strong{display:inline-block;font-size:27px;letter-spacing:.20em;font-weight:800}
     .browser-head::after{content:"";display:block;width:72px;height:3px;margin:10px auto 0;border-radius:999px;background:linear-gradient(90deg,#ff4e4e,#ff2e2e)}
     .category-chip-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:10px 0 18px}
-    .category-chip{border:1px solid rgba(120,152,190,.18);background:#0b1017;color:#edf5fd;border-radius:14px;padding:11px 12px;font-weight:700;cursor:pointer;transition:.15s ease;text-align:center}
-    .category-chip:hover{border-color:#445872;background:#121823}
+    .category-chip{border:1px solid rgba(120,152,190,.18);background:var(--sf-bg-0b1017);color:var(--sf-fg-edf5fd);border-radius:14px;padding:11px 12px;font-weight:700;cursor:pointer;transition:.15s ease;text-align:center}
+    .category-chip:hover{border-color:var(--sf-bd-445872);background:var(--sf-bg-121823)}
     ./* STREAMFORGE_MAIN_CATEGORY_GLOW_FIX_V2221 */category-chip.active{background:linear-gradient(180deg,#ff2525,#db0505);border-color:#ff4a4a;color:#fff;box-shadow:none}
     /* STREAMFORGE_MAIN_CHANNEL_CARD_RESPONSIVE_V2213 *//* STREAMFORGE_MAIN_CHANNEL_PANEL_HEIGHT_V2218 */.channel-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;align-items:start;overflow-y:auto;min-height:0;padding-right:2px}
     .channel-card{display:block;min-width:0;width:auto;text-decoration:none;color:#f5faff}
     .channel-card[hidden]{display:none !important}
-    .channel-tile{display:flex;flex-direction:column;min-width:0;height:auto;border:1px solid rgba(120,152,190,.16);border-radius:16px;background:#0b1017;padding:8px;transition:.15s ease}
-    .channel-card:hover .channel-tile{background:#101722;border-color:#445872;transform:translateY(-1px)}
+    .channel-tile{display:flex;flex-direction:column;min-width:0;height:auto;border:1px solid rgba(120,152,190,.16);border-radius:16px;background:var(--sf-bg-0b1017);padding:8px;transition:.15s ease}
+    .channel-card:hover .channel-tile{background:var(--sf-bg-101722);border-color:var(--sf-bd-445872);transform:translateY(-1px)}
     .channel-card.active .channel-tile{border-color:#ff4747;box-shadow:0 0 0 1px rgba(255,71,71,.18),0 14px 30px rgba(255,40,40,.10)}
     .channel-thumb,.channel-thumb-fallback{width:100%;aspect-ratio:1/1;border-radius:14px;background:#f4f6f8;border:1px solid rgba(0,0,0,.05);display:flex;align-items:center;justify-content:center;overflow:hidden}
     .channel-thumb img{display:block;width:100%;height:100%;object-fit:contain;background:#fff}
     .channel-thumb-fallback{background:#07131d;color:#8fb7ff;font-size:22px;font-weight:800;border-color:rgba(120,152,190,.16)}
     /* STREAMFORGE_MAIN_CHANNEL_NAME_CENTER_V2216 */.channel-name{margin-top:7px;font-size:12px;font-weight:800;line-height:1.25;min-height:0;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-align:center;width:100%}
-    .channel-meta{margin-top:4px;font-size:11px;color:#8ea8bf;line-height:1.25;min-height:28px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-    .watch-empty{padding:18px;border:1px dashed rgba(120,152,190,.18);border-radius:16px;color:#8ea8bf;text-align:center}
+    .channel-meta{margin-top:4px;font-size:11px;color:var(--sf-fg-8ea8bf);line-height:1.25;min-height:28px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    .watch-empty{padding:18px;border:1px dashed rgba(120,152,190,.18);border-radius:16px;color:var(--sf-fg-8ea8bf);text-align:center}
     .status{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:7px 12px;font-size:12px;font-weight:800;letter-spacing:.02em;text-transform:uppercase;white-space:nowrap}
     .status.starting{background:rgba(103,161,255,.14);color:#93c5fd}.status.ok{background:rgba(16,185,129,.15);color:#6ee7b7}.status.bad{background:rgba(239,68,68,.14);color:#fca5a5}
     @media(max-width:1240px){}

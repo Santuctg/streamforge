@@ -51,13 +51,13 @@
 {# STREAMFORGE_V1271_BLOCKED_IP_STANDALONE_CARD: separate top-level card from Login Accounts. #}
 <style>
 .sf-login-guard-card{margin-top:20px;overflow:hidden}
-.sf-login-guard-card .sf-guard-intro{font-size:13px;line-height:1.55;color:var(--muted,#8da0b5);max-width:76ch}
-.sf-login-guard-card .sf-guard-policy{padding:15px 18px;display:grid;gap:10px;grid-template-columns:repeat(4,minmax(0,1fr));border-bottom:1px solid var(--line,#243142)}
-.sf-login-guard-card .sf-guard-policy-item{min-width:0;padding:11px 13px;border:1px solid var(--line,#243142);border-radius:9px;background:var(--panel2,#151e29)}
-.sf-login-guard-card .sf-guard-policy-label{display:block;font-size:11px;color:var(--muted,#8da0b5);margin-bottom:5px}
+.sf-login-guard-card .sf-guard-intro{font-size:13px;line-height:1.55;color:var(--muted,var(--sf-fg-8da0b5));max-width:76ch}
+.sf-login-guard-card .sf-guard-policy{padding:15px 18px;display:grid;gap:10px;grid-template-columns:repeat(4,minmax(0,1fr));border-bottom:1px solid var(--line,var(--sf-bd-243142))}
+.sf-login-guard-card .sf-guard-policy-item{min-width:0;padding:11px 13px;border:1px solid var(--line,var(--sf-bd-243142));border-radius:9px;background:var(--panel2,var(--sf-bg-151e29))}
+.sf-login-guard-card .sf-guard-policy-label{display:block;font-size:11px;color:var(--muted,var(--sf-fg-8da0b5));margin-bottom:5px}
 .sf-login-guard-card .sf-guard-policy-value{display:block;font-weight:650;color:var(--text,#edf4fb);font-size:14px}
-.sf-login-guard-card .sf-guard-hint{padding:11px 18px;margin:0;border-bottom:1px solid var(--line,#243142);font-size:12px;line-height:1.55;color:var(--muted,#8da0b5)}
-.sf-login-guard-card [data-vault-lock-status]{display:block;margin:0;padding:11px 18px;border-bottom:1px solid var(--line,#243142);font-size:12px;font-weight:600;color:var(--text,#edf4fb)}
+.sf-login-guard-card .sf-guard-hint{padding:11px 18px;margin:0;border-bottom:1px solid var(--line,var(--sf-bd-243142));font-size:12px;line-height:1.55;color:var(--muted,var(--sf-fg-8da0b5))}
+.sf-login-guard-card [data-vault-lock-status]{display:block;margin:0;padding:11px 18px;border-bottom:1px solid var(--line,var(--sf-bd-243142));font-size:12px;font-weight:600;color:var(--text,#edf4fb)}
 /* Override global mobile table-as-cards rules: keep six security columns
    in a native horizontally scrollable table on narrower screens. */
 section.panel.sf-login-guard-card .table-wrap{overflow-x:auto !important;overflow-y:hidden}
@@ -70,11 +70,11 @@ section.panel.sf-login-guard-card .table-wrap table tbody tr{
 }
 section.panel.sf-login-guard-card .table-wrap table tbody tr td{
   display:table-cell !important;min-width:0;padding:12px 14px;vertical-align:middle;
-  border-bottom:1px solid var(--line,#243142);overflow-wrap:normal
+  border-bottom:1px solid var(--line,var(--sf-bd-243142));overflow-wrap:normal
 }
 section.panel.sf-login-guard-card .table-wrap table tbody tr td::before{display:none !important}
 .sf-login-guard-card th{white-space:nowrap}
-.sf-login-guard-card .sf-guard-empty{color:var(--muted,#8da0b5);padding:19px 18px;text-align:center}
+.sf-login-guard-card .sf-guard-empty{color:var(--muted,var(--sf-fg-8da0b5));padding:19px 18px;text-align:center}
 @media(max-width:850px){.sf-login-guard-card .sf-guard-policy{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:480px){.sf-login-guard-card .sf-guard-policy{grid-template-columns:1fr 1fr;padding:12px;gap:8px}.sf-login-guard-card .sf-guard-policy-item{padding:9px}.sf-login-guard-card .sf-guard-policy-value{font-size:12px}.sf-login-guard-card .panel-head{gap:12px}}
 </style>
@@ -246,9 +246,9 @@ section.panel.sf-login-guard-card .table-wrap table tbody tr td::before{display:
 <style>
 .sf-pw-reset-overlay[hidden]{display:none !important}
 .sf-pw-reset-overlay{position:fixed;inset:0;z-index:10020;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(4,11,27,.76)}
-.sf-pw-reset-dialog{width:min(520px,100%);max-height:min(90vh,760px);overflow-y:auto;padding:24px;background:var(--panel,#111821);color:var(--text,#edf4fb);border:1px solid var(--line,#304156);border-radius:14px;box-shadow:0 18px 56px #000a}
+.sf-pw-reset-dialog{width:min(520px,100%);max-height:min(90vh,760px);overflow-y:auto;padding:24px;background:var(--panel,var(--sf-bg-111821));color:var(--text,var(--sf-fg-edf4fb));border:1px solid var(--line,var(--sf-bd-304156));border-radius:14px;box-shadow:0 18px 56px #000a}
 .sf-pw-reset-dialog h3{margin:0 0 8px;font-size:18px}
-.sf-pw-reset-dialog .sf-pw-reset-note{color:var(--muted,#8da0b5);font-size:13px;line-height:1.5;margin:7px 0 16px}
+.sf-pw-reset-dialog .sf-pw-reset-note{color:var(--muted,var(--sf-fg-8da0b5));font-size:13px;line-height:1.5;margin:7px 0 16px}
 .sf-pw-reset-dialog label{display:block;font-size:13px;margin:14px 0 7px;color:var(--text,#edf4fb)}
 .sf-pw-reset-dialog .sf-pw-reset-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:20px}
 .sf-pw-reset-error{color:#ff9aa4;font-size:13px;margin:12px 0 0}
@@ -256,8 +256,8 @@ section.panel.sf-login-guard-card .table-wrap table tbody tr td::before{display:
 .sf-vault-dialog input[type="password"],
 .sf-vault-dialog input[data-vault-secret-value]{
   display:block;width:100%;height:42px;min-height:42px;box-sizing:border-box;
-  background:#0b1118 !important;color:var(--text,#edf4fb) !important;
-  border:1px solid #304156 !important;border-radius:8px !important;
+  background:var(--sf-bg-0b1118) !important;color:var(--text,var(--sf-fg-edf4fb)) !important;
+  border:1px solid var(--sf-bd-304156) !important;border-radius:8px !important;
   padding:9px 12px !important;font:inherit;outline:none !important;color-scheme:dark;
   box-shadow:none !important;-webkit-text-fill-color:var(--text,#edf4fb);
 }
@@ -393,12 +393,12 @@ section.panel.sf-login-guard-card .table-wrap table tbody tr td::before{display:
 <style>
 .sf-vault-overlay[hidden]{display:none !important}
 .sf-vault-overlay{position:fixed;inset:0;z-index:9999;background:rgba(4,11,27,.72);display:flex;align-items:center;justify-content:center;padding:18px}
-.sf-vault-dialog{background:var(--panel,#121a29);color:var(--text,inherit);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;padding:22px;box-shadow:0 16px 50px #0007}
+.sf-vault-dialog{background:var(--panel,var(--sf-bg-121a29));color:var(--text,inherit);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;padding:22px;box-shadow:0 16px 50px #0007}
 .sf-vault-dialog label{display:block;margin:16px 0 8px}
 .sf-vault-dialog input{width:100%;box-sizing:border-box}
 .sf-vault-dialog .vault-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
 .sf-vault-error{color:#f99;margin:10px 0}
-.sf-vault-note{color:var(--muted,#a7b0c2);font-size:.87rem}
+.sf-vault-note{color:var(--muted,var(--sf-fg-a7b0c2));font-size:.87rem}
 /* STREAMFORGE_V1270_REVEAL_AUTH_STEP: hide verified reauth fields and result after expiry. */
 .sf-vault-dialog [hidden]{display:none !important}
 </style>
