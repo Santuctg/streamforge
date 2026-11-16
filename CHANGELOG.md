@@ -1,3 +1,7 @@
+## 13.41 - 2026-11-16
+
+- Restored Main Server checkbox alignment and kept the optical checkmark adjustment isolated to Node.
+
 ## 13.40 - 2026-11-16
 
 - Optically centered the checkbox `✓` mark by moving it 1px upward in Main and Node panels.
