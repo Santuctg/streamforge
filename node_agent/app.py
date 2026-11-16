@@ -12522,6 +12522,9 @@ def _node_panel_header(user: PanelAccessUser, active: str = "") -> str:
 
 def _node_panel_css() -> str:
     return r'''<style>
+/* STREAMFORGE_GLOBAL_CHECKBOX_THEME_V1337: every Node checkbox uses the same
+   dark unchecked surface and centered accent checkmark. */
+input[type=checkbox]{appearance:none!important;-webkit-appearance:none!important;position:relative;width:16px!important;height:16px!important;min-width:16px!important;border:1px solid #466078!important;border-radius:3px!important;background:#101b27!important;box-shadow:inset 0 0 0 1px rgba(0,0,0,.2)!important;vertical-align:middle;cursor:pointer}input[type=checkbox]:checked{border-color:#37c7a2!important;background:#37c7a2!important}input[type=checkbox]:checked::after{content:"";position:absolute;left:5px;top:2px;width:4px;height:8px;border:solid #071c18;border-width:0 2px 2px 0;transform:rotate(45deg)}
 /* STREAMFORGE_NODE_PANEL_INTERACTIVE_POINTER_V3047 */
 a[href],a[role="link"],button:not(:disabled),.btn:not([aria-disabled="true"]),summary:not([aria-disabled="true"]),select:not(:disabled),option,input[type="button"]:not(:disabled),input[type="submit"]:not(:disabled),input[type="reset"]:not(:disabled),input[type="checkbox"]:not(:disabled),input[type="radio"]:not(:disabled),input[type="file"]:not(:disabled),label[for],label:has(input[type="checkbox"]:not(:disabled)),label:has(input[type="radio"]:not(:disabled)),[role="button"]:not([aria-disabled="true"]),[onclick]{cursor:pointer!important}
 button:disabled,select:disabled,input:disabled,[aria-disabled="true"]{cursor:not-allowed!important}

@@ -1,3 +1,7 @@
+## 13.37 - 2026-11-16
+
+- Applied unified dark checkbox styling globally across Main and Node panels, including forms, category/permission selectors, assignments, and bulk controls.
+
 ## 13.36 - 2026-11-16
 
 - Unified Main Server and Node channel table checkbox styling with dark unchecked controls and centered accent checkmarks.

@@ -3245,6 +3245,36 @@ button:disabled,select:disabled,input:disabled,[aria-disabled="true"]{cursor:not
   transform:rotate(45deg);
 }
 
+/* STREAMFORGE_GLOBAL_CHECKBOX_THEME_V1337: every Main checkbox uses the same
+   dark unchecked surface and centered accent checkmark, not browser-native
+   white rendering. */
+input[type=checkbox]{
+  appearance:none!important;
+  -webkit-appearance:none!important;
+  position:relative;
+  width:16px!important;
+  height:16px!important;
+  min-width:16px!important;
+  border:1px solid #466078!important;
+  border-radius:3px!important;
+  background:#101b27!important;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.2)!important;
+  vertical-align:middle;
+  cursor:pointer;
+}
+input[type=checkbox]:checked{border-color:#37c7a2!important;background:#37c7a2!important}
+input[type=checkbox]:checked::after{
+  content:"";
+  position:absolute;
+  left:5px;
+  top:2px;
+  width:4px;
+  height:8px;
+  border:solid #071c18;
+  border-width:0 2px 2px 0;
+  transform:rotate(45deg);
+}
+
 
 /* STREAMFORGE_MAIN_LOG_MOBILE_NODE_LAYOUT_V73: Main Logs use the same compact
    horizontally scrollable table model as Node Logs on phones. Generic mobile

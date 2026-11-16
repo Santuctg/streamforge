@@ -12,4 +12,7 @@ for source, name in ((main_css, "Main"), (node_source, "Node")):
     assert "#101b27" in source, f"{name} unchecked checkbox background is missing"
     assert "transform:rotate(45deg)" in source, f"{name} checkmark alignment is missing"
 
+assert "STREAMFORGE_GLOBAL_CHECKBOX_THEME_V1337" in main_css, "Main global checkbox theme is missing"
+assert "STREAMFORGE_GLOBAL_CHECKBOX_THEME_V1337" in node_source, "Node global checkbox theme is missing"
+
 print("PASS: Main and Node checkbox theme contract")
