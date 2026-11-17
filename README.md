@@ -11,7 +11,8 @@
 >
 > **Typical use:** One **Main Server** encodes every channel once; several **Remote Nodes** in other data centres relay those channels and serve the viewers, with per-user connection limits, IP/ASN access policies and automatic node selection.
 
-**v13.90:** Removed the "Show" label above the Node channels page-size dropdown (the dropdown keeps its aria-label).
+**v13.91:** Fixed the collapsed Main sidebar — theme/password/sign-out actions no longer appear in the middle of the icon list.
+>\n> **v13.90:** Removed the "Show" label above the Node channels page-size dropdown (the dropdown keeps its aria-label).
 >\n> **v13.89:** The Node channels toolbar is tidier — title with Add button on one row, filters and count inline on the next, bulk actions right-aligned.
 >\n> **v13.88:** Hotfix — the Channels page no longer returns Internal Server Error after v13.87 (the link number now reads from the channel object, not a JSON-only context key).
 >\n> **v13.87:** The Channels table shows the active input link number next to the local server name (Main Server #1 / #2), including live failover updates.
@@ -185,20 +186,20 @@ This is a **host-installed application**, **not a Docker Compose stack**. Review
 
 ### 1. Download the versioned package
 
-Download `streamforge-X.YY.zip` from **[Releases](https://github.com/Santuctg/streamforge/releases/tag/v13.90)** and check it:
+Download `streamforge-X.YY.zip` from **[Releases](https://github.com/Santuctg/streamforge/releases/tag/v13.91)** and check it:
 
 ```bash
 cd /root
-curl -fL -o streamforge-13.90.zip \
-  https://github.com/Santuctg/streamforge/releases/download/v13.90/streamforge-13.90.zip
-sha256sum streamforge-13.90.zip
+curl -fL -o streamforge-13.91.zip \
+  https://github.com/Santuctg/streamforge/releases/download/v13.91/streamforge-13.91.zip
+sha256sum streamforge-13.91.zip
 ```
 
 ### 2a. Fresh install (new server only)
 
 ```bash
-unzip -q streamforge-13.90.zip -d /root
-sudo bash /root/streamforge-13.90/scripts/install.sh
+unzip -q streamforge-13.91.zip -d /root
+sudo bash /root/streamforge-13.91/scripts/install.sh
 ```
 
 Open `http://SERVER_IP` and sign in as **`admin` / `ChangeMe123!`**. The Panel then requires a new password of at least 12 characters before anything else.
@@ -206,7 +207,7 @@ Open `http://SERVER_IP` and sign in as **`admin` / `ChangeMe123!`**. The Panel t
 ### 2b. Upgrade an existing server
 
 ```bash
-sudo streamforge-update --force /root/streamforge-13.90.zip
+sudo streamforge-update --force /root/streamforge-13.91.zip
 ```
 
 Releases are applied **in order** — each updater accepts only the previous version and rolls back automatically on failure. **Never run `install.sh` on an existing server.**

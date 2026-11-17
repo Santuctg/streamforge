@@ -1,3 +1,7 @@
+## 13.91 - 2026-11-18
+
+- Fixed the collapsed Main sidebar: the theme / change-password / sign-out actions no longer sit in the middle of the icon list with Settings and other links below them; they now follow every nav link.
+
 ## 13.90 - 2026-11-18
 
 - Removed the visible "Show" label above the Node channels page-size dropdown; the select keeps its aria-label for accessibility.

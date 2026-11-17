@@ -3881,3 +3881,14 @@ body .sf-help-bubble.sf-help-bubble.sf-help-below::after{
 @media(min-width:761px){
   .app-shell.sidebar-collapsed .sidebar::after{flex-basis:40px!important}
 }
+
+/* STREAMFORGE_COLLAPSED_BOTTOM_AFTER_LINKS_V1391: the bottom actions
+   (theme / change password / sign out) live inside #main-navigation. With the
+   older flex rules they landed in the middle of the icon list, so Settings
+   and other links appeared below them. Keep the nav in normal document flow
+   so the bottom actions always come after every link. */
+@media(min-width:761px){
+  .app-shell.sidebar-collapsed .sidebar #main-navigation{display:flex!important;flex-direction:column!important;flex:none!important;overflow:visible!important}
+  .app-shell.sidebar-collapsed .sidebar .main-nav-links{flex:0 0 auto!important;min-height:0!important}
+  .app-shell.sidebar-collapsed .sidebar-bottom{position:static!important;margin-top:8px!important;padding-top:8px!important;flex:0 0 auto!important}
+}
