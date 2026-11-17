@@ -37,6 +37,14 @@ assert "STREAMFORGE_MAIN_USER_CARD_THEME_TOGGLE_V1350" in main_css, (
 assert "STREAMFORGE_MAIN_SIDEBAR_THEME_TOGGLE_V1358" in main_css, (
     "the sidebar button-row theme switch styling is missing"
 )
+assert "STREAMFORGE_MAIN_TOPBAR_BAR_V1366" in main_css, (
+    "the topbar must render as a real header bar on every page"
+)
+assert "margin:0 -28px 22px" in main_css and "border-bottom:1px solid var(--line)" in main_css
+# the light theme keeps the bar gradient instead of forcing a flat fill
+light_css_text = light_css
+assert ':root[data-theme="light"] .topbar{background:var(--panel)!important' not in light_css_text
+assert ':root[data-theme="light"] .topbar{border-color:var(--line)!important;color:var(--text)!important}' in light_css_text
 assert "STREAMFORGE_MAIN_MOBILE_THEME_TOGGLE_V1358" in main_css, (
     "the phone-only topbar theme switch styling is missing"
 )

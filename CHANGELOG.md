@@ -1,3 +1,7 @@
+## 13.66 - 2026-11-17
+
+- The Panel topbar is now a real header bar on every page: full-bleed panel background from the sidebar edge, bottom border and soft shadow, in both themes — no more floating heading text.
+
 ## 13.65 - 2026-11-17
 
 - Fixed the Admin Users row borders properly: the global `.actions` class made the Actions `<td>` itself `display:flex`, which broke the table-cell layout and snapped the row lines. The cell is a table cell again with the buttons in an inner one-line flex row; the table (1300px) scrolls horizontally instead of overflowing its borders.

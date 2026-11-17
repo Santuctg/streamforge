@@ -1,7 +1,7 @@
 /* STREAMFORGE_LIGHT_THEME_OVERRIDES_V1348: loaded at the end of <body> so these rules win over page-level <style> blocks. Every rule is scoped to data-theme=light; dark theme is untouched. */
 :root[data-theme="light"] body{background:var(--bg)!important;color:var(--text)!important}
 :root[data-theme="light"] .main-content,:root[data-theme="light"] .app-shell{background:var(--bg)!important;color:var(--text)!important}
-:root[data-theme="light"] .topbar{background:var(--panel)!important;border-color:var(--line)!important;color:var(--text)!important}
+:root[data-theme="light"] .topbar{border-color:var(--line)!important;color:var(--text)!important}
 :root[data-theme="light"] input:not([type=checkbox]):not([type=radio]):not([type=range]),:root[data-theme="light"] select,:root[data-theme="light"] textarea{background:#fff!important;color:var(--text)!important;border-color:#aebfcd!important}
 :root[data-theme="light"] input::placeholder,:root[data-theme="light"] textarea::placeholder{color:#7b8ea0!important}
 :root[data-theme="light"] input[type=checkbox]:not(:checked),:root[data-theme="light"] input[type=radio]:not(:checked){background:#fff!important;border-color:#7890a2!important}
