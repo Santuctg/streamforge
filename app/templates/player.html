@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+<script>/* STREAMFORGE_DEVICE_LOCAL_THEME_BOOTSTRAP_V1344 */(()=>{try{const k='streamforge.theme',v=localStorage.getItem(k);if(v==='light')document.documentElement.dataset.theme='light'}catch(_){}})();</script>
 <!-- STREAMFORGE_MAIN_WEBPLAYER_SELF_HOSTED_HLSJS_V1163: prefer the server-local HLS.js copy so Web Player playback does not depend on a third-party CDN being reachable at play time. -->
 <link rel="preload" as="script" href="{{ prefix }}/static/vendor/hls.min.js?v={{ app_version }}">
   <meta name="robots" content="noindex,nofollow">
@@ -23,6 +24,9 @@
     .player-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px}
     .player-back{color:#7fe3d3;text-decoration:none;font-weight:700;font-size:14px}
     .player-top h1{margin:6px 0 0;font-size:22px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    /* STREAMFORGE_PLAYER_THEME_TOGGLE_V1352 */
+    .player-state-row{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap}
+    .player-state-row .theme-toggle{margin-left:0}
     .watch-frame{position:relative;background:#000;border-radius:20px;overflow:hidden;border:1px solid rgba(120,152,190,.14)}
     .watch-frame video{display:block;width:100%;aspect-ratio:16/9;min-height:min(68vh,760px);max-height:82vh;object-fit:contain;background:#000}
     .now-card{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:14px;padding:16px 18px;border-radius:18px;background:linear-gradient(180deg,rgba(10,16,24,.98),rgba(6,11,18,.98));border:1px solid rgba(120,152,190,.14)}
@@ -109,6 +113,44 @@ html{background:#000!important}
 .player-download-button{background:var(--sf-accent)!important;border-color:var(--sf-accent)!important;color:var(--sf-text)!important}
 </style>
 {% endif %}
+<style>
+/* STREAMFORGE_PLAYER_DEVICE_THEME_LIGHT_V1352
+   The watch screen ships its own dark gradients and the saved Web Player
+   appearance block above uses !important. Every light rule is scoped to
+   html[data-theme="light"] so the dark theme stays byte-for-byte unchanged. */
+html[data-theme="light"]{color-scheme:light;background:#eef3f7!important}
+html[data-theme="light"] body.player-body{background:linear-gradient(180deg,#ffffff,#eef3f7 55%,#f4f7f9)!important;color:#172535!important}
+html[data-theme="light"] .player-panel,
+html[data-theme="light"] .browser-panel{background:#ffffff!important;border-color:#d3dfe8!important;box-shadow:0 16px 36px rgba(23,37,53,.10)!important}
+html[data-theme="light"] .now-card{background:linear-gradient(180deg,#ffffff,#eef3f7)!important;border-color:#d3dfe8!important}
+html[data-theme="light"] .now-logo,
+html[data-theme="light"] .now-logo-fallback{background:#eef3f7!important;border-color:#d3dfe8!important;color:#168f76!important}
+html[data-theme="light"] .player-top h1,
+html[data-theme="light"] .browser-head strong,
+html[data-theme="light"] .now-copy strong,
+html[data-theme="light"] .channel-card,
+html[data-theme="light"] .channel-name,
+html[data-theme="light"] .viewer-info,
+html[data-theme="light"] .viewer-info label,
+html[data-theme="light"] .viewer-info b,
+html[data-theme="light"] .viewer-info-group,
+html[data-theme="light"] .viewer-info-group label,
+html[data-theme="light"] .viewer-info-group b{color:#172535!important}
+html[data-theme="light"] .player-back,
+html[data-theme="light"] .now-copy span,
+html[data-theme="light"] .viewer-info .expiry{color:#0f8a76!important}
+html[data-theme="light"] .viewer-info-group{background:#f4f8fb!important;border-color:#d3dfe8!important}
+html[data-theme="light"] .category-chip{background:#f4f8fb!important;color:#172535!important;border-color:#d3dfe8!important}
+html[data-theme="light"] .category-chip:hover{background:#e9f1f7!important;border-color:#aebfcd!important}
+html[data-theme="light"] .channel-tile{background:#f4f8fb!important;border-color:#d3dfe8!important}
+html[data-theme="light"] .channel-card:hover .channel-tile{background:#e9f1f7!important;border-color:#aebfcd!important}
+html[data-theme="light"] .channel-thumb-fallback{background:#e9f1f7!important;color:#168f76!important;border-color:#d3dfe8!important}
+html[data-theme="light"] .watch-empty{color:#5d7183!important;border-color:#c7d4df!important}
+html[data-theme="light"] .status.starting{background:#e7effd!important;color:#1d4ed8!important}
+html[data-theme="light"] .status.ok{background:#e3f7ef!important;color:#0f766e!important}
+html[data-theme="light"] .status.bad{background:#fdecee!important;color:#b42335!important}
+html[data-theme="light"] .theme-toggle{background:#eef3f7!important;border-color:#c9d6e0!important;color:#16232f!important}
+</style>
 </head>
 <body class="player-body">
   <main class="watch-shell">
@@ -119,7 +161,10 @@ html{background:#000!important}
             <a class="player-back" href="{{ back_url }}">← All channels</a>
             <h1 id="current-channel-title">{{ channel.name }}</h1>
           </div>
-          <span id="player-state" class="status starting">loading</span>
+          <div class="player-state-row">
+            <button type="button" class="theme-toggle" data-theme-toggle aria-label="Switch to light theme" title="Switch theme">☼</button>
+            <span id="player-state" class="status starting">loading</span>
+          </div>
         </div>
         <div class="watch-frame">
           <video id="stream-video" controls autoplay playsinline{% if channel.logo_url %} poster="{{ channel.logo_url|versioned_asset }}"{% endif %}></video>
@@ -818,5 +863,7 @@ html{background:#000!important}
 <script>
 (()=>{const dest=a=>{const raw=a.getAttribute('href')||'';if(!raw||raw.startsWith('#')||raw.startsWith('javascript:')||raw.startsWith('mailto:')||raw.startsWith('tel:'))return'';try{const u=new URL(raw,location.href);return u.origin===location.origin?u.pathname+u.search+u.hash:''}catch(_){return''}};const convert=a=>{if(!(a instanceof HTMLAnchorElement)||a.dataset.sfHoverHidden==='1')return;const url=dest(a);if(!url)return;a.dataset.sfHoverHidden='1';a.dataset.sfNavUrl=url;a.removeAttribute('href');a.setAttribute('role','link');if(!a.hasAttribute('tabindex'))a.tabIndex=0;a.addEventListener('click',e=>{if(e.defaultPrevented)return;e.preventDefault();location.assign(a.dataset.sfNavUrl)});a.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();location.assign(a.dataset.sfNavUrl)}})};const bind=r=>{if(r.matches&&r.matches('a[href]'))convert(r);if(r.querySelectorAll)r.querySelectorAll('a[href]').forEach(convert)};const start=()=>{bind(document);new MutationObserver(rs=>rs.forEach(r=>r.addedNodes.forEach(n=>{if(n.nodeType===1)bind(n)}))).observe(document.documentElement,{childList:true,subtree:true})};document.readyState==='loading'?document.addEventListener('DOMContentLoaded',start,{once:true}):start()})();
 </script>{% endif %}
+<!-- STREAMFORGE_PLAYER_THEME_TOGGLE_JS_V1352 -->
+<script>/* STREAMFORGE_DEVICE_LOCAL_THEME_TOGGLE_V1344 */ (()=>{const k='streamforge.theme',buttons=document.querySelectorAll('[data-theme-toggle]');if(!buttons.length)return;const paint=()=>{const light=document.documentElement.dataset.theme==='light';buttons.forEach(b=>{b.textContent=light?'☾':'☼';const label=light?'Switch to dark theme':'Switch to light theme';b.setAttribute('aria-label',label);b.title=label})};buttons.forEach(b=>b.addEventListener('click',()=>{const next=document.documentElement.dataset.theme==='light'?'dark':'light';document.documentElement.dataset.theme=next;try{localStorage.setItem(k,next)}catch(_){}paint();window.dispatchEvent(new CustomEvent('streamforge:themechange',{detail:{theme:next}}))}));paint()})();</script>
 </body>
 </html>

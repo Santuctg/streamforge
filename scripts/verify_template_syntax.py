@@ -7,9 +7,12 @@ template on first use, so the panel kept starting and every Playlist/Web Player
 alias returned HTTP 500 "Internal Server Error" until the template was fixed.
 
 This guard parses every HTML template and renders the public Web Player in both
-the signed-out and signed-in branches.  It runs before a release ZIP is built
-and inside the v13.51 updater, so a template that cannot compile can never ship
-again.
+the signed-out and signed-in branches.  It also renders the watch screen
+(``player.html``) in its default and saved-appearance branches and asserts that
+the device-theme bootstrap, light-theme block and toggle are still present.  It
+runs before a release ZIP is built and inside the v13.51+ updater, so a template
+that cannot compile — or a watch screen that silently dropped its Dark/Light
+switch — can never ship again.
 
 Usage: python3 scripts/verify_template_syntax.py [project-root]
 """
@@ -71,6 +74,41 @@ def _logged_in_context() -> dict[str, object]:
     }
 
 
+def _player_context(settings: bool = True) -> dict[str, object]:
+    channel = SimpleNamespace(
+        slug="sf-1-test",
+        name="Test Channel",
+        logo_url="",
+        input_url="https://example.test/live.m3u8",
+        backup_inputs="",
+        category=None,
+        categories=[SimpleNamespace(name="News")],
+    )
+    return {
+        "app_version": "test",
+        "prefix": "/123",
+        "token": "viewer-token",
+        "branding": SimpleNamespace(
+            name="StreamForge", logo_url="", favicon_url=""
+        ),
+        "channel": channel,
+        "channels": [channel],
+        "back_url": "/123",
+        "watch_prefix": "/123/web-player/watch",
+        "stream_url": "/123/play/viewer-token/sf-1-test/master.m3u8?wp=1",
+        "canonical_player_url": "/123",
+        "player_favicon_url": "",
+        "player_username": "viewer",
+        "player_expires": "Never",
+        "player_max_connections": 1,
+        "player_online_use": 1,
+        "hide_quick_user_info": False,
+        "webplayer_settings": _logged_in_context()["webplayer_settings"]
+        if settings
+        else None,
+    }
+
+
 def verify(root: Path) -> None:
     templates = root / "app" / "templates"
     files = sorted(templates.glob("*.html"))
@@ -116,6 +154,49 @@ def verify(root: Path) -> None:
                         "web_player.html (signed-in): channel grid missing"
                     )
 
+    player = templates / "player.html"
+    if not failures:
+        source = player.read_text(encoding="utf-8")
+        try:
+            template = env.from_string(source)
+        except Exception as exc:  # noqa: BLE001
+            failures.append(f"player.html: {type(exc).__name__}: {exc}")
+            template = None
+        if template is not None:
+            # v13.52: the watch screen must keep the device theme and its toggle
+            # in both the saved-appearance and default branches.
+            for label, context in (
+                ("default", _player_context(settings=False)),
+                ("themed", _player_context(settings=True)),
+            ):
+                try:
+                    rendered = template.render(**context)
+                except Exception as exc:  # noqa: BLE001
+                    failures.append(
+                        f"player.html ({label}): {type(exc).__name__}: {exc}"
+                    )
+                    continue
+                if 'class="player-body"' not in rendered:
+                    failures.append(
+                        f"player.html ({label}): watch shell missing"
+                    )
+                if "STREAMFORGE_DEVICE_LOCAL_THEME_BOOTSTRAP_V1344" not in rendered:
+                    failures.append(
+                        f"player.html ({label}): device theme bootstrap missing"
+                    )
+                if "STREAMFORGE_PLAYER_DEVICE_THEME_LIGHT_V1352" not in rendered:
+                    failures.append(
+                        f"player.html ({label}): light theme block missing"
+                    )
+                if "STREAMFORGE_DEVICE_LOCAL_THEME_TOGGLE_V1344" not in rendered:
+                    failures.append(
+                        f"player.html ({label}): theme toggle script missing"
+                    )
+                if 'data-theme-toggle' not in rendered:
+                    failures.append(
+                        f"player.html ({label}): theme toggle button missing"
+                    )
+
     if failures:
         print("FAIL: template verification failed", file=sys.stderr)
         for failure in failures:
@@ -124,7 +205,8 @@ def verify(root: Path) -> None:
 
     print(
         "PASS: STREAMFORGE_TEMPLATE_SYNTAX_GUARD_V1351 "
-        f"parsed {len(files)} templates and rendered web_player.html twice"
+        f"parsed {len(files)} templates, rendered web_player.html twice "
+        "and player.html twice"
     )
 
 

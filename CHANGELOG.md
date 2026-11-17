@@ -1,3 +1,8 @@
+## 13.52 - 2026-11-17
+
+- Fixed the Main Web Player watch screen staying dark forever: `app/templates/player.html` now reads `localStorage["streamforge.theme"]` in `<head>`, shows the same Dark/Light toggle as the home screen, and loads a scoped light-theme block. Dark remains the default and the saved choice follows the device/browser across reloads.
+- Extended `scripts/verify_template_syntax.py` to render `player.html` in both the saved-appearance and default branches and to assert the watch-screen theme bootstrap, light block and toggle; the v13.52 updater and release workflow therefore refuse a watch screen that lost its theme again.
+
 ## 13.51 - 2026-11-17
 
 - Hotfixed the Main Web Player 500 error: `app/templates/web_player.html` carried a stray `{% endif %}` from the v13.48 theme move, so Jinja rejected the template and every Playlist/Web Player alias (for example `/123`) returned "Internal Server Error" while the panel itself stayed healthy.

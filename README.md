@@ -11,7 +11,7 @@
 >
 > **Typical use:** One **Main Server** encodes every channel once; several **Remote Nodes** in other data centres relay those channels and serve the viewers, with per-user connection limits, IP/ASN access policies and automatic node selection.
 
-**v13.51:** Hotfix for the Main Web Player 500 error — `/123` and every other Playlist/Web Player alias render again after removing a stray Jinja `{% endif %}` from `web_player.html` that had shipped since v13.48. A new template-compile guard now blocks broken templates at release and install time. The v13.50 name-card switch, light-theme checkbox and v13.49 tokenised palette are unchanged.
+**v13.52:** The Main Web Player watch screen now follows the same per-device Dark/Light switch as the home screen — `player.html` reads the saved theme in `<head>`, shows a toggle and flips its own dark panels to light. Dark stays the default, the choice persists in the browser, and the v13.51 template-compile guard now also renders the watch screen.
 
 > **v12.83 upgrade notes:** HTTPS connections to Remote Nodes now always verify
 > certificates; replace self-signed or name-mismatched certificates before
@@ -122,20 +122,20 @@ This is a **host-installed application**, **not a Docker Compose stack**. Review
 
 ### 1. Download the versioned package
 
-Download `streamforge-X.YY.zip` from **[Releases](https://github.com/Santuctg/streamforge/releases/tag/v13.51)** and check it:
+Download `streamforge-X.YY.zip` from **[Releases](https://github.com/Santuctg/streamforge/releases/tag/v13.52)** and check it:
 
 ```bash
 cd /root
-curl -fL -o streamforge-13.51.zip \
-  https://github.com/Santuctg/streamforge/releases/download/v13.51/streamforge-13.51.zip
-sha256sum streamforge-13.51.zip
+curl -fL -o streamforge-13.52.zip \
+  https://github.com/Santuctg/streamforge/releases/download/v13.52/streamforge-13.52.zip
+sha256sum streamforge-13.52.zip
 ```
 
 ### 2a. Fresh install (new server only)
 
 ```bash
-unzip -q streamforge-13.51.zip -d /root
-sudo bash /root/streamforge-13.51/scripts/install.sh
+unzip -q streamforge-13.52.zip -d /root
+sudo bash /root/streamforge-13.52/scripts/install.sh
 ```
 
 Open `http://SERVER_IP` and sign in as **`admin` / `ChangeMe123!`**. The Panel then requires a new password of at least 12 characters before anything else.
@@ -143,7 +143,7 @@ Open `http://SERVER_IP` and sign in as **`admin` / `ChangeMe123!`**. The Panel t
 ### 2b. Upgrade an existing server
 
 ```bash
-sudo streamforge-update --force /root/streamforge-13.51.zip
+sudo streamforge-update --force /root/streamforge-13.52.zip
 ```
 
 Releases are applied **in order** — each updater accepts only the previous version and rolls back automatically on failure. **Never run `install.sh` on an existing server.**
