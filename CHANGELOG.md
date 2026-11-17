@@ -1,3 +1,7 @@
+## 13.80 - 2026-11-17
+
+- The user chip stays beside the page heading at all widths: with large text or browser zoom the long subtitle stretched the flex item across the bar and flex-wrap pushed the chip to a second line. The topbar now uses a two-column grid on phones — the text column shrinks and wraps, the chip stays at the right.
+
 ## 13.79 - 2026-11-17
 
 - The topbar no longer overflows the screen edges on phones: the older mobile block set horizontal padding to 0 while shrinking main-content to 10px, so the -14px negative margin pushed the heading, subtitle and name chip 4px outside both sides. The negative margin now matches the content padding at each breakpoint (14px <=760px, 10px <=480px) and horizontal padding is restored.

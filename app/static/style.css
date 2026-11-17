@@ -3823,3 +3823,15 @@ body .sf-help-bubble.sf-help-bubble.sf-help-below::after{
 @media(max-width:480px){
   .topbar{margin-inline:-10px;padding-inline:10px}
 }
+
+/* STREAMFORGE_MAIN_TOPBAR_CHIP_STAYS_V1380: with large text or browser zoom
+   the long subtitle stretched the first flex item across the whole bar, so
+   flex-wrap pushed the user chip onto its own line below the heading. Use a
+   two-column grid instead: the text column shrinks and wraps, while the chip
+   stays at the right beside the heading. */
+@media(max-width:760px){
+  .topbar{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:10px}
+  .topbar>div:first-child{min-width:0}
+  .topbar p{overflow-wrap:anywhere}
+  .topbar-actions{justify-self:end}
+}
