@@ -1,3 +1,7 @@
+## 13.58 - 2026-11-17
+
+- Moved the panel Dark/Light switch into the button row on both panels (Node sidebar footer, Main sidebar button row; phones keep a compact topbar glyph switch), taught the paint scripts to keep labelled buttons' labels, and grouped the Node Web Player LIVE pill with the switch.
+
 ## 13.57 - 2026-11-17
 
 - Fixed the remaining Node light-theme gaps on the Settings page (TLS CNAME rows and saved-credential cards kept dark boxes), the sidebar label/hover/active states, playlist-user mobile borders, and moved the Web Player watch-screen Dark/Light switch inline next to the live status pill where it is actually visible.

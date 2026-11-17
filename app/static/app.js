@@ -1,22 +1,30 @@
 (() => {
   // STREAMFORGE_DEVICE_LOCAL_THEME_TOGGLE_V1344
   const themeKey = 'streamforge.theme';
-  const themeButton = document.querySelector('[data-theme-toggle]');
+  const themeButtons = Array.from(document.querySelectorAll('[data-theme-toggle]'));
+  const paintThemeButtons = (light) => {
+    const glyph = light ? '☾' : '☼';
+    const label = light ? 'Switch to dark theme' : 'Switch to light theme';
+    themeButtons.forEach((button) => {
+      // STREAMFORGE_MAIN_SIDEBAR_THEME_TOGGLE_V1358: sidebar buttons keep their
+      // "Theme" label and only swap the glyph span; plain buttons get the glyph.
+      const glyphEl = button.querySelector('[data-theme-glyph]');
+      if (glyphEl) glyphEl.textContent = glyph;
+      else button.textContent = glyph;
+      button.setAttribute('aria-label', label);
+      button.title = label;
+    });
+  };
   const applyTheme = (theme) => {
     const next = theme === 'light' ? 'light' : 'dark';
     document.documentElement.dataset.theme = next;
     try { localStorage.setItem(themeKey, next); } catch (_) {}
     // STREAMFORGE_MAIN_THEME_CHANGE_EVENT_V1348: canvas charts repaint on toggle.
     window.dispatchEvent(new CustomEvent('streamforge:themechange', { detail: { theme: next } }));
-    if (themeButton) {
-      const light = next === 'light';
-      themeButton.textContent = light ? '☾' : '☼';
-      themeButton.setAttribute('aria-label', light ? 'Switch to dark theme' : 'Switch to light theme');
-      themeButton.title = light ? 'Switch to dark theme' : 'Switch to light theme';
-    }
+    paintThemeButtons(next === 'light');
   };
   applyTheme(document.documentElement.dataset.theme === 'light' ? 'light' : 'dark');
-  themeButton?.addEventListener('click', () => applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light'));
+  themeButtons.forEach((button) => button.addEventListener('click', () => applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light')));
   const escapeHtml = (value) => String(value ?? '')
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')

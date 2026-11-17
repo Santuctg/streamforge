@@ -27,19 +27,33 @@ assert "dataset.theme=t" in node, "Node light theme bootstrap is missing"
 assert "data-theme-toggle" in node, "Node theme toggle is missing"
 assert "data-theme-toggle" in webplayer, "Web Player theme toggle is missing"
 assert "[data-theme=\"light\"]" in main_css, "Main light variable overrides are missing"
-assert "topbar-actions" in base, "Main topbar theme toggle group is missing"
+assert "topbar-actions" in base, "Main topbar name-card group is missing"
 assert "login-theme-toggle" in login, "Main login screen theme toggle is missing"
-# The signed-in theme switch sits inside the name card and stays usable on phones.
+# The signed-in theme switch sits in the sidebar button row with the other
+# buttons; phones keep a compact glyph switch in the topbar (v13.58).
 assert "STREAMFORGE_MAIN_USER_CARD_THEME_TOGGLE_V1350" in main_css, (
-    "name-card theme toggle styling is missing"
+    "name-card styling marker is missing"
+)
+assert "STREAMFORGE_MAIN_SIDEBAR_THEME_TOGGLE_V1358" in main_css, (
+    "the sidebar button-row theme switch styling is missing"
+)
+assert "STREAMFORGE_MAIN_MOBILE_THEME_TOGGLE_V1358" in main_css, (
+    "the phone-only topbar theme switch styling is missing"
 )
 assert 'class="admin-chip-id"' in base and "admin-chip-id" in main_css
+sidebar_bottom = base.split('class="sidebar-bottom"', 1)[1].split("</aside>", 1)[0]
+assert "data-theme-toggle" in sidebar_bottom, (
+    "the theme switch must live in the sidebar button row"
+)
+assert "Change password" in sidebar_bottom and "Sign out" in sidebar_bottom, (
+    "the theme switch must sit with the other sidebar buttons"
+)
 card = base.split('class="topbar-actions"', 1)[1].split("</header>", 1)[0]
-assert "admin-chip" in card and "data-theme-toggle" in card, (
-    "theme toggle must live inside the name card"
+assert "admin-chip" in card and "topbar-theme-toggle" in card, (
+    "phones keep the compact topbar theme switch next to the name card"
 )
 assert ".topbar .admin-chip-id{display:none}" in main_css, (
-    "phones must hide the name text but keep the theme switch"
+    "phones hide the name text but keep the topbar theme switch"
 )
 assert "STREAMFORGE_LIGHT_LOGIN_AUTOFILL_V1348" in light_css, "light autofill override is missing"
 

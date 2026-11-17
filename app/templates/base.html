@@ -99,6 +99,9 @@
 </div>
       <div class="sidebar-bottom">
         <!-- STREAMFORGE_MAIN_PASSWORD_FOOTER_EXACT_MATCH_V2294 -->
+        <!-- STREAMFORGE_MAIN_SIDEBAR_THEME_TOGGLE_V1358: the switch lives in the
+             sidebar button row so its placement matches the other buttons. -->
+        <button type="button" class="theme-toggle nav-button" data-theme-toggle aria-label="Switch to light theme" title="Switch theme"><span class="node-account-icon node-nav-icon" data-theme-glyph aria-hidden="true">☼</span><span class="node-account-label node-nav-label" data-theme-label>Theme</span></button>
         <form method="get" action="/account/password"><button type="submit" class="nav-button account main-node-account" aria-label="Change password"><span class="node-account-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15" r="1.4"/><path d="M12 16.4V18"/></svg></span><span class="node-account-label">Change password</span></button></form>
         <form method="post" action="/logout"><button type="submit" class="nav-button signout main-node-signout" aria-label="Sign out"><span class="node-signout-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10 4H6.8A1.8 1.8 0 0 0 5 5.8v12.4A1.8 1.8 0 0 0 6.8 20H10"/><path d="M14 8l4 4-4 4"/><path d="M9 12h9"/></svg></span><span class="node-signout-label">Sign out</span></button></form>
       </div>
@@ -107,7 +110,7 @@
   <main class="main-content">
     <header class="topbar">
       <div>{% block heading %}{% endblock %}</div>
-      <div class="topbar-actions"><div class="admin-chip"><span class="admin-chip-id"><b>{{ admin.username }}</b><small>{{ admin.role.name if admin.role else 'No role' }}</small></span><button type="button" class="theme-toggle topbar-theme-toggle" data-theme-toggle aria-label="Switch to light theme" title="Switch theme">☼</button></div></div>
+      <div class="topbar-actions"><div class="admin-chip"><span class="admin-chip-id"><b>{{ admin.username }}</b><small>{{ admin.role.name if admin.role else 'No role' }}</small></span></div><button type="button" class="theme-toggle topbar-theme-toggle" data-theme-toggle aria-label="Switch to light theme" title="Switch theme">☼</button></div>
     </header>
     {% block content %}{% endblock %}
   </main>
