@@ -1,3 +1,7 @@
+## 13.63 - 2026-11-17
+
+- Hotfix: v13.62 used `PANEL_PASSWORD_MIN_LENGTH` inside the new `password_min_length()` helper without importing it, so every Panel page render raised NameError and returned HTTP 500 (health/version kept working). The import is restored; the v13.62 password policy options and forced password change work unchanged.
+
 ## 13.62 - 2026-11-17
 
 - Password policy options: Settings gains a "Minimum password length" dropdown (12 recommended / 10 / 8 / 6) enforced on Panel users, viewer (Xtream) passwords and every Remote Node panel (previously the viewer passwords had no minimum); the Admin Users page gains a per-user "Force password change" button and badge — a forced user (and anyone whose password an operator sets) must set a new password at next login on Main and every Node panel.

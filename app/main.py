@@ -38,7 +38,7 @@ from sqlalchemy import and_, case, delete, func, or_, select, text
 from sqlalchemy.orm import Session, object_session, selectinload
 from starlette.middleware.sessions import SessionMiddleware
 
-from .auth import PASSWORD_CHANGE_REQUIRED_SESSION_KEY, current_admin, hash_password, panel_password_policy_error, stamp_admin_session, verify_password
+from .auth import PASSWORD_CHANGE_REQUIRED_SESSION_KEY, PANEL_PASSWORD_MIN_LENGTH, current_admin, hash_password, panel_password_policy_error, stamp_admin_session, verify_password
 from .config import settings, secret_key_problem
 from .db import Base, SessionLocal, engine, ensure_runtime_schema, get_db
 from .ffmpeg import stream_manager
