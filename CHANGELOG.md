@@ -1,3 +1,7 @@
+## 13.69 - 2026-11-17
+
+- Providers page column renames (Total, Pri, Running, Alt, Running) and the provider edit page grid titles now have proper padding and a separator border.
+
 ## 13.68 - 2026-11-17
 
 - Providers page count columns extended: Total (unique channels using the provider anywhere), Pri running (live on the primary input) and Alt running (live after failing over to the provider's backup URL, tracked by the encoder active input index) alongside the primary and backup totals.

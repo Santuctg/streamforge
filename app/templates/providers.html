@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block heading %}<h1>Providers</h1><p>Upstream source providers and how many channels use them as primary or backup input</p>{% endblock %}
+
 {% block content %}
 {% if error %}<div class="alert danger admin-alert">{{ error }}</div>{% endif %}
 {% if message %}<div class="alert success admin-alert">{{ message }}</div>{% endif %}
@@ -8,17 +9,18 @@
 </div>
 <div class="table-wrap">
   <table class="providers-table">
-    <thead><tr><th>Provider</th><th>URLs</th><th>Total</th><th>Pri channels</th><th>Pri running</th><th>Alt (backup) channels</th><th>Alt running</th><th>Status</th><th>Actions</th></tr></thead>
+    <!-- STREAMFORGE_PROVIDER_COLUMNS_RENAMED_V1369 -->
+    <thead><tr><th>Provider</th><th>URLs</th><th>Total</th><th>Pri</th><th>Running</th><th>Alt</th><th>Running</th><th>Status</th><th>Actions</th></tr></thead>
     <tbody>
     {% for row in rows %}
       <tr>
         <td data-label="Provider"><b>{{ row.provider.name }}</b>{% if row.provider.notes %}<small class="break-text">{{ row.provider.notes }}</small>{% endif %}</td>
         <td data-label="URLs">{% for url in row.urls %}<code class="mono break-text">{{ url }}</code>{% if not loop.last %}<br>{% endif %}{% endfor %}</td>
         <td data-label="Total"><b>{{ row.total }}</b></td>
-        <td data-label="Pri channels"><b>{{ row.primary }}</b></td>
-        <td data-label="Pri running"><b class="{{ 'good' if row.pri_running else 'muted' }}">{{ row.pri_running }}</b></td>
-        <td data-label="Alt (backup) channels"><b>{{ row.backup }}</b></td>
-        <td data-label="Alt running"><b class="{{ 'good' if row.alt_running else 'muted' }}">{{ row.alt_running }}</b></td>
+        <td data-label="Pri"><b>{{ row.primary }}</b></td>
+        <td data-label="Running"><b class="{{ 'good' if row.pri_running else 'muted' }}">{{ row.pri_running }}</b></td>
+        <td data-label="Alt"><b>{{ row.backup }}</b></td>
+        <td data-label="Running"><b class="{{ 'good' if row.alt_running else 'muted' }}">{{ row.alt_running }}</b></td>
         <td data-label="Status"><span class="status {{ 'running' if row.provider.enabled else 'stopped' }}">{{ 'Active' if row.provider.enabled else 'Disabled' }}</span></td>
         <td data-label="Actions" class="actions-cell">
           <div class="actions provider-actions">
