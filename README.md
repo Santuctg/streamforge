@@ -11,7 +11,8 @@
 >
 > **Typical use:** One **Main Server** encodes every channel once; several **Remote Nodes** in other data centres relay those channels and serve the viewers, with per-user connection limits, IP/ASN access policies and automatic node selection.
 
-**v13.77:** The topbar is responsive on phones — the heading and name chip wrap instead of colliding, the heading shrinks and the subtitle wraps.
+**v13.78:** The Providers page now uses real centered cards on phones — every value keeps its label and the full URL shows on one line instead of a squeezed 63px column.
+>\n> **v13.77:** The topbar is responsive on phones — the heading and name chip wrap instead of colliding, the heading shrinks and the subtitle wraps.
 >
 > **v13.76:** Fixed the Providers card view for real — v13.75 accidentally shipped the old flex override that dropped the labels and squeezed the columns; the kept label+value card pattern is centered now.
 >
@@ -172,20 +173,20 @@ This is a **host-installed application**, **not a Docker Compose stack**. Review
 
 ### 1. Download the versioned package
 
-Download `streamforge-X.YY.zip` from **[Releases](https://github.com/Santuctg/streamforge/releases/tag/v13.77)** and check it:
+Download `streamforge-X.YY.zip` from **[Releases](https://github.com/Santuctg/streamforge/releases/tag/v13.78)** and check it:
 
 ```bash
 cd /root
-curl -fL -o streamforge-13.77.zip \
-  https://github.com/Santuctg/streamforge/releases/download/v13.77/streamforge-13.77.zip
-sha256sum streamforge-13.77.zip
+curl -fL -o streamforge-13.78.zip \
+  https://github.com/Santuctg/streamforge/releases/download/v13.78/streamforge-13.78.zip
+sha256sum streamforge-13.78.zip
 ```
 
 ### 2a. Fresh install (new server only)
 
 ```bash
-unzip -q streamforge-13.77.zip -d /root
-sudo bash /root/streamforge-13.77/scripts/install.sh
+unzip -q streamforge-13.78.zip -d /root
+sudo bash /root/streamforge-13.78/scripts/install.sh
 ```
 
 Open `http://SERVER_IP` and sign in as **`admin` / `ChangeMe123!`**. The Panel then requires a new password of at least 12 characters before anything else.
@@ -193,7 +194,7 @@ Open `http://SERVER_IP` and sign in as **`admin` / `ChangeMe123!`**. The Panel t
 ### 2b. Upgrade an existing server
 
 ```bash
-sudo streamforge-update --force /root/streamforge-13.77.zip
+sudo streamforge-update --force /root/streamforge-13.78.zip
 ```
 
 Releases are applied **in order** — each updater accepts only the previous version and rolls back automatically on failure. **Never run `install.sh` on an existing server.**

@@ -42,17 +42,39 @@
    card rule turns each td into a label+value grid aligned to the left;
    the Providers page centers both instead. */
 @media(max-width:700px){
-  /* STREAMFORGE_PROVIDERS_CARD_CENTER_V2_V1376: keep the global label+value
-     card pattern (labels come from td::before) and simply center it — the
-     earlier flex override dropped the labels and squeezed the columns. */
+  /* STREAMFORGE_PROVIDERS_CARD_VIEW_V1378 + STREAMFORGE_PROVIDERS_CARD_CENTER_V2_V1376:
+     the providers table is NOT inside a section.panel, so the generic <=700px
+     card pattern in style.css never matched it — phones got a squeezed table
+     whose URL column collapsed to ~63px (URLs broke every 3-4 characters).
+     Convert it to the same label+value card view here, centered. */
+  .providers-table thead{display:none}
+  .providers-table tbody{display:block}
+  .providers-table tbody tr{display:block;margin:12px 12px 0;padding:5px 12px;border:1px solid var(--line);border-radius:10px;background:var(--sf-bg-0d151f);overflow:hidden}
+  .providers-table tbody tr:last-child{margin-bottom:12px}
   .providers-table tbody tr td{
+    display:grid;
     grid-template-columns:minmax(0,1fr);
     justify-items:center;
+    gap:2px;
+    text-align:center;
+    padding:10px 0;
+    border-bottom:1px solid var(--sf-bd-1d2937);
+    min-width:0;
+    overflow-wrap:anywhere;
+  }
+  .providers-table tbody tr td:last-child{border-bottom:0}
+  .providers-table tbody tr td::before{
+    content:attr(data-label);
+    display:block;
+    color:var(--muted);
+    font-size:10px;
+    font-weight:700;
+    letter-spacing:.06em;
+    text-transform:uppercase;
     text-align:center;
   }
-  .providers-table tbody tr td::before{text-align:center}
-  .providers-table tbody tr td.actions{display:flex;flex-wrap:wrap;justify-content:center}
-  .providers-table tbody tr td.actions::before{flex:0 0 100%;text-align:center}
+  .providers-table tbody tr td.actions-cell{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:7px}
+  .providers-table tbody tr td.actions-cell::before{flex:0 0 100%;text-align:center}
   .providers-table tbody tr td .status{margin-inline:auto}
 }
 .providers-table .provider-actions{justify-content:center}

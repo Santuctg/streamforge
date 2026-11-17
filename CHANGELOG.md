@@ -1,3 +1,7 @@
+## 13.78 - 2026-11-17
+
+- The Providers page now renders real centered cards on phones (<=700px): every value keeps its label and the full URL shows on one line instead of a squeezed ~63px column that broke URLs every 3-4 characters. Root cause: the table is not inside `section.panel`, so the global card pattern never matched it; the page now carries its own scoped card view.
+
 ## 13.77 - 2026-11-17
 
 - The topbar is responsive on phones: the heading and name chip wrap instead of colliding, the heading shrinks and the subtitle wraps inside an auto-height bar.
