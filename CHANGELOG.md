@@ -1,3 +1,7 @@
+## 13.76 - 2026-11-17
+
+- Fixed the Providers card view properly: v13.75 accidentally shipped the old flex override that dropped the td labels and squeezed the columns; the kept global label+value card pattern is now centered (single-column grid, centered labels and values).
+
 ## 13.75 - 2026-11-17
 
 - Centered the Providers Alt-running column HEADER (the values were centered but their header th had missed the pv-center class, making the column look right-shifted).

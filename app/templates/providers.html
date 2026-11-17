@@ -42,9 +42,18 @@
    card rule turns each td into a label+value grid aligned to the left;
    the Providers page centers both instead. */
 @media(max-width:700px){
-  .providers-table tbody tr td{display:flex!important;flex-direction:column!important;align-items:center!important;gap:4px;text-align:center}
-  .providers-table tbody tr td::before{margin-bottom:0;text-align:center}
-  .providers-table tbody tr td.actions .provider-actions{display:flex!important;justify-content:center;flex-wrap:wrap}
+  /* STREAMFORGE_PROVIDERS_CARD_CENTER_V2_V1376: keep the global label+value
+     card pattern (labels come from td::before) and simply center it — the
+     earlier flex override dropped the labels and squeezed the columns. */
+  .providers-table tbody tr td{
+    grid-template-columns:minmax(0,1fr);
+    justify-items:center;
+    text-align:center;
+  }
+  .providers-table tbody tr td::before{text-align:center}
+  .providers-table tbody tr td.actions{display:flex;flex-wrap:wrap;justify-content:center}
+  .providers-table tbody tr td.actions::before{flex:0 0 100%;text-align:center}
+  .providers-table tbody tr td .status{margin-inline:auto}
 }
 .providers-table .provider-actions{justify-content:center}
 </style>

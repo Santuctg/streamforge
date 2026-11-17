@@ -11,7 +11,9 @@
 >
 > **Typical use:** One **Main Server** encodes every channel once; several **Remote Nodes** in other data centres relay those channels and serve the viewers, with per-user connection limits, IP/ASN access policies and automatic node selection.
 
-**v13.75:** The Providers Alt-running column header is centered like its values (the header th had missed the center class, so the values looked right-shifted next to it).
+**v13.76:** Fixed the Providers card view for real — v13.75 accidentally shipped the old flex override that dropped the labels and squeezed the columns; the kept label+value card pattern is centered now.
+>
+> **v13.75:** The Providers Alt-running column header is centered like its values (the header th had missed the center class, so the values looked right-shifted next to it).
 >
 > **v13.74:** Hotfix — panel user edit/save worked again (the v13.62 route insertion had dropped the save handler's redirect tail, so the browser landed on a JSON viewer).
 >
@@ -168,20 +170,20 @@ This is a **host-installed application**, **not a Docker Compose stack**. Review
 
 ### 1. Download the versioned package
 
-Download `streamforge-X.YY.zip` from **[Releases](https://github.com/Santuctg/streamforge/releases/tag/v13.75)** and check it:
+Download `streamforge-X.YY.zip` from **[Releases](https://github.com/Santuctg/streamforge/releases/tag/v13.76)** and check it:
 
 ```bash
 cd /root
-curl -fL -o streamforge-13.75.zip \
-  https://github.com/Santuctg/streamforge/releases/download/v13.75/streamforge-13.75.zip
-sha256sum streamforge-13.75.zip
+curl -fL -o streamforge-13.76.zip \
+  https://github.com/Santuctg/streamforge/releases/download/v13.76/streamforge-13.76.zip
+sha256sum streamforge-13.76.zip
 ```
 
 ### 2a. Fresh install (new server only)
 
 ```bash
-unzip -q streamforge-13.75.zip -d /root
-sudo bash /root/streamforge-13.75/scripts/install.sh
+unzip -q streamforge-13.76.zip -d /root
+sudo bash /root/streamforge-13.76/scripts/install.sh
 ```
 
 Open `http://SERVER_IP` and sign in as **`admin` / `ChangeMe123!`**. The Panel then requires a new password of at least 12 characters before anything else.
@@ -189,7 +191,7 @@ Open `http://SERVER_IP` and sign in as **`admin` / `ChangeMe123!`**. The Panel t
 ### 2b. Upgrade an existing server
 
 ```bash
-sudo streamforge-update --force /root/streamforge-13.75.zip
+sudo streamforge-update --force /root/streamforge-13.76.zip
 ```
 
 Releases are applied **in order** — each updater accepts only the previous version and rolls back automatically on failure. **Never run `install.sh` on an existing server.**
