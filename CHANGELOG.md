@@ -1,3 +1,7 @@
+## 13.64 - 2026-11-17
+
+- Fixed the Admin Users table layout: the Actions cell is a nowrap flex container, so the new Force password change button pushed it past the table border and broke the row separator lines. The buttons now wrap inside the row.
+
 ## 13.63 - 2026-11-17
 
 - Hotfix: v13.62 used `PANEL_PASSWORD_MIN_LENGTH` inside the new `password_min_length()` helper without importing it, so every Panel page render raised NameError and returned HTTP 500 (health/version kept working). The import is restored; the v13.62 password policy options and forced password change work unchanged.

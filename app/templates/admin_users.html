@@ -12,7 +12,7 @@
   {% if error %}<div class="alert danger admin-alert">{{ error }}</div>{% endif %}
   {% if message %}<div class="alert success admin-alert">{{ message }}</div>{% endif %}
   <div class="table-wrap">
-    <table>
+    <table class="admin-users-table">
       <thead><tr><th>User</th><th>Role</th><th>Access locations</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
       <tbody>
       {% for item in panel_users %}
@@ -50,6 +50,13 @@
 </section>
 {# STREAMFORGE_V1271_BLOCKED_IP_STANDALONE_CARD: separate top-level card from Login Accounts. #}
 <style>
+/* STREAMFORGE_ADMIN_USERS_ACTIONS_WRAP_V1364: the Actions cell is a flex
+   container that used to be nowrap; with the force-password button the five
+   buttons overflowed the cell and broke the row borders. Let them wrap and
+   keep the table wide enough to breathe. */
+.admin-users-table{min-width:860px}
+.admin-users-table td.actions{white-space:normal;flex-wrap:wrap;row-gap:8px}
+.admin-users-table td.actions .button.small{flex:0 0 auto}
 .sf-login-guard-card{margin-top:20px;overflow:hidden}
 .sf-login-guard-card .sf-guard-intro{font-size:13px;line-height:1.55;color:var(--muted,var(--sf-fg-8da0b5));max-width:76ch}
 .sf-login-guard-card .sf-guard-policy{padding:15px 18px;display:grid;gap:10px;grid-template-columns:repeat(4,minmax(0,1fr));border-bottom:1px solid var(--line,var(--sf-bd-243142))}
