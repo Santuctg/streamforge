@@ -3898,3 +3898,12 @@ body .sf-help-bubble.sf-help-bubble.sf-help-below::after{
 @media(min-width:761px){
   .app-shell.sidebar-collapsed .sidebar::after{content:none!important}
 }
+
+/* STREAMFORGE_COLLAPSED_TOTAL_SPACE_REMOVED_V1393: a legacy footer-centering
+   rule still reserved 112px padding-bottom on .main-nav-links, leaving a large
+   gap between the last nav icon and the bottom actions. Remove that padding
+   and the nav gap so the bottom actions follow the icons immediately. */
+@media(min-width:761px){
+  .app-shell.sidebar-collapsed .sidebar .main-nav-links{padding-bottom:0!important}
+  .app-shell.sidebar-collapsed .sidebar #main-navigation{gap:0!important}
+}

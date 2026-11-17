@@ -1,3 +1,7 @@
+## 13.93 - 2026-11-18
+
+- Removed the remaining 112px gap between the collapsed sidebar icons and the bottom actions (a legacy footer-centering rule still reserved that padding). The actions now follow the last icon immediately.
+
 ## 13.92 - 2026-11-18
 
 - Removed the collapsed sidebar scroll runway and its 40px visible gap below the icons. On tall screens this also removes the extra scroll range that let Settings be brought to the top.
