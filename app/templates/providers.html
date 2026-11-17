@@ -20,7 +20,7 @@
         <td data-label="Pri" class="pv-center"><b>{{ row.primary }}</b></td>
         <td data-label="Running" class="pv-center"><b class="{{ 'good' if row.pri_running else 'muted' }}">{{ row.pri_running }}</b></td>
         <td data-label="Alt" class="pv-center"><b>{{ row.backup }}</b></td>
-        <td data-label="Running"><b class="{{ 'good' if row.alt_running else 'muted' }}">{{ row.alt_running }}</b></td>
+        <td data-label="Running" class="pv-center"><b class="{{ 'good' if row.alt_running else 'muted' }}">{{ row.alt_running }}</b></td>
         <td data-label="Status" class="pv-center"><span class="status {{ 'running' if row.provider.enabled else 'stopped' }}">{{ 'Active' if row.provider.enabled else 'Disabled' }}</span></td>
         <td data-label="Actions" class="actions-cell">
           <div class="actions provider-actions">

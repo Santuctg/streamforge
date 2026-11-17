@@ -11,7 +11,7 @@
   const hideHover=Boolean(window.STREAMFORGE_HIDE_PANEL_HOVER_URLS);
   const cookieName='streamforge_panel_route';
   const panelPrefixes=[
-    '/channels','/nodes','/categories','/users','/playlists','/logs',
+    '/channels','/providers','/nodes','/categories','/users','/playlists','/logs',
     '/admin-users','/roles','/system','/viewer-sessions','/account','/login','/logout','/no-access'
   ];
   const splitPath=(value)=>{

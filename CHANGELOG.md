@@ -1,3 +1,7 @@
+## 13.71 - 2026-11-17
+
+- Fixed the Providers page losing its route on reload: the panel navigation runtime did not know the /providers prefix, so a browser reload dispatched home. /providers is now a known panel navigation route, and the Alt running column is centered like every other column.
+
 ## 13.70 - 2026-11-17
 
 - Providers table cells are center-aligned; the action buttons group centers under its column.
