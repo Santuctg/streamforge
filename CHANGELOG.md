@@ -1,3 +1,7 @@
+## 13.83 - 2026-11-17
+
+- Reverted the v13.82 compact collapsed-sidebar spacing: the rail returns to the original icon spacing while keeping the v13.81 whole-sidebar scrolling fix.
+
 ## 13.82 - 2026-11-17
 
 - The collapsed desktop sidebar rail is compact: each icon now uses 34px instead of 48px, the brand/toggle and bottom actions are shorter, so all 15 icons plus theme/account/signout fit at the top of a normal viewport. The sidebar still scrolls on very short screens.

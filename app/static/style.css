@@ -3853,18 +3853,3 @@ body .sf-help-bubble.sf-help-bubble.sf-help-below::after{
   }
   .app-shell.sidebar-collapsed .sidebar-top{min-height:0!important;margin-bottom:8px!important}
 }
-
-/* STREAMFORGE_COLLAPSED_RAIL_COMPACT_V1382: the collapsed desktop rail spent
-   48px per icon, so the 15 links plus the bottom actions overflowed a normal
-   viewport and icons were pushed out of view. Make the rail compact so every
-   icon and the bottom actions fit at the top; the sidebar still scrolls as a
-   fallback on very short screens. */
-@media(min-width:761px){
-  .app-shell.sidebar-collapsed .sidebar{padding-top:6px!important;padding-bottom:6px}
-  .app-shell.sidebar-collapsed .sidebar-top{min-height:38px!important;height:38px!important;margin-bottom:4px!important}
-  .app-shell.sidebar-collapsed .sidebar #main-navigation{gap:0!important;margin-top:0!important}
-  .app-shell.sidebar-collapsed .sidebar .main-nav-links{gap:2px!important}
-  .app-shell.sidebar-collapsed .sidebar .main-nav-links>a{height:32px!important;min-height:32px!important;padding:2px 0!important}
-  .app-shell.sidebar-collapsed .sidebar-bottom{gap:3px!important;margin-top:2px!important;padding-top:4px}
-  .app-shell.sidebar-collapsed .sidebar-bottom .nav-button{height:32px!important;min-height:32px!important;padding:3px 0!important}
-}
