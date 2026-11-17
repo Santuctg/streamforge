@@ -11,7 +11,9 @@
 >
 > **Typical use:** One **Main Server** encodes every channel once; several **Remote Nodes** in other data centres relay those channels and serve the viewers, with per-user connection limits, IP/ASN access policies and automatic node selection.
 
-**v13.67:** New Providers page — add upstream providers with their URLs and see, per provider, how many channels use it as primary input (with a running count) and how many keep it as a backup input.
+**v13.68:** The Providers page now shows per provider: Total channels, Primary channels, Pri running (live on the primary input), Backup channels and Alt running (live after failing over to this provider's backup URL).
+>
+> **v13.67:** New Providers page — add upstream providers with their URLs and see, per provider, how many channels use it as primary input (with a running count) and how many keep it as a backup input.
 >
 > **v13.66:** The Panel topbar is now a real header bar on every page — full-bleed panel background, bottom border and soft shadow — instead of a floating text line.
 >
@@ -152,20 +154,20 @@ This is a **host-installed application**, **not a Docker Compose stack**. Review
 
 ### 1. Download the versioned package
 
-Download `streamforge-X.YY.zip` from **[Releases](https://github.com/Santuctg/streamforge/releases/tag/v13.67)** and check it:
+Download `streamforge-X.YY.zip` from **[Releases](https://github.com/Santuctg/streamforge/releases/tag/v13.68)** and check it:
 
 ```bash
 cd /root
-curl -fL -o streamforge-13.67.zip \
-  https://github.com/Santuctg/streamforge/releases/download/v13.67/streamforge-13.67.zip
-sha256sum streamforge-13.67.zip
+curl -fL -o streamforge-13.68.zip \
+  https://github.com/Santuctg/streamforge/releases/download/v13.68/streamforge-13.68.zip
+sha256sum streamforge-13.68.zip
 ```
 
 ### 2a. Fresh install (new server only)
 
 ```bash
-unzip -q streamforge-13.67.zip -d /root
-sudo bash /root/streamforge-13.67/scripts/install.sh
+unzip -q streamforge-13.68.zip -d /root
+sudo bash /root/streamforge-13.68/scripts/install.sh
 ```
 
 Open `http://SERVER_IP` and sign in as **`admin` / `ChangeMe123!`**. The Panel then requires a new password of at least 12 characters before anything else.
@@ -173,7 +175,7 @@ Open `http://SERVER_IP` and sign in as **`admin` / `ChangeMe123!`**. The Panel t
 ### 2b. Upgrade an existing server
 
 ```bash
-sudo streamforge-update --force /root/streamforge-13.67.zip
+sudo streamforge-update --force /root/streamforge-13.68.zip
 ```
 
 Releases are applied **in order** — each updater accepts only the previous version and rolls back automatically on failure. **Never run `install.sh` on an existing server.**

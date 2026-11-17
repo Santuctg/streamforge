@@ -12800,24 +12800,56 @@ def providers_page(request: Request, error: str = "", message: str = "", db: Ses
     providers = db.scalars(select(Provider).order_by(Provider.name)).all()
     provider_hosts = [(provider, provider_hostnames(provider.urls)) for provider in providers]
     channels = db.scalars(select(Channel).order_by(Channel.name)).all()
-    stats: dict[int, dict[str, int]] = {provider.id: {"primary": 0, "running": 0, "backup": 0} for provider in providers}
+    # STREAMFORGE_PROVIDERS_COUNTS_V1368: Total / Pri running / Alt running — a channel counts as
+    # "Pri running" while its primary input (index 0) is live, and as
+    # "Alt running" while it has actually failed over to this provider's
+    # backup URL (active_input_index points at it).
+    stats: dict[int, dict[str, int]] = {
+        provider.id: {"total": 0, "primary": 0, "pri_running": 0, "backup": 0, "alt_running": 0}
+        for provider in providers
+    }
+    counted_channels: dict[int, set[int]] = {provider.id: set() for provider in providers}
     for channel in channels:
         primary_hosts, backup_hosts = channel_url_hosts(channel)
         runtime = stream_manager.runtime_snapshot(int(channel.id))
         alive = bool(runtime.get("alive"))
+        active_index = max(0, int(runtime.get("active_input_index", 0) or 0))
+        backup_lines = [line.strip() for line in str(channel.backup_inputs or "").splitlines() if line.strip()]
         for provider, hosts in provider_hosts:
+            bucket = stats[provider.id]
+            seen = counted_channels[provider.id]
             if hosts & primary_hosts:
-                stats[provider.id]["primary"] += 1
-                if alive:
-                    stats[provider.id]["running"] += 1
+                if channel.id not in seen:
+                    bucket["total"] += 1
+                    seen.add(channel.id)
+                bucket["primary"] += 1
+                if alive and active_index == 0:
+                    bucket["pri_running"] += 1
             if hosts & backup_hosts:
-                stats[provider.id]["backup"] += 1
+                if channel.id not in seen:
+                    bucket["total"] += 1
+                    seen.add(channel.id)
+                bucket["backup"] += 1
+                matched_backup_index = 0
+                for index, url in enumerate(backup_lines, start=1):
+                    try:
+                        candidate = url if "://" in url else "http://" + url
+                        host = (urlsplit(candidate).hostname or "").strip().lower().rstrip(".")
+                    except ValueError:
+                        continue
+                    if host and host in hosts:
+                        matched_backup_index = index
+                        break
+                if alive and active_index == matched_backup_index > 0:
+                    bucket["alt_running"] += 1
     rows = [
         {
             "provider": provider,
+            "total": stats[provider.id]["total"],
             "primary": stats[provider.id]["primary"],
-            "running": stats[provider.id]["running"],
+            "pri_running": stats[provider.id]["pri_running"],
             "backup": stats[provider.id]["backup"],
+            "alt_running": stats[provider.id]["alt_running"],
             "urls": provider_url_lines(provider.urls),
         }
         for provider in providers

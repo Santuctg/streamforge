@@ -1,3 +1,7 @@
+## 13.68 - 2026-11-17
+
+- Providers page count columns extended: Total (unique channels using the provider anywhere), Pri running (live on the primary input) and Alt running (live after failing over to the provider's backup URL, tracked by the encoder active input index) alongside the primary and backup totals.
+
 ## 13.67 - 2026-11-17
 
 - New Providers page: operators add upstream providers (name, URLs/hostnames, notes, active flag) and the page counts, per provider, how many channels use it as primary input (with a running subset) and how many keep it as a backup input; the edit page lists the matching channels split into Primary and Backup columns. Channels match providers by hostname of their input/backup URLs. New permission group Providers (view/create/edit/delete).
