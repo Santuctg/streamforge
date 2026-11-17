@@ -1,3 +1,7 @@
+## 13.61 - 2026-11-17
+
+- Closed the last permission-audit gap: the Node Channels page HLS preview ("H") button now requires `channels.playback` like the dashboard and the Main panel, so a role without "Open direct HTTP playback" no longer sees it.
+
 ## 13.60 - 2026-11-17
 
 - Full Node panel permission audit: replaced three legacy permission strings (`logs.manage`, `stream_users.kill`, `categories.manage`) that never matched any Main role except Super-Admin, so error clearing, session kill and Node-local category management now work for every role with the matching Main permission; channel Info now requires `channels.info` and the HLS preview requires `channels.playback` like the Main panel.

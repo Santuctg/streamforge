@@ -14159,7 +14159,7 @@ def independent_channels(request: Request, message: str = '', error: str = ''):
         if _has_panel_permission(user, 'channels.restart'):
             hidden = ' aria-hidden="false"' if runtime_up else ' hidden aria-hidden="true" style="display:none"'
             controls.append(f'<form class=inline method=post action="/panel/channels/{escaped_key}/restart" data-node-runtime-action="restart"{hidden}><button class="compact-control restart" title="Restart" aria-label="Restart channel"><span class="node-control-glyph">↻</span></button></form>')
-        if c.output_type == 'hls':
+        if c.output_type == 'hls' and _has_panel_permission(user, 'channels.playback'):  # STREAMFORGE_NODE_PERM_AUDIT_V1361
             ready = bool(st.get('alive')) and bool(st.get('hls_ready'))
             hidden = '' if ready else ' hidden aria-hidden="true"'
             controls.append(f'<a class="btn compact-control http" data-node-http-action target=_blank rel=noopener href="/panel/channels/{escaped_key}/play" title="HLS preview" aria-label="Play HLS preview"{hidden}><span class="node-control-glyph">H</span></a>')

@@ -56,9 +56,23 @@ for marker in required:
 assert "_has_panel_permission(user, \"channels.playback\")" in node, (
     "the dashboard HLS preview button must be gated by channels.playback"
 )
+# v13.61: the Channels-page H button is gated by the same permission.
+assert "if c.output_type == 'hls' and _has_panel_permission(user, 'channels.playback'):" in node, (
+    "the Channels-page HLS preview button must be gated by channels.playback"
+)
 assert node.count('STREAMFORGE_NODE_PERM_AUDIT_V1360') >= 12, (
     "the audit fix markers must be present on every corrected site"
 )
+
+# --- 3b. every Main H-button render site is gated by channels.playback -------
+for template, expected in (
+    ("channels.html", 2),
+    ("dashboard.html", 1),
+    ("channel_info.html", 1),
+):
+    source = (ROOT / "app" / "templates" / template).read_text(encoding="utf-8")
+    gates = source.count("can('channels.playback')")
+    assert gates >= expected, f"{template} must gate its HTTP playback action ({gates})"
 
 # --- 4. Main still carries the machine-to-machine policy bypass -----------------
 assert '"/api/v1/node-channel-hls-segment/"' in main, (
