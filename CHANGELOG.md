@@ -1,3 +1,7 @@
+## 13.73 - 2026-11-17
+
+- The Providers card view (narrow screens) now centers its labels and values — the global table-as-cards rule left-aligned them.
+
 ## 13.72 - 2026-11-17
 
 - Every Panel page is now served with `Cache-Control: no-store` — after an update the browser always fetches the fresh layout instead of showing a stale cached copy.

@@ -38,6 +38,14 @@
 .providers-table th,.providers-table td{vertical-align:middle}
 .providers-table .pv-center{text-align:center}
 .providers-table .pv-center code.mono{display:inline-block;text-align:left}
+/* STREAMFORGE_PROVIDERS_CARD_CENTER_V1373: on narrow screens the global
+   card rule turns each td into a label+value grid aligned to the left;
+   the Providers page centers both instead. */
+@media(max-width:700px){
+  .providers-table tbody tr td{display:flex!important;flex-direction:column!important;align-items:center!important;gap:4px;text-align:center}
+  .providers-table tbody tr td::before{margin-bottom:0;text-align:center}
+  .providers-table tbody tr td.actions .provider-actions{display:flex!important;justify-content:center;flex-wrap:wrap}
+}
 .providers-table .provider-actions{justify-content:center}
 </style>
 {% endblock %}
