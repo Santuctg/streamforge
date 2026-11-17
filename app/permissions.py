@@ -70,6 +70,15 @@ PERMISSION_GROUPS: "OrderedDict[str, list[tuple[str, str, str]]]" = OrderedDict(
             ],
         ),
         (
+            "Providers",
+            [
+                ("providers.view", "View providers", "Open the provider list and per-provider channel counts."),
+                ("providers.create", "Create providers", "Add an upstream provider with its URLs."),
+                ("providers.edit", "Edit providers", "Change provider names, URLs and notes."),
+                ("providers.delete", "Delete providers", "Remove a provider from the list."),
+            ],
+        ),
+        (
             "Categories & Import",
             [
                 ("categories.view", "View categories", "Open category lists and filtered channels."),

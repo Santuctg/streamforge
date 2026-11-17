@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block heading %}<h1>{{ 'Edit provider' if provider and provider.id else 'Add provider' }}</h1><p>Channels match a provider by hostname — the primary input and each backup input are counted separately</p>{% endblock %}
+{% block content %}
+{% if error %}<div class="alert danger admin-alert">{{ error }}</div>{% endif %}
+<form method="post" action="{{ '/providers/' ~ provider.id ~ '/edit' if provider and provider.id else '/providers/new' }}" class="form-layout provider-form">
+  <section class="panel form-section">
+    <div class="panel-head"><div><h2>Provider details</h2><p>Add every URL or hostname the provider hands out — channel inputs are matched against these hosts.</p></div></div>
+    <div class="form-grid">
+      <label>Provider name<input name="name" value="{{ provider.name if provider and provider.id else '' }}" maxlength="150" required></label>
+      <label class="wide">Provider URLs or hostnames (one per line)
+        <textarea name="urls" rows="5" required placeholder="http://provider.example.com/live/user/pass/index.m3u8&#10;backup.provider.example.com">{% if provider and provider.id %}{{ provider.urls }}{% endif %}</textarea>
+        <small class="field-help">Hostname matching is case-insensitive; port and path are ignored.</small>
+      </label>
+      <label class="wide">Notes<textarea name="notes" rows="2" placeholder="Contact, reseller panel, remarks">{% if provider and provider.id %}{{ provider.notes or '' }}{% endif %}</textarea></label>
+      <label class="check wide"><input type="checkbox" name="enabled" {% if not provider or not provider.id or provider.enabled %}checked{% endif %}><span>Active — include this provider in the counts</span></label>
+    </div>
+  </section>
+  {% if provider and provider.id %}
+  <section class="panel form-section">
+    <div class="panel-head"><div><h2>Channels using this provider</h2><p>Primary = the provider URL is the channel's main input. Backup = the provider URL appears in the channel's backup inputs.</p></div></div>
+    <div class="provider-channel-grid">
+      <div>
+        <h3 class="provider-grid-title">Primary input channels ({{ primary_rows|length }})</h3>
+        <div class="table-wrap">
+          <table class="provider-channels-table">
+            <thead><tr><th>Channel</th><th>Status</th></tr></thead>
+            <tbody>
+            {% for row in primary_rows %}
+              <tr><td data-label="Channel"><b>{{ row[0].name }}</b></td><td data-label="Status"><span class="status {{ 'running' if row[1] else 'stopped' }}">{{ 'Running' if row[1] else 'Stopped' }}</span></td></tr>
+            {% else %}<tr><td colspan="2" class="empty">No channel uses this provider as its primary input.</td></tr>{% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <h3 class="provider-grid-title">Backup input channels ({{ backup_rows|length }})</h3>
+        <div class="table-wrap">
+          <table class="provider-channels-table">
+            <thead><tr><th>Channel</th><th>Status</th></tr></thead>
+            <tbody>
+            {% for row in backup_rows %}
+              <tr><td data-label="Channel"><b>{{ row[0].name }}</b></td><td data-label="Status"><span class="status {{ 'running' if row[1] else 'stopped' }}">{{ 'Running' if row[1] else 'Stopped' }}</span></td></tr>
+            {% else %}<tr><td colspan="2" class="empty">No channel uses this provider as a backup input.</td></tr>{% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+  {% endif %}
+  <div class="form-actions"><button class="button primary" type="submit">{{ 'Save provider' if provider and provider.id else 'Add provider' }}</button><a class="button" href="/providers">Cancel</a></div>
+</form>
+<style>
+/* STREAMFORGE_PROVIDERS_V1367 */
+.provider-channel-grid{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.provider-channel-grid > div + div{border-left:1px solid var(--line)}
+.provider-grid-title{font-size:14px;font-weight:700}
+.provider-channels-table td.actions{display:table-cell}
+@media(max-width:900px){.provider-channel-grid{grid-template-columns:1fr}.provider-channel-grid > div + div{border-left:0;border-top:1px solid var(--line)}}
+</style>
+{% endblock %}

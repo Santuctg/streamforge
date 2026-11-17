@@ -1,3 +1,7 @@
+## 13.67 - 2026-11-17
+
+- New Providers page: operators add upstream providers (name, URLs/hostnames, notes, active flag) and the page counts, per provider, how many channels use it as primary input (with a running subset) and how many keep it as a backup input; the edit page lists the matching channels split into Primary and Backup columns. Channels match providers by hostname of their input/backup URLs. New permission group Providers (view/create/edit/delete).
+
 ## 13.66 - 2026-11-17
 
 - The Panel topbar is now a real header bar on every page: full-bleed panel background from the sidebar edge, bottom border and soft shadow, in both themes — no more floating heading text.

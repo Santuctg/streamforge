@@ -349,6 +349,20 @@ class PlaylistProfile(Base):
     users: Mapped[list["StreamUser"]] = relationship(back_populates="playlist")
 
 
+class Provider(Base):
+    """STREAMFORGE_PROVIDERS_V1367: an upstream source provider with its own contact URLs.
+    Channels match a provider by hostname — the channel's primary input and
+    each backup input are compared against every URL stored for the provider."""
+    __tablename__ = "providers"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(150), unique=True, index=True)
+    urls: Mapped[str] = mapped_column(Text, default="")
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class StreamUser(Base):
     __tablename__ = "stream_users"
 

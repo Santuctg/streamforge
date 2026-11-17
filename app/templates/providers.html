@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block heading %}<h1>Providers</h1><p>Upstream source providers and how many channels use them as primary or backup input</p>{% endblock %}
+{% block content %}
+{% if error %}<div class="alert danger admin-alert">{{ error }}</div>{% endif %}
+{% if message %}<div class="alert success admin-alert">{{ message }}</div>{% endif %}
+<div class="panel-head-actions" style="display:flex;justify-content:flex-end;margin-bottom:14px">
+  {% if can('providers.create') %}<a class="button primary" href="/providers/new">+ Add provider</a>{% endif %}
+</div>
+<div class="table-wrap">
+  <table class="providers-table">
+    <thead><tr><th>Provider</th><th>URLs</th><th>Primary channels</th><th>Running</th><th>Backup channels</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody>
+    {% for row in rows %}
+      <tr>
+        <td data-label="Provider"><b>{{ row.provider.name }}</b>{% if row.provider.notes %}<small class="break-text">{{ row.provider.notes }}</small>{% endif %}</td>
+        <td data-label="URLs">{% for url in row.urls %}<code class="mono break-text">{{ url }}</code>{% if not loop.last %}<br>{% endif %}{% endfor %}</td>
+        <td data-label="Primary channels"><b>{{ row.primary }}</b></td>
+        <td data-label="Running"><b class="{{ 'good' if row.running else 'muted' }}">{{ row.running }}</b></td>
+        <td data-label="Backup channels"><b>{{ row.backup }}</b></td>
+        <td data-label="Status"><span class="status {{ 'running' if row.provider.enabled else 'stopped' }}">{{ 'Active' if row.provider.enabled else 'Disabled' }}</span></td>
+        <td data-label="Actions" class="actions-cell">
+          <div class="actions provider-actions">
+            {% if can('providers.edit') %}<a class="button small" href="/providers/{{ row.provider.id }}/edit">Edit</a>{% endif %}
+            {% if can('providers.delete') %}<form method="post" action="/providers/{{ row.provider.id }}/delete" onsubmit="return confirm('Delete provider {{ row.provider.name }}? Channels keep their URLs.')"><button class="button ghost-danger small">Delete</button></form>{% endif %}
+          </div>
+        </td>
+      </tr>
+    {% else %}<tr><td colspan="7" class="empty">No providers yet — add one to start counting channels per provider.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

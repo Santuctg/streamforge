@@ -46,7 +46,7 @@ from .node_manager import NodeError, ensure_local_node, node_controller, normali
 from .load_balancer import NodeSelectionError, choose_playback_node, normalize_prefixes, user_allowed_nodes, playback_candidate_nodes, validate_routed_node, pinned_node_for_ip, node_ip_whitelist_allows, node_playback_access_allows
 from .importer import ImportItem, detect_and_parse
 from .input_options import ensure_safe_input_target
-from .models import AdminUser, AppSetting, Channel, ChannelCategory, Node, Role, StreamUser, LogEntry, PlaylistProfile, NotificationCampaign, NotificationDelivery, channel_nodes, channel_category_links, playlist_profile_channels as playlist_profile_channel_links, user_channels as user_channel_links
+from .models import AdminUser, AppSetting, Channel, ChannelCategory, Node, Provider, Role, StreamUser, LogEntry, PlaylistProfile, NotificationCampaign, NotificationDelivery, channel_nodes, channel_category_links, playlist_profile_channels as playlist_profile_channel_links, user_channels as user_channel_links
 from .permissions import (
     ALL_PERMISSION_KEYS,
     PERMISSION_GROUPS,
@@ -1973,7 +1973,7 @@ def main_route_role(path: str) -> str:
 STREAMFORGE_PANEL_ROUTE_COOKIE = "streamforge_panel_route"
 STREAMFORGE_HIDDEN_PANEL_PREFIXES = (
     "/channels", "/nodes", "/categories", "/users", "/playlists", "/logs",
-    "/admin-users", "/roles", "/system", "/viewer-sessions", "/account",
+    "/admin-users", "/providers", "/roles", "/system", "/viewer-sessions", "/account",
     "/no-access",
 )
 
@@ -12752,6 +12752,177 @@ def sync_category_catalog_to_remote_nodes(db: Session, *, channel_ids: set[int] 
     for channel_id in sorted(channel_ids or set()):
         errors.extend(node_controller.sync_channel_to_nodes(channel_id))
     return errors
+
+
+# STREAMFORGE_PROVIDERS_V1367: upstream provider directory with hostname-matched channel counts.
+def provider_hostnames(urls_text: str) -> set[str]:
+    hosts: set[str] = set()
+    for raw in str(urls_text or "").splitlines():
+        candidate = raw.strip()
+        if not candidate:
+            continue
+        if "://" not in candidate:
+            candidate = "http://" + candidate
+        try:
+            host = (urlsplit(candidate).hostname or "").strip().lower().rstrip(".")
+        except ValueError:
+            continue
+        if host:
+            hosts.add(host)
+    return hosts
+
+
+def provider_url_lines(urls_text: str) -> list[str]:
+    return [line.strip() for line in str(urls_text or "").splitlines() if line.strip()]
+
+
+def channel_url_hosts(channel: Channel) -> tuple[set[str], set[str]]:
+    def hosts_of(text: str) -> set[str]:
+        hosts: set[str] = set()
+        for raw in str(text or "").splitlines():
+            candidate = raw.strip()
+            if not candidate or "://" not in candidate:
+                continue
+            try:
+                host = (urlsplit(candidate).hostname or "").strip().lower().rstrip(".")
+            except ValueError:
+                continue
+            if host:
+                hosts.add(host)
+        return hosts
+
+    return hosts_of(channel.input_url), hosts_of(channel.backup_inputs)
+
+
+@app.get("/providers", response_class=HTMLResponse, dependencies=[Depends(permission_required("providers.view"))])
+def providers_page(request: Request, error: str = "", message: str = "", db: Session = Depends(get_db)):
+    actor = enforce_permission(request, db, "providers.view")
+    providers = db.scalars(select(Provider).order_by(Provider.name)).all()
+    provider_hosts = [(provider, provider_hostnames(provider.urls)) for provider in providers]
+    channels = db.scalars(select(Channel).order_by(Channel.name)).all()
+    stats: dict[int, dict[str, int]] = {provider.id: {"primary": 0, "running": 0, "backup": 0} for provider in providers}
+    for channel in channels:
+        primary_hosts, backup_hosts = channel_url_hosts(channel)
+        runtime = stream_manager.runtime_snapshot(int(channel.id))
+        alive = bool(runtime.get("alive"))
+        for provider, hosts in provider_hosts:
+            if hosts & primary_hosts:
+                stats[provider.id]["primary"] += 1
+                if alive:
+                    stats[provider.id]["running"] += 1
+            if hosts & backup_hosts:
+                stats[provider.id]["backup"] += 1
+    rows = [
+        {
+            "provider": provider,
+            "primary": stats[provider.id]["primary"],
+            "running": stats[provider.id]["running"],
+            "backup": stats[provider.id]["backup"],
+            "urls": provider_url_lines(provider.urls),
+        }
+        for provider in providers
+    ]
+    return render(request, "providers.html", db, rows=rows, error=error or None, message=message or None)
+
+
+def _provider_form_context(db: Session, provider: Provider | None) -> dict[str, object]:
+    channels = db.scalars(select(Channel).order_by(Channel.name)).all()
+    provider_hosts = provider_hostnames(provider.urls) if provider else set()
+    primary_rows: list[tuple[Channel, bool]] = []
+    backup_rows: list[tuple[Channel, bool]] = []
+    for channel in channels:
+        primary_hosts, backup_hosts = channel_url_hosts(channel)
+        if provider and (provider_hosts & primary_hosts):
+            runtime = stream_manager.runtime_snapshot(int(channel.id))
+            primary_rows.append((channel, bool(runtime.get("alive"))))
+        if provider and (provider_hosts & backup_hosts):
+            runtime = stream_manager.runtime_snapshot(int(channel.id))
+            backup_rows.append((channel, bool(runtime.get("alive"))))
+    return {"primary_rows": primary_rows, "backup_rows": backup_rows}
+
+
+@app.get("/providers/new", response_class=HTMLResponse, dependencies=[Depends(permission_required("providers.create"))])
+def provider_new_page(request: Request, error: str = "", db: Session = Depends(get_db)):
+    if not current_admin(request, db):
+        return redirect_login()
+    return render(request, "provider_form.html", db, provider=None, error=error or None, **_provider_form_context(db, None))
+
+
+@app.post("/providers/new", dependencies=[Depends(permission_required("providers.create"))])
+def provider_create(
+    request: Request,
+    name: str = Form(...),
+    urls: str = Form(""),
+    notes: str = Form(""),
+    enabled: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+):
+    actor = enforce_permission(request, db, "providers.create")
+    cleaned_name = name.strip()
+    cleaned_urls = "\n".join(provider_url_lines(urls))
+    if not cleaned_name or len(cleaned_name) > 150:
+        return RedirectResponse("/providers/new?error=Provider+name+is+required", status_code=303)
+    if not cleaned_urls:
+        return RedirectResponse("/providers/new?error=Add+at+least+one+provider+URL+or+hostname", status_code=303)
+    if db.scalar(select(Provider).where(func.lower(Provider.name) == cleaned_name.lower())):
+        return RedirectResponse("/providers/new?error=A+provider+with+this+name+already+exists", status_code=303)
+    provider = Provider(name=cleaned_name, urls=cleaned_urls, notes=notes.strip() or None, enabled=as_bool(enabled))
+    db.add(provider)
+    db.commit()
+    log_event(f"Provider added: {provider.name}", scope="system", actor=actor.username, details={"urls": provider_url_lines(provider.urls)})
+    return RedirectResponse("/providers", status_code=303)
+
+
+@app.get("/providers/{provider_id}/edit", response_class=HTMLResponse, dependencies=[Depends(permission_required("providers.edit"))])
+def provider_edit_page(provider_id: int, request: Request, error: str = "", db: Session = Depends(get_db)):
+    provider = db.get(Provider, provider_id)
+    if not provider:
+        raise HTTPException(404)
+    return render(request, "provider_form.html", db, provider=provider, error=error or None, **_provider_form_context(db, provider))
+
+
+@app.post("/providers/{provider_id}/edit", dependencies=[Depends(permission_required("providers.edit"))])
+def provider_update(
+    provider_id: int,
+    request: Request,
+    name: str = Form(...),
+    urls: str = Form(""),
+    notes: str = Form(""),
+    enabled: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+):
+    actor = enforce_permission(request, db, "providers.edit")
+    provider = db.get(Provider, provider_id)
+    if not provider:
+        raise HTTPException(404)
+    cleaned_name = name.strip()
+    cleaned_urls = "\n".join(provider_url_lines(urls))
+    if not cleaned_name or len(cleaned_name) > 150:
+        return RedirectResponse(f"/providers/{provider_id}/edit?error=Provider+name+is+required", status_code=303)
+    if not cleaned_urls:
+        return RedirectResponse(f"/providers/{provider_id}/edit?error=Add+at+least+one+provider+URL+or+hostname", status_code=303)
+    duplicate = db.scalar(select(Provider).where(func.lower(Provider.name) == cleaned_name.lower(), Provider.id != provider.id))
+    if duplicate:
+        return RedirectResponse(f"/providers/{provider_id}/edit?error=A+provider+with+this+name+already+exists", status_code=303)
+    provider.name = cleaned_name
+    provider.urls = cleaned_urls
+    provider.notes = notes.strip() or None
+    provider.enabled = as_bool(enabled)
+    db.commit()
+    log_event(f"Provider updated: {provider.name}", scope="system", actor=actor.username)
+    return RedirectResponse("/providers", status_code=303)
+
+
+@app.post("/providers/{provider_id}/delete", dependencies=[Depends(permission_required("providers.delete"))])
+def provider_delete(provider_id: int, request: Request, db: Session = Depends(get_db)):
+    actor = enforce_permission(request, db, "providers.delete")
+    provider = db.get(Provider, provider_id)
+    if not provider:
+        raise HTTPException(404)
+    db.delete(provider)
+    db.commit()
+    log_event(f"Provider deleted: {provider.name}", scope="system", actor=actor.username)
+    return RedirectResponse("/providers", status_code=303)
 
 
 @app.get("/categories", response_class=HTMLResponse, dependencies=[Depends(permission_required("categories.view"))])
