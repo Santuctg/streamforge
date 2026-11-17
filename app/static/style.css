@@ -3874,3 +3874,10 @@ body .sf-help-bubble.sf-help-bubble.sf-help-below::after{
 @media(min-width:761px){
   .app-shell.sidebar-collapsed .sidebar::after{flex-basis:120px!important}
 }
+
+/* STREAMFORGE_RAIL_RUNWAY_TINY_V1386: make the scroll runway even smaller.
+   Settings still moves upward when the collapsed rail is scrolled, while the
+   empty gap under the icons stays minimal. */
+@media(min-width:761px){
+  .app-shell.sidebar-collapsed .sidebar::after{flex-basis:40px!important}
+}
