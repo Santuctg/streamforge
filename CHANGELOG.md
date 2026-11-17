@@ -1,3 +1,7 @@
+## 13.87 - 2026-11-18
+
+- The Channels table now shows which input link is active next to the local server name (Main Server #1 for primary, #2 for backup after failover). The number updates live from the JSON status response and survives bulk node re-assignment.
+
 ## 13.86 - 2026-11-17
 
 - The collapsed-sidebar scroll runway is reduced from 120px to 40px: minimal blank space under the icons, while Settings still moves upward when scrolling the rail.

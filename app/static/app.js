@@ -1057,7 +1057,10 @@
       const cell = row.querySelector('.server-cluster-cell');
       if (!cell || !nodes.length) return;
       const activeSource = row.querySelector('[data-active-source]')?.textContent?.trim() || 'Local source';
-      const nodeLabel = (node) => String(node.node_type || '') === 'local' ? 'Main Server' : String(node.name || `Node ${node.id || ''}`);
+      // STREAMFORGE_MAIN_ACTIVE_LINK_LABEL_V1387: keep the active link number
+      // when a bulk node assignment re-renders the server cell.
+      const linkSuffix = (row.querySelector('.server-primary b')?.textContent?.match(/#\d+$/) || [''])[0];
+      const nodeLabel = (node) => String(node.node_type || '') === 'local' ? `Main Server${linkSuffix}` : String(node.name || `Node ${node.id || ''}`);
       const nodeDetail = (node) => String(node.node_type || '') === 'local' ? activeSource : String(node.detail || 'Remote server');
       const primary = nodes[0];
       row.dataset.sortServer = nodeLabel(primary).toLowerCase();
@@ -2235,6 +2238,14 @@
           // STREAMFORGE_MAIN_ACTIVE_INPUT_SOURCE_V87
           const activeSource = String(channel.active_source || '').trim();
           if (activeSource) state.activeSources.forEach((node) => { node.textContent = activeSource; });
+          // STREAMFORGE_MAIN_ACTIVE_LINK_LABEL_V1387: keep the displayed link
+          // number in sync when the active input fails over live.
+          const activeLinkNo = Math.max(0, Number(channel.active_input_index) || 0) + 1;
+          row.querySelectorAll('.server-primary').forEach((primary) => {
+            if (!primary.querySelector('[data-active-source]')) return;
+            const label = primary.querySelector('b');
+            if (label) label.textContent = label.textContent.replace(/#\d+$/, '') + ' #' + activeLinkNo;
+          });
           if (speed) {
             const speedValue = Math.max(0, Number(channel.speed) || 0);
             row.dataset.sortSpeed = String(speedValue);

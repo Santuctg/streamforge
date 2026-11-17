@@ -11,7 +11,8 @@
 >
 > **Typical use:** One **Main Server** encodes every channel once; several **Remote Nodes** in other data centres relay those channels and serve the viewers, with per-user connection limits, IP/ASN access policies and automatic node selection.
 
-**v13.86:** The collapsed-sidebar scroll runway is smaller still (120px → 40px) — minimal blank space, Settings still moves up when scrolling.
+**v13.87:** The Channels table shows the active input link number next to the local server name (Main Server #1 / #2), including live failover updates.
+>\n> **v13.86:** The collapsed-sidebar scroll runway is smaller still (120px → 40px) — minimal blank space, Settings still moves up when scrolling.
 >\n> **v13.85:** The collapsed-sidebar scroll runway is smaller (360px → 120px) — Settings still moves up when scrolling, without a large empty gap.
 >\n> **v13.84:** Scrolling the collapsed sidebar now brings every icon upward, including Settings — layout and spacing are unchanged.
 >\n> **v13.83:** Reverted the compact collapsed-sidebar spacing — the rail keeps the v13.81 scrolling fix and its original icon spacing.
@@ -181,20 +182,20 @@ This is a **host-installed application**, **not a Docker Compose stack**. Review
 
 ### 1. Download the versioned package
 
-Download `streamforge-X.YY.zip` from **[Releases](https://github.com/Santuctg/streamforge/releases/tag/v13.86)** and check it:
+Download `streamforge-X.YY.zip` from **[Releases](https://github.com/Santuctg/streamforge/releases/tag/v13.87)** and check it:
 
 ```bash
 cd /root
-curl -fL -o streamforge-13.86.zip \
-  https://github.com/Santuctg/streamforge/releases/download/v13.86/streamforge-13.86.zip
-sha256sum streamforge-13.86.zip
+curl -fL -o streamforge-13.87.zip \
+  https://github.com/Santuctg/streamforge/releases/download/v13.87/streamforge-13.87.zip
+sha256sum streamforge-13.87.zip
 ```
 
 ### 2a. Fresh install (new server only)
 
 ```bash
-unzip -q streamforge-13.86.zip -d /root
-sudo bash /root/streamforge-13.86/scripts/install.sh
+unzip -q streamforge-13.87.zip -d /root
+sudo bash /root/streamforge-13.87/scripts/install.sh
 ```
 
 Open `http://SERVER_IP` and sign in as **`admin` / `ChangeMe123!`**. The Panel then requires a new password of at least 12 characters before anything else.
@@ -202,7 +203,7 @@ Open `http://SERVER_IP` and sign in as **`admin` / `ChangeMe123!`**. The Panel t
 ### 2b. Upgrade an existing server
 
 ```bash
-sudo streamforge-update --force /root/streamforge-13.86.zip
+sudo streamforge-update --force /root/streamforge-13.87.zip
 ```
 
 Releases are applied **in order** — each updater accepts only the previous version and rolls back automatically on failure. **Never run `install.sh` on an existing server.**
