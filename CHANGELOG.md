@@ -1,3 +1,7 @@
+## 13.90 - 2026-11-18
+
+- Removed the visible "Show" label above the Node channels page-size dropdown; the select keeps its aria-label for accessibility.
+
 ## 13.89 - 2026-11-18
 
 - Node channels toolbar tidied: the page title and Add channel button share one row, search/status/Show/count sit inline on the next, and bulk actions are right-aligned. Less vertical space before the channel table.
