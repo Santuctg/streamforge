@@ -40,6 +40,13 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "tag=v$version" >> "$GITHUB_OUTPUT"
 
+      - name: Verify Jinja templates compile
+        # STREAMFORGE_TEMPLATE_SYNTAX_GUARD_V1351: v13.48 shipped a Web Player
+        # template with a stray endif and every Playlist alias returned HTTP 500.
+        run: |
+          python3 -m pip install --quiet jinja2
+          python3 scripts/verify_template_syntax.py
+
       - name: Carry release source fixes into release source
         id: source
         shell: bash

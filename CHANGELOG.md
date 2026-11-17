@@ -1,3 +1,8 @@
+## 13.51 - 2026-11-17
+
+- Hotfixed the Main Web Player 500 error: `app/templates/web_player.html` carried a stray `{% endif %}` from the v13.48 theme move, so Jinja rejected the template and every Playlist/Web Player alias (for example `/123`) returned "Internal Server Error" while the panel itself stayed healthy.
+- Added `scripts/verify_template_syntax.py`, which parses every HTML template and renders the Web Player signed-out and signed-in; the release workflow and the v13.51 updater now refuse to ship or install a package whose templates do not compile.
+
 ## 13.50 - 2026-11-17
 
 - Moved the device-local Dark/Light switch inside the signed-in name card (name + role + switch); phones hide the name text but keep the switch.

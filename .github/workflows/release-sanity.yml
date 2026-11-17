@@ -12,6 +12,8 @@ on:
       - scripts/apply_main_access.py
       - scripts/update.sh
       - scripts/force_update_v*.sh
+      - scripts/verify_template_syntax.py
+      - app/templates/**
       - scripts/verify_release_updater_staging.py
       - scripts/verify_node_tls_reconcile_fix.py
       - scripts/verify_node_access_panel_cleanup.py
@@ -83,6 +85,10 @@ jobs:
           bash -n scripts/update.sh
       - name: Verify updater staging cleanup regression
         run: python3 scripts/verify_release_updater_staging.py
+      - name: Verify Jinja templates compile
+        run: |
+          python3 -m pip install --quiet jinja2
+          python3 scripts/verify_template_syntax.py
       - name: Verify Node Access Panel cleanup
         run: python3 scripts/verify_node_access_panel_cleanup.py
       - name: Verify TLS regression guard

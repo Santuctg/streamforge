@@ -7,6 +7,8 @@
 <title>{{ (branding.name if branding else 'StreamForge') }} · Web Player</title>
 <script>/* STREAMFORGE_DEVICE_LOCAL_THEME_BOOTSTRAP_V1344 */(()=>{try{const k='streamforge.theme',v=localStorage.getItem(k);if(v==='light')document.documentElement.dataset.theme='light'}catch(_){}})();</script>
 <!-- STREAMFORGE_MAIN_WEBPLAYER_FAVICON_HEAD_V2289 -->
+{# STREAMFORGE_WEBPLAYER_TEMPLATE_SYNTAX_V1351: the device-theme block is
+   standalone; its closing </style> must not be followed by an extra endif. #}
 {% if branding and branding.favicon_url %}
 <link rel="icon" type="image/x-icon" href="{{ prefix }}/web-player/favicon?v={{ app_version }}">
 <link rel="shortcut icon" href="{{ prefix }}/web-player/favicon?v={{ app_version }}">
@@ -149,7 +151,6 @@ h1,h2,h3,.brand,.brand-copy,.brand-copy b,.brand-copy small,.meta,.meta b,.meta 
 :root[data-theme="light"] .brand-logo,:root[data-theme="light"] .logo,:root[data-theme="light"] .fallback{background:#f2f6fa!important}
 :root[data-theme="light"] body>div[style*="position:fixed"]{color:#6a7d8e!important}
 </style>
-{% endif %}
 </head>
 <!-- STREAMFORGE_AUTO_LOGIN_HIDE_SIGNOUT_V2226 -->
 <body class="{% if not user %}login-screen{% endif %}">
