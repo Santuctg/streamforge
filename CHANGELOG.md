@@ -1,3 +1,7 @@
+## 13.57 - 2026-11-17
+
+- Fixed the remaining Node light-theme gaps on the Settings page (TLS CNAME rows and saved-credential cards kept dark boxes), the sidebar label/hover/active states, playlist-user mobile borders, and moved the Web Player watch-screen Dark/Light switch inline next to the live status pill where it is actually visible.
+
 ## 13.56 - 2026-11-17
 
 - Fixed the light-theme dropdown option lists staying dark on Main and Node: the light select rules used the impossible `:root[data-theme="light"] html body ...` selector (dead since v13.48) and lost the specificity fight against the dark rule's `:not(#streamforge-dropdown-never)` id. Rules now match and win.
