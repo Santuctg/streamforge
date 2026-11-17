@@ -3907,3 +3907,9 @@ body .sf-help-bubble.sf-help-bubble.sf-help-below::after{
   .app-shell.sidebar-collapsed .sidebar .main-nav-links{padding-bottom:0!important}
   .app-shell.sidebar-collapsed .sidebar #main-navigation{gap:0!important}
 }
+
+/* STREAMFORGE_COLLAPSED_5PX_GAP_V1394: add a small 5px breathing space between
+   the last collapsed sidebar icon and the bottom actions (user-approved). */
+@media(min-width:761px){
+  .app-shell.sidebar-collapsed .sidebar #main-navigation{gap:5px!important}
+}

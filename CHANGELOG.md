@@ -1,3 +1,7 @@
+## 13.94 - 2026-11-18
+
+- Added a small 5px gap between the last collapsed sidebar icon and the bottom actions (user-approved after a 0px / 5px demo).
+
 ## 13.93 - 2026-11-18
 
 - Removed the remaining 112px gap between the collapsed sidebar icons and the bottom actions (a legacy footer-centering rule still reserved that padding). The actions now follow the last icon immediately.
