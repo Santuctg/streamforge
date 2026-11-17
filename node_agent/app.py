@@ -13378,16 +13378,18 @@ html body select[multiple]:not(#streamforge-dropdown-never) option{background:#0
 :root[data-theme="light"] .panel-sidebar-footer .account:hover,:root[data-theme="light"] .panel-sidebar-footer .signout:hover{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
 :root[data-theme="light"] .node-nav-icon{color:var(--text)!important}
 :root[data-theme="light"] .node-signout-icon{color:var(--text)!important}
-:root[data-theme="light"] html body select:not([multiple]):not(#streamforge-dropdown-never){border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important;background-color:#ffffff!important}
-:root[data-theme="light"] html body select:not([multiple]):not(#streamforge-dropdown-never):hover:not(:disabled){border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important}
-:root[data-theme="light"] html body select:not([multiple]):not(#streamforge-dropdown-never):disabled{background-color:#f2f6fa!important;border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important}
-:root[data-theme="light"] html body select:not([multiple]):not(#streamforge-dropdown-never) option{background:#f2f6fa!important}
-:root[data-theme="light"] html body select[multiple]:not(#streamforge-dropdown-never){border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important;background-color:#ffffff!important}
-:root[data-theme="light"] html body select[multiple]:not(#streamforge-dropdown-never) option{background:#f2f6fa!important}
-/* STREAMFORGE_NODE_LIGHT_SELECT_POPUP_V1354: the dark rules force
+:root[data-theme="light"] body select:not([multiple]):not(#streamforge-dropdown-never){border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important;background-color:#ffffff!important}
+:root[data-theme="light"] body select:not([multiple]):not(#streamforge-dropdown-never):hover:not(:disabled){border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important}
+:root[data-theme="light"] body select:not([multiple]):not(#streamforge-dropdown-never):disabled{background-color:#f2f6fa!important;border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important}
+:root[data-theme="light"] body select:not([multiple]):not(#streamforge-dropdown-never) option{background:#f2f6fa!important}
+:root[data-theme="light"] body select[multiple]:not(#streamforge-dropdown-never){border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important;background-color:#ffffff!important}
+:root[data-theme="light"] body select[multiple]:not(#streamforge-dropdown-never) option{background:#f2f6fa!important}
+/* STREAMFORGE_NODE_LIGHT_SELECT_POPUP_V1354 / STREAMFORGE_NODE_LIGHT_SELECTOR_MATCH_V1356: the dark rules force
    color-scheme:dark on every select, so the NATIVE dropdown popup stayed dark
-   in light mode even with the option backgrounds overridden. */
-:root[data-theme="light"] html body select:not([multiple]):not(#streamforge-dropdown-never),:root[data-theme="light"] html body select[multiple]:not(#streamforge-dropdown-never){color-scheme:light!important}
+   in light mode even with the option backgrounds overridden. v13.56 also fixed
+   these rules: ":root[data-theme=light] html body ..." can never match (html is
+   not inside :root), so every light select rule here had been dead. */
+:root[data-theme="light"] body select:not([multiple]):not(#streamforge-dropdown-never),:root[data-theme="light"] body select[multiple]:not(#streamforge-dropdown-never){color-scheme:light!important}
 :root[data-theme="light"] .node-category-order-list li>span:first-child>b{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
 
 /* STREAMFORGE_NODE_LIGHT_SURFACES_V1353: hardcoded dark surfaces get a light pass. */

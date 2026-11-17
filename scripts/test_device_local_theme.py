@@ -75,18 +75,24 @@ assert node.count("_node_theme_toggle_button(") >= 7, "every Node public page mu
 assert (
     "_node_webplayer_theme_css(request) + _node_webplayer_device_theme_css()" in node
 ), "device light CSS must load after the managed theme tokens"
-# --- v13.54: light select popups follow the element color-scheme on both planes.
+# --- v13.54/v13.56: light select popups follow the element color-scheme on both planes.
 assert (
-    ':root[data-theme="light"] select:not([multiple]),:root[data-theme="light"] select[multiple]{color-scheme:light!important}' in light_css
-), "Main light theme must force light color-scheme on selects"
+    ':root[data-theme="light"] body select:not([multiple]):not(#streamforge-dropdown-never),:root[data-theme="light"] body select[multiple]:not(#streamforge-dropdown-never){color-scheme:light!important}' in light_css
+), "Main light theme must force light color-scheme on selects (id-guarded to beat the dark rule)"
 assert (
-    ':root[data-theme="light"] select:not([multiple]) option,:root[data-theme="light"] select[multiple] option{background:#f2f6fa!important;color:#16232f!important}' in light_css
+    ':root[data-theme="light"] body select:not([multiple]):not(#streamforge-dropdown-never) option,:root[data-theme="light"] body select[multiple]:not(#streamforge-dropdown-never) option{background:#f2f6fa!important;color:#16232f!important}' in light_css
 ), "Main light theme must recolour select options"
 assert "STREAMFORGE_LIGHT_SELECT_POPUP_V1354" in light_css, "light select popup marker missing"
+assert "STREAMFORGE_LIGHT_SELECTOR_MATCH_V1356" in light_css, "light selector fix marker missing"
 assert (
-    ':root[data-theme="light"] html body select:not([multiple]):not(#streamforge-dropdown-never),:root[data-theme="light"] html body select[multiple]:not(#streamforge-dropdown-never){color-scheme:light!important}' in node
+    ':root[data-theme="light"] body select:not([multiple]):not(#streamforge-dropdown-never),:root[data-theme="light"] body select[multiple]:not(#streamforge-dropdown-never){color-scheme:light!important}' in node
 ), "Node light theme must force light color-scheme on selects"
 assert "STREAMFORGE_NODE_LIGHT_SELECT_POPUP_V1354" in node, "Node light select popup marker missing"
+assert "STREAMFORGE_NODE_LIGHT_SELECTOR_MATCH_V1356" in node, "Node light selector fix marker missing"
+# v13.56: ":root[data-theme=light] html ..." can never match (html is not inside
+# :root), so no light rule may use that impossible prefix.
+assert ':root[data-theme="light"] html' not in light_css, "impossible :root html light selector in theme-light.css"
+assert ':root[data-theme="light"] html' not in node, "impossible :root html light selector in the Node panel CSS"
 # --- v13.55: route decorators must bind to their real handler. v13.53-v13.54
 # --- shipped the watch-device-CSS helper wedged between the watch route
 # --- decorator and node_web_player_watch, so every channel click returned the

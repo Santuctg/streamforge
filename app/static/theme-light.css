@@ -305,20 +305,20 @@
 :root[data-theme="light"] select[multiple] option:checked{background:color-mix(in srgb, var(--blue) 14%, #ffffff)!important;color:var(--text)!important}
 :root[data-theme="light"] select:not([multiple]):hover:not(:disabled),:root[data-theme="light"] select[multiple]:hover:not(:disabled){border-color:color-mix(in srgb, var(--blue) 32%, #c9d6e0)!important}
 :root[data-theme="light"] select:not([multiple]):disabled,:root[data-theme="light"] select[multiple]:disabled{background-color:#f2f6fa!important;border-color:color-mix(in srgb, var(--blue) 32%, #c9d6e0)!important}
-:root[data-theme="light"] html body select:not([multiple]):not(#streamforge-dropdown-never){border-color:color-mix(in srgb, var(--blue) 32%, #c9d6e0)!important;background-color:#ffffff!important}
-:root[data-theme="light"] html body select:not([multiple]):not(#streamforge-dropdown-never):hover:not(:disabled){border-color:color-mix(in srgb, var(--blue) 32%, #c9d6e0)!important}
-:root[data-theme="light"] html body select:not([multiple]):not(#streamforge-dropdown-never):disabled{background-color:#f2f6fa!important;border-color:color-mix(in srgb, var(--blue) 32%, #c9d6e0)!important}
-:root[data-theme="light"] html body select:not([multiple]):not(#streamforge-dropdown-never) option{background:#f2f6fa!important}
-:root[data-theme="light"] html body select[multiple]:not(#streamforge-dropdown-never){border-color:color-mix(in srgb, var(--blue) 32%, #c9d6e0)!important;background-color:#ffffff!important}
-:root[data-theme="light"] html body select[multiple]:not(#streamforge-dropdown-never):hover:not(:disabled){border-color:color-mix(in srgb, var(--blue) 32%, #c9d6e0)!important}
-:root[data-theme="light"] html body select[multiple]:not(#streamforge-dropdown-never):disabled{background-color:#f2f6fa!important;border-color:color-mix(in srgb, var(--blue) 32%, #c9d6e0)!important}
-:root[data-theme="light"] html body select[multiple]:not(#streamforge-dropdown-never) option{background:#f2f6fa!important}
-:root[data-theme="light"] html body select[multiple]:not(#streamforge-dropdown-never) option:checked{background:color-mix(in srgb, var(--blue) 14%, #ffffff)!important;color:var(--text)!important}
-:root[data-theme="light"] html body .channel-editor-form .category-picker:not(#streamforge-dropdown-never)>summary{border-color:color-mix(in srgb, var(--blue) 32%, #c9d6e0)!important;background:#ffffff!important;background-color:#ffffff!important}
-:root[data-theme="light"] html body .channel-editor-form .category-picker:not(#streamforge-dropdown-never)>summary:hover{border-color:color-mix(in srgb, var(--blue) 32%, #c9d6e0)!important}
-:root[data-theme="light"] html body .channel-editor-form .category-picker:not(#streamforge-dropdown-never)>.category-picker-options{border-color:color-mix(in srgb, var(--blue) 32%, #c9d6e0)!important;background:#ffffff!important}
-:root[data-theme="light"] html body .channel-editor-form .category-picker:not(#streamforge-dropdown-never)>.category-picker-options label{background:#ffffff!important}
-:root[data-theme="light"] html body .channel-editor-form .category-picker:not(#streamforge-dropdown-never)>.category-picker-options label:hover{background:color-mix(in srgb, var(--blue) 14%, #ffffff)!important}
+:root[data-theme="light"] body select:not([multiple]):not(#streamforge-dropdown-never){border-color:color-mix(in srgb, var(--blue) 32%, #c9d6e0)!important;background-color:#ffffff!important}
+:root[data-theme="light"] body select:not([multiple]):not(#streamforge-dropdown-never):hover:not(:disabled){border-color:color-mix(in srgb, var(--blue) 32%, #c9d6e0)!important}
+:root[data-theme="light"] body select:not([multiple]):not(#streamforge-dropdown-never):disabled{background-color:#f2f6fa!important;border-color:color-mix(in srgb, var(--blue) 32%, #c9d6e0)!important}
+:root[data-theme="light"] body select:not([multiple]):not(#streamforge-dropdown-never) option{background:#f2f6fa!important}
+:root[data-theme="light"] body select[multiple]:not(#streamforge-dropdown-never){border-color:color-mix(in srgb, var(--blue) 32%, #c9d6e0)!important;background-color:#ffffff!important}
+:root[data-theme="light"] body select[multiple]:not(#streamforge-dropdown-never):hover:not(:disabled){border-color:color-mix(in srgb, var(--blue) 32%, #c9d6e0)!important}
+:root[data-theme="light"] body select[multiple]:not(#streamforge-dropdown-never):disabled{background-color:#f2f6fa!important;border-color:color-mix(in srgb, var(--blue) 32%, #c9d6e0)!important}
+:root[data-theme="light"] body select[multiple]:not(#streamforge-dropdown-never) option{background:#f2f6fa!important}
+:root[data-theme="light"] body select[multiple]:not(#streamforge-dropdown-never) option:checked{background:color-mix(in srgb, var(--blue) 14%, #ffffff)!important;color:var(--text)!important}
+:root[data-theme="light"] body .channel-editor-form .category-picker:not(#streamforge-dropdown-never)>summary{border-color:color-mix(in srgb, var(--blue) 32%, #c9d6e0)!important;background:#ffffff!important;background-color:#ffffff!important}
+:root[data-theme="light"] body .channel-editor-form .category-picker:not(#streamforge-dropdown-never)>summary:hover{border-color:color-mix(in srgb, var(--blue) 32%, #c9d6e0)!important}
+:root[data-theme="light"] body .channel-editor-form .category-picker:not(#streamforge-dropdown-never)>.category-picker-options{border-color:color-mix(in srgb, var(--blue) 32%, #c9d6e0)!important;background:#ffffff!important}
+:root[data-theme="light"] body .channel-editor-form .category-picker:not(#streamforge-dropdown-never)>.category-picker-options label{background:#ffffff!important}
+:root[data-theme="light"] body .channel-editor-form .category-picker:not(#streamforge-dropdown-never)>.category-picker-options label:hover{background:color-mix(in srgb, var(--blue) 14%, #ffffff)!important}
 :root[data-theme="light"] .saved-secret-badge{color:var(--accent)!important}
 :root[data-theme="light"] .main-channel-control-table tbody tr.channel-control-row td,:root[data-theme="light"] .main-channel-control-table thead th{border-bottom-color:color-mix(in srgb, var(--blue) 32%, #c9d6e0)!important}
 :root[data-theme="light"] .dashboard-live-channels-panel .dashboard-control-table thead th,:root[data-theme="light"] .dashboard-live-channels-panel .dashboard-control-table tbody tr td{border-bottom-color:color-mix(in srgb, var(--blue) 32%, #c9d6e0)!important;background:#f2f6fa!important}
@@ -470,7 +470,7 @@
 :root[data-theme="light"] .login-card input:-webkit-autofill,:root[data-theme="light"] .login-card input:-webkit-autofill:hover,:root[data-theme="light"] .login-card input:-webkit-autofill:focus{-webkit-box-shadow:0 0 0 1000px #ffffff inset!important;box-shadow:0 0 0 1000px #ffffff inset!important;-webkit-text-fill-color:#16232f!important;color:#16232f!important;caret-color:#16232f!important;color-scheme:light!important}
 :root[data-theme="light"] .login-card input[name="username"],:root[data-theme="light"] .login-card input[name="password"]{color-scheme:light!important;caret-color:#16232f!important}
 :root[data-theme="light"] .theme-toggle,:root[data-theme="light"] .login-theme-toggle{background:#eef3f7!important;border-color:#c9d6e0!important;color:#16232f!important}
-/* STREAMFORGE_LIGHT_SELECT_POPUP_V1354: the dark stylesheet forces color-scheme:dark on every select and Chrome/Edge render the NATIVE dropdown popup from the element's color-scheme, so the option list stayed dark after switching to light. */
-:root[data-theme="light"] select:not([multiple]),:root[data-theme="light"] select[multiple]{color-scheme:light!important}
-:root[data-theme="light"] select:not([multiple]) option,:root[data-theme="light"] select[multiple] option{background:#f2f6fa!important;color:#16232f!important}
-:root[data-theme="light"] select:not([multiple]):disabled option{color:#5d7183!important}
+/* STREAMFORGE_LIGHT_SELECT_POPUP_V1354 / STREAMFORGE_LIGHT_SELECTOR_MATCH_V1356: the dark stylesheet forces color-scheme:dark on every select and Chrome/Edge render the NATIVE dropdown popup from the element's color-scheme, so the option list stayed dark after switching to light. v13.56 also fixed these rules: ":root[data-theme=light] html body ..." can never match (html is not inside :root), so every light select/option rule here had been dead since v13.48; and the dark rule carries :not(#streamforge-dropdown-never), whose id specificity beats any light rule without that id. */
+:root[data-theme="light"] body select:not([multiple]):not(#streamforge-dropdown-never),:root[data-theme="light"] body select[multiple]:not(#streamforge-dropdown-never){color-scheme:light!important}
+:root[data-theme="light"] body select:not([multiple]):not(#streamforge-dropdown-never) option,:root[data-theme="light"] body select[multiple]:not(#streamforge-dropdown-never) option{background:#f2f6fa!important;color:#16232f!important}
+:root[data-theme="light"] body select:not([multiple]):not(#streamforge-dropdown-never):disabled option{color:#5d7183!important}

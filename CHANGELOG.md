@@ -1,3 +1,7 @@
+## 13.56 - 2026-11-17
+
+- Fixed the light-theme dropdown option lists staying dark on Main and Node: the light select rules used the impossible `:root[data-theme="light"] html body ...` selector (dead since v13.48) and lost the specificity fight against the dark rule's `:not(#streamforge-dropdown-never)` id. Rules now match and win.
+
 ## 13.55 - 2026-11-17
 
 - Fixed the Node Web Player channel-open regression from v13.53: the watch-device-CSS helper sat between the `/web-player/watch/{channel_key}` route decorator and `node_web_player_watch`, so every channel click returned the CSS text instead of the player page. A source-level route-wiring guard now refuses any package whose route decorators are not bound to handlers.
