@@ -1,3 +1,7 @@
+## 13.88 - 2026-11-18
+
+- Hotfix for v13.87: the active link number is now read from `channel.active_input_index` in the template. v13.87 referenced a JSON-only context key that was absent on the HTML render path, causing an Internal Server Error on the Channels page.
+
 ## 13.87 - 2026-11-18
 
 - The Channels table now shows which input link is active next to the local server name (Main Server #1 for primary, #2 for backup after failover). The number updates live from the JSON status response and survives bulk node re-assignment.

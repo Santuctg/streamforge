@@ -144,7 +144,7 @@
     <td class="server-cluster-cell" data-label="Server">
       {# STREAMFORGE_MAIN_ACTIVE_LINK_LABEL_V1387: show which input link is
          currently active next to the local server name (0 -> Link 1). #}
-      {% set active_link_label = 'Main Server #' ~ (active_input_index + 1) %}
+      {% set active_link_label = 'Main Server #' ~ (((channel.active_input_index or 0) | int) + 1) %}
       {% if primary_node %}
         {% if assigned_count > 1 %}<details class="server-cluster main-server-cluster"><summary><span class="server-primary"><b>{{ active_link_label if primary_node.node_type == 'local' else primary_node.name }}</b><small{% if primary_node.node_type == 'local' %} data-active-source{% endif %}>{{ active_source if primary_node.node_type == 'local' else (primary_node.dns_name or primary_node.api_url or 'Remote server') }}</small></span><span class="server-extra">+{{ assigned_count - 1 }}</span></summary><div class="server-cluster-menu">
           {% for node in channel.nodes %}<a href="/channels?node={{ node.id }}"><b>{{ active_link_label if node.node_type == 'local' else node.name }}</b><small{% if node.node_type == 'local' %} data-active-source{% endif %}>{{ active_source if node.node_type == 'local' else (node.dns_name or node.api_url or 'Remote server') }}</small></a>{% endfor %}
