@@ -10,18 +10,18 @@
 <div class="table-wrap">
   <table class="providers-table">
     <!-- STREAMFORGE_PROVIDER_COLUMNS_RENAMED_V1369 -->
-    <thead><tr><th>Provider</th><th>URLs</th><th>Total</th><th>Pri</th><th>Running</th><th>Alt</th><th>Running</th><th>Status</th><th>Actions</th></tr></thead>
+    <thead><tr><th class="pv-center">Provider</th><th class="pv-center">URLs</th><th class="pv-center">Total</th><th class="pv-center">Pri</th><th class="pv-center">Running</th><th class="pv-center">Alt</th><th>Running</th><th class="pv-center">Status</th><th class="pv-center">Actions</th></tr></thead>
     <tbody>
     {% for row in rows %}
       <tr>
-        <td data-label="Provider"><b>{{ row.provider.name }}</b>{% if row.provider.notes %}<small class="break-text">{{ row.provider.notes }}</small>{% endif %}</td>
-        <td data-label="URLs">{% for url in row.urls %}<code class="mono break-text">{{ url }}</code>{% if not loop.last %}<br>{% endif %}{% endfor %}</td>
-        <td data-label="Total"><b>{{ row.total }}</b></td>
-        <td data-label="Pri"><b>{{ row.primary }}</b></td>
-        <td data-label="Running"><b class="{{ 'good' if row.pri_running else 'muted' }}">{{ row.pri_running }}</b></td>
-        <td data-label="Alt"><b>{{ row.backup }}</b></td>
+        <td data-label="Provider" class="pv-center"><b>{{ row.provider.name }}</b>{% if row.provider.notes %}<small class="break-text">{{ row.provider.notes }}</small>{% endif %}</td>
+        <td data-label="URLs" class="pv-center">{% for url in row.urls %}<code class="mono break-text">{{ url }}</code>{% if not loop.last %}<br>{% endif %}{% endfor %}</td>
+        <td data-label="Total" class="pv-center"><b>{{ row.total }}</b></td>
+        <td data-label="Pri" class="pv-center"><b>{{ row.primary }}</b></td>
+        <td data-label="Running" class="pv-center"><b class="{{ 'good' if row.pri_running else 'muted' }}">{{ row.pri_running }}</b></td>
+        <td data-label="Alt" class="pv-center"><b>{{ row.backup }}</b></td>
         <td data-label="Running"><b class="{{ 'good' if row.alt_running else 'muted' }}">{{ row.alt_running }}</b></td>
-        <td data-label="Status"><span class="status {{ 'running' if row.provider.enabled else 'stopped' }}">{{ 'Active' if row.provider.enabled else 'Disabled' }}</span></td>
+        <td data-label="Status" class="pv-center"><span class="status {{ 'running' if row.provider.enabled else 'stopped' }}">{{ 'Active' if row.provider.enabled else 'Disabled' }}</span></td>
         <td data-label="Actions" class="actions-cell">
           <div class="actions provider-actions">
             {% if can('providers.edit') %}<a class="button small" href="/providers/{{ row.provider.id }}/edit">Edit</a>{% endif %}
@@ -29,8 +29,15 @@
           </div>
         </td>
       </tr>
-    {% else %}<tr><td colspan="9" class="empty">No providers yet — add one to start counting channels per provider.</td></tr>{% endfor %}
+    {% else %}<tr><td colspan="9" class="empty pv-center">No providers yet — add one to start counting channels per provider.</td></tr>{% endfor %}
     </tbody>
   </table>
 </div>
+<style>
+/* STREAMFORGE_PROVIDERS_CENTER_ALIGN_V1370 */
+.providers-table th,.providers-table td{vertical-align:middle}
+.providers-table .pv-center{text-align:center}
+.providers-table .pv-center code.mono{display:inline-block;text-align:left}
+.providers-table .provider-actions{justify-content:center}
+</style>
 {% endblock %}

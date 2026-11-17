@@ -1,3 +1,7 @@
+## 13.70 - 2026-11-17
+
+- Providers table cells are center-aligned; the action buttons group centers under its column.
+
 ## 13.69 - 2026-11-17
 
 - Providers page column renames (Total, Pri, Running, Alt, Running) and the provider edit page grid titles now have proper padding and a separator border.
