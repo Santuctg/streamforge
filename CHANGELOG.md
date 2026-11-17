@@ -1,3 +1,7 @@
+## 13.89 - 2026-11-18
+
+- Node channels toolbar tidied: the page title and Add channel button share one row, search/status/Show/count sit inline on the next, and bulk actions are right-aligned. Less vertical space before the channel table.
+
 ## 13.88 - 2026-11-18
 
 - Hotfix for v13.87: the active link number is now read from `channel.active_input_index` in the template. v13.87 referenced a JSON-only context key that was absent on the HTML render path, causing an Internal Server Error on the Channels page.
