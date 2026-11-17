@@ -76,16 +76,16 @@ python3 -m venv .venv
 python3 -m pip install -r requirements.txt httpx   # httpx is needed by TestClient tests
 export PYTHONPATH=.
 
-# current release (13.80)
+# current release (13.81)
 python3 scripts/test_role_manager.py
 python3 scripts/test_role_manager_patch.py
 python3 scripts/test_documentation.py
-python3 scripts/test_v1380_updater.py
+python3 scripts/test_v1381_updater.py
 python3 scripts/test_v1321_access_tooltip.py
 python3 scripts/test_node_permission_audit.py
 python3 scripts/test_password_policy_options.py
 python3 scripts/test_route_handler_tails.py
-python3 scripts/verify_v1380_patch_roundtrip.py
+python3 scripts/verify_v1381_patch_roundtrip.py
 python3 scripts/verify_template_syntax.py
 python3 scripts/test_v1318_help_buttons.py
 python3 scripts/test_v1302_notifications.py

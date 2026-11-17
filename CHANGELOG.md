@@ -1,3 +1,7 @@
+## 13.81 - 2026-11-17
+
+- The collapsed sidebar icon rail scrolls properly: an older Firefox fix made only #main-navigation scrollable with `overflow:auto!important`, so the tall icon list could not be brought back to the top. The whole collapsed sidebar is now the scroll container and the nav is in normal flow, making every icon and the bottom actions reachable.
+
 ## 13.80 - 2026-11-17
 
 - The user chip stays beside the page heading at all widths: with large text or browser zoom the long subtitle stretched the flex item across the bar and flex-wrap pushed the chip to a second line. The topbar now uses a two-column grid on phones — the text column shrinks and wraps, the chip stays at the right.
