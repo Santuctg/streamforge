@@ -1,3 +1,7 @@
+## 13.60 - 2026-11-17
+
+- Full Node panel permission audit: replaced three legacy permission strings (`logs.manage`, `stream_users.kill`, `categories.manage`) that never matched any Main role except Super-Admin, so error clearing, session kill and Node-local category management now work for every role with the matching Main permission; channel Info now requires `channels.info` and the HLS preview requires `channels.playback` like the Main panel.
+
 ## 13.59 - 2026-11-17
 
 - Fixed "Main Panel HTTP 403: Access denied" on the Node panel when changing a shared channel's HLS segment with the Edit channels permission: Main's browser IP/ASN panel whitelist rejected the Node's own address because the `/api/v1/node-channel-hls-segment/` endpoint was missing from the machine-to-machine policy bypass; it is now exempt like the other Node-token control endpoints.

@@ -7811,14 +7811,21 @@ def _node_more_menu_script() -> str:
     return NODE_MORE_MENU_SCRIPT
 
 
-def _node_main_channel_direct_actions(key: str, name: str) -> str:
+def _node_main_channel_direct_actions(key: str, name: str, user: "PanelAccessUser | None" = None) -> str:
     escaped_key = urllib.parse.quote(key, safe="")
     escaped_name = html.escape(name, quote=True)
-    return (
-        '<div class="node-direct-more-actions">'
+    # STREAMFORGE_NODE_PERM_AUDIT_V1360: the Info action needs the channels.info permission, so the
+    # button only renders for users who can actually open it.
+    info_link = (
         f'<a class="compact-control node-info-control" href="/panel/channels/{escaped_key}/info" title="Info" aria-label="Open {escaped_name} information">'
         '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 10.5v6"></path><path d="M12 7.5h.01"></path></svg></a>'
-        f'<button class="compact-control node-log-control" type="button" data-node-channel-log-open data-error-endpoint="/panel/channels/{escaped_key}/errors.json" '
+        if user is None or _has_panel_permission(user, "channels.info")
+        else ""
+    )
+    return (
+        '<div class="node-direct-more-actions">'
+        + info_link
+        + f'<button class="compact-control node-log-control" type="button" data-node-channel-log-open data-error-endpoint="/panel/channels/{escaped_key}/errors.json" '
         f'data-clear-endpoint="/panel/channels/{escaped_key}/errors/clear" data-channel-name="{escaped_name}" title="Stream logs" aria-label="Open {escaped_name} stream logs">'
         '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h9l3 3v14H6z"></path><path d="M15 3.5v4h4"></path><path d="M9 12h6M9 16h6"></path></svg></button>'
         '</div>'
@@ -7876,7 +7883,7 @@ def _panel_page(user: PanelAccessUser, message: str = "") -> str:
                 actions.append(f'<form method="post" action="/panel/channels/{escaped_key}/stop"><button class="compact-control stop" title="Stop" aria-label="Stop channel"><span class="node-control-glyph">⏹</span></button></form>')
             if _has_panel_permission(user, "channels.restart"):
                 actions.append(f'<form method="post" action="/panel/channels/{escaped_key}/restart"><button class="compact-control restart" title="Restart" aria-label="Restart channel"><span class="node-control-glyph">↻</span></button></form>')
-            if status.get("hls_ready") and config.output_type == "hls":
+            if status.get("hls_ready") and config.output_type == "hls" and _has_panel_permission(user, "channels.playback"):  # STREAMFORGE_NODE_PERM_AUDIT_V1360
                 actions.append(f'<a class="btn compact-control http" target="_blank" rel="noopener" href="/panel/channels/{escaped_key}/play" title="HLS preview" aria-label="Play HLS preview"><span class="node-control-glyph">H</span></a>')
             more_actions: list[str] = [
                 f'<button type="button" data-node-channel-log-open data-error-endpoint="/panel/channels/{escaped_key}/errors.json" '
@@ -7886,7 +7893,7 @@ def _panel_page(user: PanelAccessUser, message: str = "") -> str:
                 more_actions.append(f'<a href="/panel/manage/channels/{escaped_key}/edit">Edit</a>')
             if is_main_readonly:
                 more_actions.append('<span>Main Server channel · read-only</span>')
-            more_menu = _node_main_channel_direct_actions(key, config.name) if is_main_readonly else (
+            more_menu = _node_main_channel_direct_actions(key, config.name, user) if is_main_readonly else (
                 '<details class="node-more-menu"><summary class="compact-control more" title="More actions" aria-label="More actions"><span class="node-control-glyph node-more-glyph" aria-hidden="true"></span></summary>'
                 '<div class="node-more-popover">' + ''.join(more_actions) + '<a href="/panel/manage/channels">Open Channels page</a></div></details>'
             )
@@ -9038,7 +9045,7 @@ def _panel_sessions_page(user: PanelAccessUser, channel_filter: str = "", accoun
         if not account_filter or str(item.get("user_name") or "Unknown user") == account_filter
     ]
     rows: list[str] = []
-    can_kill = _has_panel_permission(user, "stream_users.kill")
+    can_kill = _has_panel_permission(user, "sessions.kill")  # STREAMFORGE_NODE_PERM_AUDIT_V1360
     for item in sessions:
         source = html.escape(str(item.get("source") or "Unknown"))
         source_key = str(item.get("source_key") or ("direct_node" if source.lower().startswith("direct") else "main_proxy"))
@@ -11589,7 +11596,7 @@ def node_channel_errors_json(key: str, request: Request, page: int = 1, page_siz
         "page_size": safe_page_size,
         "pages": pages,
         "total": total,
-        "can_clear": _has_panel_permission(user, "logs.manage"),
+        "can_clear": _has_panel_permission(user, "logs.clear"),  # STREAMFORGE_NODE_PERM_AUDIT_V1360
         "hide_source": hide_source,
         # STREAMFORGE_NODE_CHANNEL_LOG_CLEAR_PUBLIC_PREFIX_V1140:
         # The Node Panel can intentionally live at the authority root (or any
@@ -11609,7 +11616,7 @@ def node_channel_errors_json(key: str, request: Request, page: int = 1, page_siz
 
 @app.post("/panel/channels/{key}/errors/clear")
 def node_channel_errors_clear(key: str, request: Request):
-    require_node_panel_user(request, "logs.manage")
+    require_node_panel_user(request, "logs.clear")  # STREAMFORGE_NODE_PERM_AUDIT_V1360
     safe_key = manager.safe_key(key)
     with manager.lock:
         runtime = manager.channels.get(safe_key)
@@ -12229,7 +12236,7 @@ def node_panel_sessions_json(request: Request, channel: str = "", user: str = ""
         if (not selected_channel or str(item.get("channel_key") or "") == selected_channel)
         and (not selected_user or str(item.get("user_name") or "Unknown user") == selected_user)
     ]
-    can_kill = _has_panel_permission(panel_user, "stream_users.kill")
+    can_kill = _has_panel_permission(panel_user, "sessions.kill")  # STREAMFORGE_NODE_PERM_AUDIT_V1360
     payload = []
     for item in sessions:
         source = str(item.get("source") or "Unknown")
@@ -12346,7 +12353,7 @@ def _panel_play_authorize(key: str, request: Request, grant: str) -> str:
         return str(grant)
     # Backward compatibility for an old/raw panel-play URL. Authenticate once,
     # then upgrade the returned manifest to the short-lived local media grant.
-    require_node_panel_user(request, "channels.view")
+    require_node_panel_user(request, "channels.playback")  # STREAMFORGE_NODE_PERM_AUDIT_V1360
     return _issue_panel_play_grant(key, request)
 
 
@@ -12356,7 +12363,7 @@ def node_panel_channel_play(key: str, request: Request):
     # The Channels H action is a preview, not another Panel screen. Return a
     # bare browser video surface with only native video controls; no sidebar,
     # toolbar, status badge, metrics or navigation options.
-    require_node_panel_user(request, "channels.view")
+    require_node_panel_user(request, "channels.playback")  # STREAMFORGE_NODE_PERM_AUDIT_V1360
     safe_key = manager.safe_key(key)
     with manager.lock:
         runtime = manager.channels.get(safe_key)
@@ -14080,7 +14087,7 @@ def _channel_from_form(form: Any, previous: ChannelConfig | None = None) -> Chan
 
 @app.get('/panel/channels/{key}/info', response_class=HTMLResponse)
 def node_channel_info(key: str, request: Request):
-    user = require_node_panel_user(request, 'channels.view')
+    user = require_node_panel_user(request, 'channels.info')  # STREAMFORGE_NODE_PERM_AUDIT_V1360
     with manager.lock:
         runtime = manager.channels.get(key)
     if not runtime:
@@ -14176,7 +14183,7 @@ def independent_channels(request: Request, message: str = '', error: str = ''):
             if c.logo_url else ""
         )
         readonly = '<span class="node-readonly-chip">Main · read-only</span>' if is_main else '<span class="node-readonly-chip">Node · local</span>'
-        more_menu = _node_main_channel_direct_actions(key, c.name) if is_main else (
+        more_menu = _node_main_channel_direct_actions(key, c.name, user) if is_main else (
             '<details class="node-more-menu"><summary class="compact-control more" title="More actions" aria-label="More actions"><span class="node-control-glyph node-more-glyph" aria-hidden="true"></span></summary>'
             '<div class="node-more-popover">' + ''.join(more_actions) + '</div></details>'
         )
@@ -14521,7 +14528,7 @@ def independent_categories(request: Request, message: str = '', error: str = '')
             owner = 'Main Server · name read-only'; order_text = str(index); actions = '<span class="badge">Node order allowed</span>'
         else:
             owner = 'Node local'; order_text = str(index); actions = '—'
-            if _has_panel_permission(user, 'categories.manage'):
+            if _has_panel_permission(user, 'categories.edit') and _has_panel_permission(user, 'categories.delete'):  # STREAMFORGE_NODE_PERM_AUDIT_V1360
                 safe = html.escape(name, quote=True)
                 actions = (
                     '<div class="node-category-row-actions">'
@@ -14544,7 +14551,7 @@ def independent_categories(request: Request, message: str = '', error: str = '')
     alerts = (f'<div class=ok>{html.escape(message)}</div>' if message else '') + (f'<div class=err>{html.escape(error)}</div>' if error else '')
     order_panel = ''
     order_script = ''
-    if _has_panel_permission(user, 'categories.manage'):
+    if _has_panel_permission(user, 'categories.reorder'):  # STREAMFORGE_NODE_PERM_AUDIT_V1360
         movable = [name for name in ordered_names if name.lower() != 'uncategorized']
         items = ''.join(
             f'<li data-node-category-key="{html.escape(name.lower(), quote=True)}"><span><b>{index}</b><span><strong>{html.escape(name)}</strong><small>{"Main category" if name.lower() in main_names else "Node-local category"}</small></span></span>'
@@ -14573,9 +14580,9 @@ def independent_categories(request: Request, message: str = '', error: str = '')
 
 @app.post('/panel/manage/categories/reorder')
 async def node_category_reorder(request: Request):
-    user = require_node_panel_user(request, 'categories.manage')
-    if not _has_panel_permission(user, 'categories.manage'):
-        raise HTTPException(403, 'Categories Manage permission is required')
+    user = require_node_panel_user(request, 'categories.reorder')  # STREAMFORGE_NODE_PERM_AUDIT_V1360
+    if not _has_panel_permission(user, 'categories.reorder'):
+        raise HTTPException(403, 'Categories Reorder permission is required')
     form = await request.form()
     try:
         parsed = json.loads(str(form.get('category_order') or '[]'))
@@ -14600,7 +14607,9 @@ async def node_category_reorder(request: Request):
 
 @app.post('/panel/manage/categories/rename')
 async def independent_category_rename(request: Request):
-    require_node_panel_user(request, 'categories.manage'); f = await request.form()
+    require_node_panel_user(request, 'categories.edit')  # STREAMFORGE_NODE_PERM_AUDIT_V1360; f = await request.form()
+    if not _has_panel_permission(user, 'categories.edit'):
+        raise HTTPException(403, 'Categories Edit permission is required')
     old_name = str(f.get('old_name') or '').strip(); new_name = str(f.get('new_name') or '').strip()[:120]
     main_names = {item.name.strip().lower() for item in manager.main_categories}
     if old_name.lower() in main_names:
@@ -14621,7 +14630,10 @@ async def independent_category_rename(request: Request):
 
 @app.post('/panel/manage/categories/delete')
 async def independent_category_delete(request: Request):
-    require_node_panel_user(request, 'categories.manage'); f = await request.form(); name = str(f.get('name') or '').strip()
+    require_node_panel_user(request, 'categories.delete')  # STREAMFORGE_NODE_PERM_AUDIT_V1360; f = await request.form()
+    if not _has_panel_permission(user, 'categories.delete'):
+        raise HTTPException(403, 'Categories Delete permission is required')
+    name = str(f.get('name') or '').strip()
     main_names = {item.name.strip().lower() for item in manager.main_categories}
     if name.lower() in main_names:
         return RedirectResponse('/panel/manage/categories?error=' + urllib.parse.quote_plus('Main Server categories are read-only'), 303)
@@ -15218,7 +15230,7 @@ def independent_logs(
         f'<form method="post" action="/panel/manage/logs/clear?{clear_query}" '
         f'onsubmit="return confirm(\'Clear {html.escape(clear_label)} only?\')">'
         f'<button class="danger">Clear</button></form>'
-        if _has_panel_permission(user, 'logs.manage') else ''
+        if _has_panel_permission(user, 'logs.clear') else ''  # STREAMFORGE_NODE_PERM_AUDIT_V1360
     )
     tab_common = urllib.parse.urlencode({'limit': selected_limit, 'level': selected_level, 'q': selected_search, 'sort': selected_sort, 'order': selected_order})
     # STREAMFORGE_NODE_PANEL_LOG_PRIVATE_ADDRESSBAR_V1039: inherited privacy marker.
@@ -15309,7 +15321,7 @@ def independent_logs(
 
 @app.post('/panel/manage/logs/clear')
 def independent_logs_clear(request: Request, log_type: str = 'activity'):
-    require_node_panel_user(request,'logs.manage')
+    require_node_panel_user(request,'logs.clear')  # STREAMFORGE_NODE_PERM_AUDIT_V1360
     manager.sync_event_logs_from_file()
     selected = str(log_type or 'activity').strip().lower()
     if selected not in {'activity', 'access', 'client', 'system'}:
@@ -15779,7 +15791,7 @@ def _panel_session_kill_after_response(actor: str, session_id: str, source_key: 
 
 @app.post('/panel/sessions/{session_id}/kill')
 async def independent_session_kill(session_id: str, request: Request):
-    user = require_node_panel_user(request, 'stream_users.kill')
+    user = require_node_panel_user(request, 'sessions.kill')  # STREAMFORGE_NODE_PERM_AUDIT_V1360
     form = await request.form()
     source_key = str(form.get('source_key') or 'direct_node')
     user_id = str(form.get('user_id') or '')
