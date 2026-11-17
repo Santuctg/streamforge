@@ -1,3 +1,7 @@
+## 13.82 - 2026-11-17
+
+- The collapsed desktop sidebar rail is compact: each icon now uses 34px instead of 48px, the brand/toggle and bottom actions are shorter, so all 15 icons plus theme/account/signout fit at the top of a normal viewport. The sidebar still scrolls on very short screens.
+
 ## 13.81 - 2026-11-17
 
 - The collapsed sidebar icon rail scrolls properly: an older Firefox fix made only #main-navigation scrollable with `overflow:auto!important`, so the tall icon list could not be brought back to the top. The whole collapsed sidebar is now the scroll container and the nav is in normal flow, making every icon and the bottom actions reachable.
