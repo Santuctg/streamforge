@@ -1,3 +1,7 @@
+## 13.59 - 2026-11-17
+
+- Fixed "Main Panel HTTP 403: Access denied" on the Node panel when changing a shared channel's HLS segment with the Edit channels permission: Main's browser IP/ASN panel whitelist rejected the Node's own address because the `/api/v1/node-channel-hls-segment/` endpoint was missing from the machine-to-machine policy bypass; it is now exempt like the other Node-token control endpoints.
+
 ## 13.58 - 2026-11-17
 
 - Moved the panel Dark/Light switch into the button row on both panels (Node sidebar footer, Main sidebar button row; phones keep a compact topbar glyph switch), taught the paint scripts to keep labelled buttons' labels, and grouped the Node Web Player LIVE pill with the switch.

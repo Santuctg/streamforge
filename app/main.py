@@ -5695,6 +5695,12 @@ async def route_and_enforce_main_access_aliases(request: Request, call_next):
         "/api/v1/node-panel-live-auth/",
         "/api/v1/node-heartbeat/",
         "/api/v1/node-control/",
+        # STREAMFORGE_MAIN_NODE_HLS_SEGMENT_POLICY_BYPASS_V1359: the per-Node
+        # HLS segment override is the same machine-to-machine control traffic
+        # (X-Node-Token authenticated); without this exemption a Main panel
+        # IP/ASN whitelist rejected the Node's own address and the Node panel
+        # surfaced "Main Panel HTTP 403: Access denied" on every HLS change.
+        "/api/v1/node-channel-hls-segment/",
     )
     node_internal_auth = bool(str(request.headers.get("x-node-token") or "").strip()) and any(
         policy_path == prefix.rstrip("/") or policy_path.startswith(prefix)
