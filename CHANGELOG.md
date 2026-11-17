@@ -1,3 +1,7 @@
+## 13.75 - 2026-11-17
+
+- Centered the Providers Alt-running column HEADER (the values were centered but their header th had missed the pv-center class, making the column look right-shifted).
+
 ## 13.74 - 2026-11-17
 
 - Hotfix: the v13.62 route insertion dropped the tail of the panel-user save handler, so POST /admin-users/{id}/edit returned JSON null and the browser replaced the page with a JSON viewer — saving panel users looked broken. The redirect tail is restored.
