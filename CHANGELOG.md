@@ -1,3 +1,8 @@
+## 13.54 - 2026-11-17
+
+- Fixed the Main Web Player watch screen failing to play on fresh releases: self-hosted HLS.js was loaded from the `{{ prefix }}`-prefixed `/123/static/...` URL that Nginx silently drops behind playlist aliases, so the cache-busted request died every version and playback fell back to a (often unreachable) CDN. It now loads from the Nginx `/static/` cache at host root with the CDN fallbacks unchanged.
+- Fixed the light theme dropdown option lists staying dark on Main and Node: light themes now force `color-scheme:light` on selects and recolour the options.
+
 ## 13.53 - 2026-11-17
 
 - Audited the Node Agent's Dark/Light theme and fixed every finding: the late light-theme overrides moved from the Categories-only stylesheet into the global Node panel CSS, and the light checkbox tick stays a dark centred mark instead of being painted near-white.

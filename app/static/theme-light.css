@@ -470,3 +470,7 @@
 :root[data-theme="light"] .login-card input:-webkit-autofill,:root[data-theme="light"] .login-card input:-webkit-autofill:hover,:root[data-theme="light"] .login-card input:-webkit-autofill:focus{-webkit-box-shadow:0 0 0 1000px #ffffff inset!important;box-shadow:0 0 0 1000px #ffffff inset!important;-webkit-text-fill-color:#16232f!important;color:#16232f!important;caret-color:#16232f!important;color-scheme:light!important}
 :root[data-theme="light"] .login-card input[name="username"],:root[data-theme="light"] .login-card input[name="password"]{color-scheme:light!important;caret-color:#16232f!important}
 :root[data-theme="light"] .theme-toggle,:root[data-theme="light"] .login-theme-toggle{background:#eef3f7!important;border-color:#c9d6e0!important;color:#16232f!important}
+/* STREAMFORGE_LIGHT_SELECT_POPUP_V1354: the dark stylesheet forces color-scheme:dark on every select and Chrome/Edge render the NATIVE dropdown popup from the element's color-scheme, so the option list stayed dark after switching to light. */
+:root[data-theme="light"] select:not([multiple]),:root[data-theme="light"] select[multiple]{color-scheme:light!important}
+:root[data-theme="light"] select:not([multiple]) option,:root[data-theme="light"] select[multiple] option{background:#f2f6fa!important;color:#16232f!important}
+:root[data-theme="light"] select:not([multiple]):disabled option{color:#5d7183!important}

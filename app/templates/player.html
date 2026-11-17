@@ -5,7 +5,11 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
 <script>/* STREAMFORGE_DEVICE_LOCAL_THEME_BOOTSTRAP_V1344 */(()=>{try{const k='streamforge.theme',v=localStorage.getItem(k);if(v==='light')document.documentElement.dataset.theme='light'}catch(_){}})();</script>
 <!-- STREAMFORGE_MAIN_WEBPLAYER_SELF_HOSTED_HLSJS_V1163: prefer the server-local HLS.js copy so Web Player playback does not depend on a third-party CDN being reachable at play time. -->
-<link rel="preload" as="script" href="{{ prefix }}/static/vendor/hls.min.js?v={{ app_version }}">
+<!-- STREAMFORGE_MAIN_PLAYER_HLSJS_ROOT_STATIC_V1354: load it from the Nginx
+     /static/ cache at host root. The old {{ prefix }}-prefixed URL was silently
+     dropped behind playlist aliases (404 -> 444), so every release's fresh
+     cache-busted HLS.js request died and playback fell back to the CDN. -->
+<link rel="preload" as="script" href="/static/vendor/hls.min.js?v={{ app_version }}">
   <meta name="robots" content="noindex,nofollow">
   <title>{{ channel.name }} · {{ branding.name if branding else 'StreamForge' }} Player</title>
   <!-- STREAMFORGE_MAIN_PLAYER_FAVICON_HEAD_V2289 -->
@@ -602,7 +606,7 @@ html[data-theme="light"] .theme-toggle{background:#eef3f7!important;border-color
       hlsLibraryRetryTimer = null;
     }
     const sources = [
-      {{ (prefix ~ '/static/vendor/hls.min.js?v=' ~ app_version) | tojson }},
+      {{ ('/static/vendor/hls.min.js?v=' ~ app_version) | tojson }},
       'https://cdn.jsdelivr.net/npm/hls.js@1.7.1/dist/hls.min.js',
       'https://unpkg.com/hls.js@1.7.1/dist/hls.min.js'
     ];

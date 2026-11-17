@@ -75,6 +75,18 @@ assert node.count("_node_theme_toggle_button(") >= 7, "every Node public page mu
 assert (
     "_node_webplayer_theme_css(request) + _node_webplayer_device_theme_css()" in node
 ), "device light CSS must load after the managed theme tokens"
+# --- v13.54: light select popups follow the element color-scheme on both planes.
+assert (
+    ':root[data-theme="light"] select:not([multiple]),:root[data-theme="light"] select[multiple]{color-scheme:light!important}' in light_css
+), "Main light theme must force light color-scheme on selects"
+assert (
+    ':root[data-theme="light"] select:not([multiple]) option,:root[data-theme="light"] select[multiple] option{background:#f2f6fa!important;color:#16232f!important}' in light_css
+), "Main light theme must recolour select options"
+assert "STREAMFORGE_LIGHT_SELECT_POPUP_V1354" in light_css, "light select popup marker missing"
+assert (
+    ':root[data-theme="light"] html body select:not([multiple]):not(#streamforge-dropdown-never),:root[data-theme="light"] html body select[multiple]:not(#streamforge-dropdown-never){color-scheme:light!important}' in node
+), "Node light theme must force light color-scheme on selects"
+assert "STREAMFORGE_NODE_LIGHT_SELECT_POPUP_V1354" in node, "Node light select popup marker missing"
 
 # --- Page-level <style> blocks load after style.css, so the light overrides must
 # --- be a late stylesheet linked after {% block content %}.

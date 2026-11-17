@@ -13384,6 +13384,10 @@ html body select[multiple]:not(#streamforge-dropdown-never) option{background:#0
 :root[data-theme="light"] html body select:not([multiple]):not(#streamforge-dropdown-never) option{background:#f2f6fa!important}
 :root[data-theme="light"] html body select[multiple]:not(#streamforge-dropdown-never){border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important;background-color:#ffffff!important}
 :root[data-theme="light"] html body select[multiple]:not(#streamforge-dropdown-never) option{background:#f2f6fa!important}
+/* STREAMFORGE_NODE_LIGHT_SELECT_POPUP_V1354: the dark rules force
+   color-scheme:dark on every select, so the NATIVE dropdown popup stayed dark
+   in light mode even with the option backgrounds overridden. */
+:root[data-theme="light"] html body select:not([multiple]):not(#streamforge-dropdown-never),:root[data-theme="light"] html body select[multiple]:not(#streamforge-dropdown-never){color-scheme:light!important}
 :root[data-theme="light"] .node-category-order-list li>span:first-child>b{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
 
 /* STREAMFORGE_NODE_LIGHT_SURFACES_V1353: hardcoded dark surfaces get a light pass. */

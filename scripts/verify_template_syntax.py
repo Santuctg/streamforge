@@ -196,6 +196,17 @@ def verify(root: Path) -> None:
                     failures.append(
                         f"player.html ({label}): theme toggle button missing"
                     )
+                # v13.54: the self-hosted HLS.js copy must load from the host-root
+                # /static/ cache; the old {{ prefix }}-prefixed URL is silently
+                # dropped behind playlist aliases.
+                if 'href="/static/vendor/hls.min.js?v=' not in rendered:
+                    failures.append(
+                        f"player.html ({label}): root /static/ HLS.js preload missing"
+                    )
+                if any("prefix" in line for line in rendered.splitlines() if "static/vendor/hls.min.js" in line):
+                    failures.append(
+                        f"player.html ({label}): HLS.js still uses the prefixed aliased path"
+                    )
 
     if failures:
         print("FAIL: template verification failed", file=sys.stderr)
