@@ -3892,3 +3892,9 @@ body .sf-help-bubble.sf-help-bubble.sf-help-below::after{
   .app-shell.sidebar-collapsed .sidebar .main-nav-links{flex:0 0 auto!important;min-height:0!important}
   .app-shell.sidebar-collapsed .sidebar-bottom{position:static!important;margin-top:8px!important;padding-top:8px!important;flex:0 0 auto!important}
 }
+
+/* STREAMFORGE_RAIL_RUNWAY_REMOVED_V1392: remove the invisible scroll runway
+   (and its visible 40px gap) below the collapsed sidebar icons. */
+@media(min-width:761px){
+  .app-shell.sidebar-collapsed .sidebar::after{content:none!important}
+}

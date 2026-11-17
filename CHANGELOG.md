@@ -1,3 +1,7 @@
+## 13.92 - 2026-11-18
+
+- Removed the collapsed sidebar scroll runway and its 40px visible gap below the icons. On tall screens this also removes the extra scroll range that let Settings be brought to the top.
+
 ## 13.91 - 2026-11-18
 
 - Fixed the collapsed Main sidebar: the theme / change-password / sign-out actions no longer sit in the middle of the icon list with Settings and other links below them; they now follow every nav link.
