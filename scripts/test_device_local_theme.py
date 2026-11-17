@@ -87,6 +87,31 @@ assert (
     ':root[data-theme="light"] html body select:not([multiple]):not(#streamforge-dropdown-never),:root[data-theme="light"] html body select[multiple]:not(#streamforge-dropdown-never){color-scheme:light!important}' in node
 ), "Node light theme must force light color-scheme on selects"
 assert "STREAMFORGE_NODE_LIGHT_SELECT_POPUP_V1354" in node, "Node light select popup marker missing"
+# --- v13.55: route decorators must bind to their real handler. v13.53-v13.54
+# --- shipped the watch-device-CSS helper wedged between the watch route
+# --- decorator and node_web_player_watch, so every channel click returned the
+# --- CSS text instead of the player page.
+_app_lines = node.splitlines()
+for _i, _line in enumerate(_app_lines):
+    _stripped = _line.strip()
+    if _stripped.startswith("@app.") or _stripped.startswith("@router."):
+        _j = _i + 1
+        while _j < len(_app_lines) and (
+            not _app_lines[_j].strip() or _app_lines[_j].strip().startswith("#")
+        ):
+            _j += 1
+        _next = _app_lines[_j].strip() if _j < len(_app_lines) else ""
+        if _next and not (
+            _next.startswith("def ") or _next.startswith("async def ") or _next.startswith("@")
+        ):
+            raise AssertionError(
+                f"route decorator at source line {_i + 1} is not bound to a handler: {_stripped[:70]}"
+            )
+assert node.index('@app.get("/web-player/watch/{channel_key}", response_class=HTMLResponse)') < node.index(
+    "def node_web_player_watch(channel_key: str, request: Request):"
+) and node.index("def _node_watch_device_theme_css") < node.index(
+    '@app.get("/web-player/watch/{channel_key}", response_class=HTMLResponse)'
+), "the watch route decorator must bind node_web_player_watch"
 
 # --- Page-level <style> blocks load after style.css, so the light overrides must
 # --- be a late stylesheet linked after {% block content %}.

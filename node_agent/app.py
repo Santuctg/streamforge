@@ -17049,7 +17049,6 @@ def node_web_player_logout(request: Request):
     return response
 
 
-@app.get("/web-player/watch/{channel_key}", response_class=HTMLResponse)
 def _node_watch_device_theme_css() -> str:
     # STREAMFORGE_NODE_WATCH_DEVICE_THEME_LIGHT_V1353: device light overrides
     # for the public Node Web Player watch screen.
@@ -17084,6 +17083,7 @@ def _node_watch_device_theme_css() -> str:
     )
 
 
+@app.get("/web-player/watch/{channel_key}", response_class=HTMLResponse)
 def node_web_player_watch(channel_key: str, request: Request):
     user = _node_web_current_user(request)
     prefix = _node_web_prefix(request)

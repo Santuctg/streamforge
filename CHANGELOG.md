@@ -1,3 +1,7 @@
+## 13.55 - 2026-11-17
+
+- Fixed the Node Web Player channel-open regression from v13.53: the watch-device-CSS helper sat between the `/web-player/watch/{channel_key}` route decorator and `node_web_player_watch`, so every channel click returned the CSS text instead of the player page. A source-level route-wiring guard now refuses any package whose route decorators are not bound to handlers.
+
 ## 13.54 - 2026-11-17
 
 - Fixed the Main Web Player watch screen failing to play on fresh releases: self-hosted HLS.js was loaded from the `{{ prefix }}`-prefixed `/123/static/...` URL that Nginx silently drops behind playlist aliases, so the cache-busted request died every version and playback fell back to a (often unreachable) CDN. It now loads from the Nginx `/static/` cache at host root with the CDN fallbacks unchanged.
