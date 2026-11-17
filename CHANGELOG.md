@@ -1,3 +1,7 @@
+## 13.77 - 2026-11-17
+
+- The topbar is responsive on phones: the heading and name chip wrap instead of colliding, the heading shrinks and the subtitle wraps inside an auto-height bar.
+
 ## 13.76 - 2026-11-17
 
 - Fixed the Providers card view properly: v13.75 accidentally shipped the old flex override that dropped the td labels and squeezed the columns; the kept global label+value card pattern is now centered (single-column grid, centered labels and values).
