@@ -5808,6 +5808,11 @@ def render(request: Request, name: str, db: Session, **context):
             "playlist_channel_count": lambda playlist: len(ordered_playlist_channels(playlist)),
             **context,
         },
+        # STREAMFORGE_MAIN_PANEL_NO_STORE_V1372: panel pages carry live state
+        # (providers counts, sessions, dashboards). A stale browser cache copy
+        # made operators see the old layout after an update even though the
+        # server had the new one — every Panel page must be fetched fresh.
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "no-cache"},
     )
 
 
