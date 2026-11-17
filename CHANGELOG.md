@@ -1,3 +1,7 @@
+## 13.74 - 2026-11-17
+
+- Hotfix: the v13.62 route insertion dropped the tail of the panel-user save handler, so POST /admin-users/{id}/edit returned JSON null and the browser replaced the page with a JSON viewer — saving panel users looked broken. The redirect tail is restored.
+
 ## 13.73 - 2026-11-17
 
 - The Providers card view (narrow screens) now centers its labels and values — the global table-as-cards rule left-aligned them.

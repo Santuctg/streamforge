@@ -13762,6 +13762,15 @@ def admin_user_update(
         stamp_admin_session(request, panel_user)
     affected_node_ids = old_node_ids | {item.id for item in selected_nodes}
     sync_errors = sync_panel_users_for_node_ids(affected_node_ids, request, db)
+    # STREAMFORGE_ADMIN_USER_UPDATE_TAIL_RESTORED_V1374: the v13.62 route insertion dropped this tail, so the save
+    # returned JSON null and the browser replaced the page with a JSON viewer.
+    log_event("Panel user updated", scope="auth", actor=actor.username, details={"ip": client_ip(request)})
+    return panel_admin_redirect(
+        "/admin-users",
+        message="Panel user updated",
+        error="; ".join(sync_errors),
+    )
+
 
 @app.post("/admin-users/{admin_user_id}/force-password", dependencies=[Depends(permission_required("panel_users.edit"))])
 def admin_user_force_password(
@@ -13787,12 +13796,6 @@ def admin_user_force_password(
     )
     suffix = "&message=" + quote_plus(f"{panel_user.username} must set a new password at next login" + (" · Node sync warnings: " + "; ".join(sync_errors) if sync_errors else ""))
     return RedirectResponse("/admin-users?saved=1" + suffix, status_code=303)
-
-    return panel_admin_redirect(
-        "/admin-users",
-        message="Panel user updated",
-        error="; ".join(sync_errors),
-    )
 
 
 @app.post("/admin-users/{admin_user_id}/delete", dependencies=[Depends(permission_required("panel_users.delete"))])
