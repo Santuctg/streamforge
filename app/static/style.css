@@ -3867,3 +3867,10 @@ body .sf-help-bubble.sf-help-bubble.sf-help-below::after{
     pointer-events:none;
   }
 }
+
+/* STREAMFORGE_RAIL_RUNWAY_SMALLER_V1385: the 360px scroll runway left a large
+   empty gap under the icons when the rail was scrolled down. Reduce it to
+   120px — enough scroll room for Settings to move up, without the big blank. */
+@media(min-width:761px){
+  .app-shell.sidebar-collapsed .sidebar::after{flex-basis:120px!important}
+}

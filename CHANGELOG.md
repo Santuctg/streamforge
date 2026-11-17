@@ -1,3 +1,7 @@
+## 13.85 - 2026-11-17
+
+- The collapsed-sidebar scroll runway is reduced from 360px to 120px: Settings still moves upward when scrolling the rail, but there is no large empty gap under the icons.
+
 ## 13.84 - 2026-11-17
 
 - Scrolling the collapsed sidebar now brings every icon upward, including Settings: on tall screens the original spacing left no scroll range. An invisible 360px runway after the bottom actions gives the rail scroll room. Layout, spacing and icon sizes are unchanged.
