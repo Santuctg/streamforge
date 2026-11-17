@@ -111,6 +111,13 @@ def ensure_runtime_schema() -> None:
                 if dialect == "sqlite" else
                 "ALTER TABLE admin_users ADD COLUMN main_panel_access BOOLEAN NOT NULL DEFAULT TRUE"
             )
+        # STREAMFORGE_FORCE_PASSWORD_CHANGE_V1362: operator-forced password flag.
+        if "must_change_password" not in admin_columns:
+            statements.append(
+                "ALTER TABLE admin_users ADD COLUMN must_change_password BOOLEAN NOT NULL DEFAULT 0"
+                if dialect == "sqlite" else
+                "ALTER TABLE admin_users ADD COLUMN must_change_password BOOLEAN NOT NULL DEFAULT FALSE"
+            )
 
     if "nodes" in table_names:
         node_columns = {column["name"] for column in inspector.get_columns("nodes")}

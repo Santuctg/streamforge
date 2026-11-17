@@ -45,6 +45,8 @@
       <label>Online session timeout (seconds)<input type="number" min="5" max="3600" name="viewer_session_timeout_seconds" value="{{ viewer_session_timeout_seconds }}"><small class="field-help">How long a viewer stays counted as Online after its last playback heartbeat. Default: 5 seconds.</small></label>
       <!-- STREAMFORGE_CLIENT_SESSION_RESET_OFFLINE_UI_V1081 -->
       <label>New session after offline (minutes)<input type="number" min="1" max="10080" name="client_session_reset_offline_minutes" value="{{ client_session_reset_offline_minutes }}"><small class="field-help">Same device/SID resumes the old cumulative Session age within this offline gap. Longer gaps start a new logical session and a new Client-log row. Default: 60 minutes.</small></label>
+      <!-- STREAMFORGE_PASSWORD_MIN_LENGTH_SETTING_V1362 -->
+      <label>Minimum password length<select name="password_min_length">{% for length in [12, 10, 8, 6] %}<option value="{{ length }}" {% if password_min_length == length %}selected{% endif %}>{{ length }} characters{% if length == 12 %} (recommended){% endif %}</option>{% endfor %}</select><small class="field-help">Enforced on Panel users, viewer (Xtream) passwords and every Remote Node panel. 12 is mandatory by default; existing passwords stay valid until they are changed.</small></label>
       <!-- STREAMFORGE_MAIN_LOG_ROTATION_UI_V90R3 -->
       <!-- STREAMFORGE_MAIN_LOG_RETENTION_V88 -->
       <!-- STREAMFORGE_MAIN_LOG_ROTATION_INLINE_V91 -->

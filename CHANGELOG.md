@@ -1,3 +1,7 @@
+## 13.62 - 2026-11-17
+
+- Password policy options: Settings gains a "Minimum password length" dropdown (12 recommended / 10 / 8 / 6) enforced on Panel users, viewer (Xtream) passwords and every Remote Node panel (previously the viewer passwords had no minimum); the Admin Users page gains a per-user "Force password change" button and badge — a forced user (and anyone whose password an operator sets) must set a new password at next login on Main and every Node panel.
+
 ## 13.61 - 2026-11-17
 
 - Closed the last permission-audit gap: the Node Channels page HLS preview ("H") button now requires `channels.playback` like the dashboard and the Main panel, so a role without "Open direct HTTP playback" no longer sees it.

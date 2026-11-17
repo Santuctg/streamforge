@@ -946,6 +946,7 @@ return 1
 
 connection_tracker = ConnectionTracker()
 
+PASSWORD_MIN_LENGTH_KEY = "password_min_length"
 MAIN_TOTAL_CONNECTIONS_KEY = "main_total_max_connections"
 METRICS_RETENTION_DAYS_KEY = "metrics_retention_days"
 LOG_RETENTION_DAYS_KEY = "log_retention_days"
@@ -964,6 +965,11 @@ def app_setting_int(db: Session, key: str, default: int = 0) -> int:
         return int(row.value) if row else int(default)
     except (TypeError, ValueError):
         return int(default)
+
+def password_min_length(db: Session) -> int:
+    """STREAMFORGE_PASSWORD_MIN_LENGTH_SETTING_V1362: operator-configured minimum password length."""
+    return max(6, min(72, app_setting_int(db, PASSWORD_MIN_LENGTH_KEY, PANEL_PASSWORD_MIN_LENGTH)))
+
 
 def app_setting_str(db: Session, key: str, default: str = "") -> str:
     row = db.get(AppSetting, key)
@@ -5773,6 +5779,9 @@ def render(request: Request, name: str, db: Session, **context):
             "admin": admin,
             "app_version": APP_VERSION,
             "app_root": str(request.scope.get("root_path") or "").rstrip("/"),
+            # STREAMFORGE_PASSWORD_MIN_LENGTH_SETTING_V1362: client-side
+            # minlength matches the operator-configured minimum.
+            "password_min_length": password_min_length(db),
             "branding": branding_settings(db),
             "system_timezone": system_timezone_name(db),
             "timezone_options": SYSTEM_TIMEZONES,
@@ -5877,7 +5886,7 @@ def login(
         return render(request, "login.html", db, error="Login temporarily unavailable")
     stamp_admin_session(request, admin)
     log_event("Panel login succeeded", scope="auth", actor=admin.username, details={"ip": client_ip(request)})
-    if panel_password_policy_error(password, settings.admin_password):
+    if admin.must_change_password or panel_password_policy_error(password, settings.admin_password, password_min_length(db)):  # STREAMFORGE_PASSWORD_MIN_LENGTH_SETTING_V1362
         request.session[PASSWORD_CHANGE_REQUIRED_SESSION_KEY] = True
         log_event("Panel login requires a password change", scope="auth", level="warning", actor=admin.username)
         return RedirectResponse("/account/password", status_code=303)
@@ -5914,6 +5923,7 @@ def system_branding_page(
         metrics_sample_interval_seconds=app_setting_int(db, METRICS_SAMPLE_INTERVAL_SECONDS_KEY, 60),
         viewer_session_timeout_seconds=max(5, min(3600, app_setting_int(db, VIEWER_SESSION_TIMEOUT_KEY, 5))),
         client_session_reset_offline_minutes=max(1, min(10080, app_setting_int(db, CLIENT_SESSION_RESET_OFFLINE_MINUTES_KEY, 60))),
+        password_min_length=password_min_length(db),  # STREAMFORGE_PASSWORD_MIN_LENGTH_SETTING_V1362
         hide_panel_hover_urls=app_setting_str(db, HIDE_PANEL_HOVER_URLS_KEY, "1").lower() not in {"0", "false", "off", "no"},
         system_timezone=system_timezone_name(db),
         timezone_options=SYSTEM_TIMEZONES,
@@ -5941,6 +5951,7 @@ def system_branding_save(
     metrics_sample_interval_seconds: int = Form(60),
     viewer_session_timeout_seconds: int = Form(5),
     client_session_reset_offline_minutes: int = Form(60),
+    password_min_length: int = Form(12),  # STREAMFORGE_PASSWORD_MIN_LENGTH_SETTING_V1362
     hide_panel_hover_urls: Optional[str] = Form(None),
     system_timezone: str = Form("Asia/Dhaka"),
     network_interfaces: list[str] = Form([]),
@@ -6010,6 +6021,10 @@ def system_branding_save(
     save_app_setting(db, VIEWER_SESSION_TIMEOUT_KEY, viewer_ttl_seconds)
     session_reset_minutes = max(1, min(10080, int(client_session_reset_offline_minutes or 60)))
     save_app_setting(db, CLIENT_SESSION_RESET_OFFLINE_MINUTES_KEY, session_reset_minutes)
+    # STREAMFORGE_PASSWORD_MIN_LENGTH_SETTING_V1362: the Panel keeps its 12-character floor; the dropdown can
+    # lower the minimum to 6/8/10 for deployments that need it.
+    configured_min_length = max(6, min(72, int(password_min_length or 12)))
+    save_app_setting(db, PASSWORD_MIN_LENGTH_KEY, configured_min_length)
     hide_hover_urls = as_bool(hide_panel_hover_urls)
     save_app_setting(db, HIDE_PANEL_HOVER_URLS_KEY, "1" if hide_hover_urls else "0")
     save_app_setting(db, "system_timezone", cleaned_timezone)
@@ -6048,6 +6063,7 @@ def system_branding_save(
         "metrics_sample_interval_seconds": sample_interval_seconds,
         "viewer_session_timeout_seconds": viewer_ttl_seconds,
         "client_session_reset_offline_minutes": session_reset_minutes,
+        "password_min_length": configured_min_length,
         "hide_panel_hover_urls": hide_hover_urls,
         "system_timezone": cleaned_timezone,
         "network_interfaces": selected_interfaces or ["all"],
@@ -10397,7 +10413,7 @@ async def node_panel_live_auth(
         new_password = str(payload.get("new_password") or "")
         if not verify_password(current_password, admin.password_hash):
             raise HTTPException(401, "Current password is incorrect")
-        policy_error = panel_password_policy_error(new_password, settings.admin_password)
+        policy_error = panel_password_policy_error(new_password, settings.admin_password, password_min_length(db))
         if policy_error:
             raise HTTPException(400, policy_error)
         if verify_password(new_password, admin.password_hash):
@@ -10431,6 +10447,10 @@ async def node_panel_live_auth(
         "auth_version": auth_version,
         "node": node.slug,
         "node_name": node.name,
+        # STREAMFORGE_FORCE_PASSWORD_CHANGE_V1362: the Node panel redirects to its own password page and
+        # renders the operator-configured minimum client-side.
+        "password_change_required": bool(admin.must_change_password),
+        "password_min_length": password_min_length(db),
     }
     return {"ok": True, "envelope": _encrypt_panel_live_auth_envelope(node, response_payload)}
 
@@ -13298,8 +13318,8 @@ def account_password_change(
     error = ""
     if not verify_password(current_password, admin.password_hash):
         error = "Current password is incorrect."
-    elif panel_password_policy_error(new_password, settings.admin_password):
-        error = panel_password_policy_error(new_password, settings.admin_password)
+    elif panel_password_policy_error(new_password, settings.admin_password, password_min_length(db)):
+        error = panel_password_policy_error(new_password, settings.admin_password, password_min_length(db))
     elif new_password != new_password_confirm:
         error = "New password confirmation does not match."
     elif verify_password(new_password, admin.password_hash):
@@ -13314,6 +13334,8 @@ def account_password_change(
     # feature needs the vault. Earlier releases refused the change outright,
     # which left the published installation default password unrotatable.
     admin.password_hash = hash_password(new_password)
+    if admin.must_change_password:
+        admin.must_change_password = False  # STREAMFORGE_FORCE_PASSWORD_CHANGE_V1362
     vault_note = ""
     if vault_enabled() and not vault_store(db, admin, new_password):
         raise HTTPException(503, "Encrypted password vault unavailable; password unchanged")
@@ -13399,8 +13421,8 @@ def admin_user_create(
         error = "Select a valid role."
     elif not role_is_within_actor_ceiling(actor, role):
         error = "You cannot assign a role above your own permission level."
-    elif panel_password_policy_error(password, settings.admin_password):
-        error = panel_password_policy_error(password, settings.admin_password)
+    elif panel_password_policy_error(password, settings.admin_password, password_min_length(db)):
+        error = panel_password_policy_error(password, settings.admin_password, password_min_length(db))
     elif password != password_confirm:
         error = "Password confirmation does not match."
     elif not as_bool(main_panel_access) and not selected_nodes:
@@ -13495,8 +13517,8 @@ def admin_user_update(
         error = "Select a valid role."
     elif not role_is_within_actor_ceiling(actor, role):
         error = "You cannot assign a role above your own permission level."
-    elif password and panel_password_policy_error(password, settings.admin_password):
-        error = panel_password_policy_error(password, settings.admin_password)
+    elif password and panel_password_policy_error(password, settings.admin_password, password_min_length(db)):
+        error = panel_password_policy_error(password, settings.admin_password, password_min_length(db))
     elif password != password_confirm:
         error = "Password confirmation does not match."
     elif not new_main_access and not selected_nodes:
@@ -13521,6 +13543,9 @@ def admin_user_update(
     panel_user.nodes = selected_nodes
     if password:
         panel_user.password_hash = hash_password(password)
+        # STREAMFORGE_FORCE_PASSWORD_CHANGE_V1362: an operator-set password is temporary; the user must
+        # replace it at next login.
+        panel_user.must_change_password = True
         # STREAMFORGE_VAULT_OPTIONAL_V1282: hash-only when no vault key exists.
         if vault_enabled() and not vault_store(db, panel_user, password):
             raise HTTPException(503, "Encrypted password vault unavailable; password unchanged")
@@ -13529,6 +13554,32 @@ def admin_user_update(
         stamp_admin_session(request, panel_user)
     affected_node_ids = old_node_ids | {item.id for item in selected_nodes}
     sync_errors = sync_panel_users_for_node_ids(affected_node_ids, request, db)
+
+@app.post("/admin-users/{admin_user_id}/force-password", dependencies=[Depends(permission_required("panel_users.edit"))])
+def admin_user_force_password(
+    admin_user_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """STREAMFORGE_FORCE_PASSWORD_CHANGE_V1362: require the user to set a new password at next login."""
+    actor = enforce_permission(request, db, "panel_users.edit")
+    panel_user = db.get(AdminUser, admin_user_id)
+    if not panel_user:
+        raise HTTPException(404)
+    if not panel_user_is_within_actor_ceiling(actor, panel_user):
+        raise HTTPException(404)
+    if panel_user.id == actor.id:
+        return panel_admin_redirect("/admin-users", error="Use the Change password page to change your own password.")
+    panel_user.must_change_password = True
+    db.commit()
+    sync_errors = sync_panel_users_for_node_ids({item.id for item in panel_user.nodes}, request, db)
+    log_event(
+        f"Password change forced for {panel_user.username}",
+        scope="auth", actor=actor.username, details={"ip": client_ip(request)},
+    )
+    suffix = "&message=" + quote_plus(f"{panel_user.username} must set a new password at next login" + (" · Node sync warnings: " + "; ".join(sync_errors) if sync_errors else ""))
+    return RedirectResponse("/admin-users?saved=1" + suffix, status_code=303)
+
     return panel_admin_redirect(
         "/admin-users",
         message="Panel user updated",
@@ -14776,6 +14827,12 @@ def validate_xtream_credentials(
         raise ValueError("Xtream username is already in use")
     if not cleaned_password and not existing_password_hash:
         raise ValueError("Xtream password is required when Xtream username is enabled")
+    if cleaned_password:
+        # STREAMFORGE_PASSWORD_MIN_LENGTH_SETTING_V1362: viewer (Xtream) passwords follow the same operator-configured
+        # minimum as Panel passwords.
+        minimum = password_min_length(db)
+        if len(cleaned_password) < minimum:
+            raise ValueError(f"Password must contain at least {minimum} characters.")
     return cleaned_username, (hash_password(cleaned_password) if cleaned_password else existing_password_hash)
 
 

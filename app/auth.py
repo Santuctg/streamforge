@@ -49,9 +49,17 @@ PASSWORD_CHANGE_REQUIRED_SESSION_KEY = "password_change_required"
 KNOWN_DEFAULT_PASSWORDS = frozenset({"ChangeMe123!"})
 
 
-def panel_password_policy_error(password: str, configured_default: str = "") -> str:
-    if len(password or "") < PANEL_PASSWORD_MIN_LENGTH:
-        return f"Password must contain at least {PANEL_PASSWORD_MIN_LENGTH} characters."
+def panel_password_policy_error(
+    password: str,
+    configured_default: str = "",
+    min_length: int = PANEL_PASSWORD_MIN_LENGTH,
+) -> str:
+    # STREAMFORGE_PASSWORD_MIN_LENGTH_SETTING_V1362: the operator picks the
+    # minimum in Settings (default 12, floor 6); the panel keeps rejecting the
+    # installation default whatever the length.
+    minimum = PANEL_PASSWORD_MIN_LENGTH if not min_length or int(min_length) < PANEL_PASSWORD_MIN_LENGTH else int(min_length)
+    if len(password or "") < minimum:
+        return f"Password must contain at least {minimum} characters."
     if password in KNOWN_DEFAULT_PASSWORDS or (configured_default and password == configured_default):
         return "Choose a password other than the installation default."
     return ""
@@ -97,6 +105,10 @@ def current_admin(request: Request, db: Session) -> Optional[AdminUser]:
             request.session.pop("admin_id", None)
             request.session.pop(ADMIN_AUTH_VERSION_SESSION_KEY, None)
             admin = None
+    if admin and getattr(admin, "must_change_password", False):
+        # STREAMFORGE_FORCE_PASSWORD_CHANGE_V1362: an operator-forced change
+        # redirects the already signed-in session to the password page too.
+        request.session[PASSWORD_CHANGE_REQUIRED_SESSION_KEY] = True
     request.state._streamforge_admin_cache_loaded = True
     request.state._streamforge_admin_cache = admin
     return admin

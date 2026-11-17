@@ -2532,6 +2532,7 @@ class NodeController:
                         # a Remote Node.
                         "enabled": bool(user.is_active),
                         "permissions": sorted(role_permission_set(user.role)),
+                        "must_change_password": bool(getattr(user, "must_change_password", False)),  # STREAMFORGE_FORCE_PASSWORD_CHANGE_V1362
                     }
                     for user in users
                 ],

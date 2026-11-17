@@ -102,6 +102,8 @@ class AdminUser(Base):
     password_hash: Mapped[str] = mapped_column(String(255))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     main_panel_access: Mapped[bool] = mapped_column(Boolean, default=True)
+    # STREAMFORGE_FORCE_PASSWORD_CHANGE_V1362: operator-forced password change flag.
+    must_change_password: Mapped[bool] = mapped_column(Boolean, default=False)
     role_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("roles.id", ondelete="SET NULL"), nullable=True, index=True
     )

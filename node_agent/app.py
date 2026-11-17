@@ -744,6 +744,9 @@ class PanelAccessUser(BaseModel):
     auth_version: str = ""
     enabled: bool = True
     permissions: list[str] = Field(default_factory=list)
+    # STREAMFORGE_FORCE_PASSWORD_CHANGE_V1362: Main-owned policy flags mirrored on the Node panel.
+    must_change_password: bool = False
+    password_min_length: int = 12
 
 
 class PanelUserSyncPayload(BaseModel):
@@ -6638,6 +6641,8 @@ class AgentManager:
                     auth_version=str(decoded.get("auth_version") or ""),
                     enabled=True,
                     permissions=[str(item) for item in (decoded.get("permissions") or [])],
+                    must_change_password=bool(decoded.get("password_change_required")),
+                    password_min_length=max(6, min(72, int(decoded.get("password_min_length") or 12))),
                 )
                 if not user.auth_version:
                     raise ValueError("Live authorization version missing")
@@ -9646,6 +9651,34 @@ class NodeSecurityHeadersMiddleware:
 
 
 app = FastAPI(title="StreamForge Node Agent", version=VERSION, lifespan=lifespan)
+
+
+@app.middleware("http")
+async def enforce_node_forced_password_change(request: Request, call_next):
+    """STREAMFORGE_FORCE_PASSWORD_CHANGE_V1362: a panel session whose Main account was flagged by an
+    operator reaches only the password page until the password is changed."""
+    try:
+        path = str(request.scope.get("path") or "/")
+        if request.method in {"GET", "HEAD"} and (path == "/panel" or path.startswith("/panel/")):
+            allowed = {
+                "/panel/account/password",
+                "/panel/logout",
+                "/panel/favicon",
+                "/panel/logo",
+                "/panel/status.json",
+            }
+            if path not in allowed:
+                claims = _session_claims(request)
+                if claims:
+                    status, user, _detail = _cached_panel_session_authorize(claims[0], claims[1])
+                    if status == "ok" and user and user.must_change_password:
+                        matched_prefix = _CURRENT_PANEL_PREFIX.get()
+                        prefix = (matched_prefix if matched_prefix is not None else (f"/{manager.access_slug}" if manager.access_slug else "")).rstrip("/")
+                        target = (prefix or "") + "/panel/account/password"
+                        return RedirectResponse(target, status_code=303)
+    except Exception:
+        pass
+    return await call_next(request)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "HEAD", "OPTIONS"], allow_headers=["*"])
 app.add_middleware(NodeSecurityHeadersMiddleware)
 
@@ -11458,8 +11491,8 @@ def node_panel_account_password_page(request: Request, message: str = "", error:
         + '. The credential is changed on the Main Server and is immediately valid on this Node. As a managed account, authorized administrators can recover changed passwords.</p></div></div>'
         + '<div class="form-grid">'
         + '<label>Current password<input type="password" name="current_password" autocomplete="current-password" required></label>'
-        + '<label>New password<input type="password" name="new_password" minlength="12" autocomplete="new-password" required><small class="field-help">Minimum 12 characters.</small></label>'
-        + '<label style="grid-column:1 / -1">Confirm new password<input type="password" name="new_password_confirm" minlength="12" autocomplete="new-password" required></label>'
+        + '<label>New password<input type="password" name="new_password" minlength="' + str(user.password_min_length) + '" autocomplete="new-password" required><small class="field-help">Minimum ' + str(user.password_min_length) + ' characters.</small></label>'
+        + '<label style="grid-column:1 / -1">Confirm new password<input type="password" name="new_password_confirm" minlength="' + str(user.password_min_length) + '" autocomplete="new-password" required></label>'
         + '</div></section>'
         + '<div class="form-actions"><button class="btn primary" type="submit">Change password</button></div>'
         + '</form>'
@@ -11476,8 +11509,9 @@ async def node_panel_account_password_change(request: Request):
     new_password = str(form.get("new_password") or "")
     confirm = str(form.get("new_password_confirm") or "")
     # STREAMFORGE_PANEL_PASSWORD_POLICY_V1277: Main enforces the same rule.
-    if len(new_password) < 12:
-        return node_panel_account_password_page(request, error="New password must contain at least 12 characters.")
+    # STREAMFORGE_FORCE_PASSWORD_CHANGE_V1362: the minimum is Main-configured and mirrored on the session.
+    if len(new_password) < user.password_min_length:
+        return node_panel_account_password_page(request, error=f"New password must contain at least {user.password_min_length} characters.")
     if new_password != confirm:
         return node_panel_account_password_page(request, error="New password confirmation does not match.")
     status, updated_user, detail = manager.live_panel_authorize(
@@ -11499,6 +11533,12 @@ async def node_panel_account_password_change(request: Request):
         else "/panel/account/password?message=Password+changed+successfully."
     )
     response = RedirectResponse(target, status_code=303)
+    # STREAMFORGE_FORCE_PASSWORD_CHANGE_V1362: the forced flag is cleared on Main; mirror it locally so
+    # the middleware stops redirecting before the next live auth refresh.
+    with manager.lock:
+        cached_user = manager.panel_users.get(updated_user.username)
+        if cached_user is not None:
+            cached_user.must_change_password = updated_user.must_change_password
     _set_panel_session_cookie(response, request, _session_cookie(updated_user.username, updated_user.auth_version))
     return response
 
