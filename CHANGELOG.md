@@ -1,3 +1,7 @@
+## 13.79 - 2026-11-17
+
+- The topbar no longer overflows the screen edges on phones: the older mobile block set horizontal padding to 0 while shrinking main-content to 10px, so the -14px negative margin pushed the heading, subtitle and name chip 4px outside both sides. The negative margin now matches the content padding at each breakpoint (14px <=760px, 10px <=480px) and horizontal padding is restored.
+
 ## 13.78 - 2026-11-17
 
 - The Providers page now renders real centered cards on phones (<=700px): every value keeps its label and the full URL shows on one line instead of a squeezed ~63px column that broke URLs every 3-4 characters. Root cause: the table is not inside `section.panel`, so the global card pattern never matched it; the page now carries its own scoped card view.

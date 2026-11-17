@@ -3811,3 +3811,15 @@ body .sf-help-bubble.sf-help-bubble.sf-help-below::after{
    switch itself lives in the sidebar button row with the other buttons. */
 .topbar-actions .admin-chip{display:flex;flex-direction:row;align-items:center;gap:10px;padding:5px 6px 5px 14px}
 .topbar-actions .admin-chip-id{display:flex;flex-direction:column;align-items:flex-end;min-width:0;line-height:1.15}
+
+/* STREAMFORGE_MAIN_TOPBAR_EDGE_FIX_V1379: the older V1010 mobile block sets
+   .topbar padding-inline:0 and shrinks .main-content to 10px inline padding
+   below 480px, so the v13.77 -14px margin pushed the whole header (and its
+   text) 4px outside both screen edges. Match the margin to the content
+   padding at each width and restore horizontal padding so text stays inside. */
+@media(max-width:760px){
+  .topbar{margin-inline:-14px;padding-inline:14px}
+}
+@media(max-width:480px){
+  .topbar{margin-inline:-10px;padding-inline:10px}
+}
