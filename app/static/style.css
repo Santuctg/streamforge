@@ -3853,3 +3853,17 @@ body .sf-help-bubble.sf-help-bubble.sf-help-below::after{
   }
   .app-shell.sidebar-collapsed .sidebar-top{min-height:0!important;margin-bottom:8px!important}
 }
+
+/* STREAMFORGE_COLLAPSED_RAIL_SCROLL_RUNWAY_V1384: the original 48px icon
+   spacing fits exactly on tall screens, leaving no scroll range, so Settings
+   could not be brought up when scrolling the rail. Add an invisible runway
+   after the bottom actions (collapsed desktop rail only). Layout and spacing
+   are unchanged; scrolling now moves every icon, including Settings, upward. */
+@media(min-width:761px){
+  .app-shell.sidebar-collapsed .sidebar::after{
+    content:'';
+    display:block;
+    flex:0 0 360px;
+    pointer-events:none;
+  }
+}

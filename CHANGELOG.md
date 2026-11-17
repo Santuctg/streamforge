@@ -1,3 +1,7 @@
+## 13.84 - 2026-11-17
+
+- Scrolling the collapsed sidebar now brings every icon upward, including Settings: on tall screens the original spacing left no scroll range. An invisible 360px runway after the bottom actions gives the rail scroll room. Layout, spacing and icon sizes are unchanged.
+
 ## 13.83 - 2026-11-17
 
 - Reverted the v13.82 compact collapsed-sidebar spacing: the rail returns to the original icon spacing while keeping the v13.81 whole-sidebar scrolling fix.
