@@ -22,9 +22,11 @@
           <td data-label="Access locations">{% if item.main_panel_access %}<span class="category-badge">Main Panel</span>{% endif %}{% for node in item.nodes %}<span class="node-badge">{{ node.name }}</span>{% endfor %}{% if not item.main_panel_access and not item.nodes %}<span class="muted-tag">No access location</span>{% endif %}</td>
           <td data-label="Status"><span class="status {{ 'running' if item.is_active else 'stopped' }}">{{ 'Active' if item.is_active else 'Disabled' }}</span>{% if item.must_change_password %}<span class="muted-tag" title="This user must set a new password at next login">Password change forced</span>{% endif %}</td>
           <td data-label="Created">{{ item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else '—' }}</td>
-          <td data-label="Actions" class="actions">
+          <td data-label="Actions">
+            <div class="actions admin-user-actions">
             {% if can('panel_users.edit') %}<a class="button small" href="/admin-users/{{ item.id }}/edit">Edit</a><button class="button small" type="button" data-panel-pw-reset-id="{{ item.id }}" data-panel-pw-reset-name="{{ item.username }}" aria-label="Change password for {{ item.username }}">Change password</button>{% if item.id != admin.id %}<form method="post" action="/admin-users/{{ item.id }}/force-password" onsubmit="return confirm('Force {{ item.username }} to set a new password at next login?')"><button class="button small" {% if item.must_change_password %}disabled title="Already forced"{% endif %}>Force password change</button></form>{% endif %}{% endif %}{% if vault_active and can('panel_users.password_reveal') %}{% if item.id in vault_saved_ids %}<button class="button small" type="button" data-vault-reveal-user-id="{{ item.id }}" data-vault-reveal-username="{{ item.username }}">Show saved password</button>{% else %}<small class="muted-tag" title="New or reset managed password required">Not saved</small>{% endif %}{% endif %}
             {% if can('panel_users.delete') and item.id != admin.id %}<form method="post" action="/admin-users/{{ item.id }}/delete" onsubmit="return confirm('Delete panel user {{ item.username }}?')"><button class="button ghost-danger small">Delete</button></form>{% endif %}
+            </div>
           </td>
         </tr>
       {% else %}<tr><td colspan="6" class="empty">No panel users found.</td></tr>{% endfor %}
@@ -50,13 +52,15 @@
 </section>
 {# STREAMFORGE_V1271_BLOCKED_IP_STANDALONE_CARD: separate top-level card from Login Accounts. #}
 <style>
-/* STREAMFORGE_ADMIN_USERS_ACTIONS_WRAP_V1364: the Actions cell is a flex
-   container that used to be nowrap; with the force-password button the five
-   buttons overflowed the cell and broke the row borders. Let them wrap and
-   keep the table wide enough to breathe. */
-.admin-users-table{min-width:860px}
-.admin-users-table td.actions{white-space:normal;flex-wrap:wrap;row-gap:8px}
-.admin-users-table td.actions .button.small{flex:0 0 auto}
+/* STREAMFORGE_ADMIN_USERS_ACTIONS_CELL_V1365: the global .actions class made
+   the <td> itself display:flex, which broke the table-cell layout and snapped
+   the row borders. The cell stays a table cell now and the buttons live in an
+   inner one-line flex row; the table is wide enough for them and scrolls
+   inside .table-wrap instead of overflowing its borders. */
+.admin-users-table{min-width:1300px}
+.admin-users-table td.actions{display:table-cell;white-space:normal;vertical-align:middle}
+.admin-users-table .admin-user-actions{display:flex;flex-wrap:nowrap;gap:8px;align-items:center}
+.admin-users-table .admin-user-actions .button.small{flex:0 0 auto}
 .sf-login-guard-card{margin-top:20px;overflow:hidden}
 .sf-login-guard-card .sf-guard-intro{font-size:13px;line-height:1.55;color:var(--muted,var(--sf-fg-8da0b5));max-width:76ch}
 .sf-login-guard-card .sf-guard-policy{padding:15px 18px;display:grid;gap:10px;grid-template-columns:repeat(4,minmax(0,1fr));border-bottom:1px solid var(--line,var(--sf-bd-243142))}

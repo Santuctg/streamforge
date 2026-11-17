@@ -1,3 +1,7 @@
+## 13.65 - 2026-11-17
+
+- Fixed the Admin Users row borders properly: the global `.actions` class made the Actions `<td>` itself `display:flex`, which broke the table-cell layout and snapped the row lines. The cell is a table cell again with the buttons in an inner one-line flex row; the table (1300px) scrolls horizontally instead of overflowing its borders.
+
 ## 13.64 - 2026-11-17
 
 - Fixed the Admin Users table layout: the Actions cell is a nowrap flex container, so the new Force password change button pushed it past the table border and broke the row separator lines. The buttons now wrap inside the row.
