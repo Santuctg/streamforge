@@ -9686,6 +9686,7 @@ def _main_panel_disconnected_page(request: Request, *, login_attempt: bool = Fal
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark">
+  {_node_device_theme_script()}
   {_node_favicon_link()}
   <title>Main Server Disconnected</title>
   <style>
@@ -9714,7 +9715,18 @@ def _main_panel_disconnected_page(request: Request, *, login_attempt: bool = Fal
     .secondary{{background:#121b25}}
     .secondary:hover{{border-color:#42566c;background:#16212d}}
     .foot{{margin:17px 0 0;text-align:center;color:#6f8091;font-size:12px}}
-    @media(max-width:520px){{.card{{padding:28px 20px;border-radius:16px}}.actions{{grid-template-columns:1fr}}}}
+    /* STREAMFORGE_NODE_DISCONNECTED_DEVICE_THEME_LIGHT_V1353 */
+    html[data-theme="light"]{{color-scheme:light}}
+    html[data-theme="light"] body{{background:radial-gradient(circle at 50% -15%,rgba(22,143,118,.12),transparent 38%),radial-gradient(circle at 90% 90%,rgba(200,63,80,.06),transparent 32%),#eef3f7!important;color:#172535!important}}
+    html[data-theme="light"] .card{{background:linear-gradient(180deg,#ffffff,#f4f8fb)!important;border-color:#c7d4df!important;box-shadow:0 24px 80px rgba(23,37,53,.12)!important}}
+    html[data-theme="light"] h1{{color:#172535}}
+    html[data-theme="light"] .lead{{color:#5d7183}}
+    html[data-theme="light"] .notice{{background:#f2f6fa!important;border-color:#c7d4df!important;color:#3f5365!important}}
+    html[data-theme="light"] .foot{{color:#5d7183!important}}
+    html[data-theme="light"] button{{border-color:#9eb2c2!important;color:#172535!important}}
+    html[data-theme="light"] .secondary{{background:#f2f6fa!important}}
+    html[data-theme="light"] .secondary:hover{{border-color:#7d94a8!important;background:#e9f1f7!important}}
+    {_NODE_THEME_TOGGLE_CSS}
   </style>
 </head>
 <body>
@@ -9732,6 +9744,7 @@ def _main_panel_disconnected_page(request: Request, *, login_attempt: bool = Fal
       <p class="foot">HTTP 503 · Live Main authorization required</p>
     </section>
   </main>
+  {_node_theme_toggle_button()}
 </body>
 </html>'''
     return HTMLResponse(
@@ -11330,6 +11343,7 @@ def node_panel_login_page(request: Request, error: str = ""):
     # STREAMFORGE_V1272_NODE_LOGIN_DARK_RESPONSIVE: presentation-only, keep live Main auth.
     return HTMLResponse(
         '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+        + _node_device_theme_script()
         + _node_favicon_link(access_prefix)
         + '<title>' + html.escape(manager.node_name or "Node") + '</title><style>'
         + ':root{color-scheme:dark;--login-bg:#0b0f14;--login-panel:#111821;--login-line:#304156;--login-text:#edf4fb;--login-muted:#94a9be;--login-accent:#2a9d82}'
@@ -11355,6 +11369,29 @@ def node_panel_login_page(request: Request, error: str = ""):
         + '.login-card .error{padding:10px 12px;margin:-2px 0 18px;border:1px solid #954453;border-radius:9px;background:#3b1b26;color:#ffd0d3;font-size:13px;line-height:1.45}'
         + '@media(max-width:480px){body{padding:16px 12px}.login-card{border-radius:14px}.login-card form{padding:24px 20px}.login-brand{padding-bottom:23px}.login-brand-logo,.login-brand-mark{width:68px;height:68px}}'
         + '@media(prefers-reduced-motion:reduce){.login-card input,.login-card button{transition:none}}'
+        + '/* STREAMFORGE_NODE_LOGIN_DEVICE_THEME_LIGHT_V1353 */'
+        + 'html[data-theme="light"]{color-scheme:light}'
+        + 'html[data-theme="light"] body{background:radial-gradient(circle at 50% 18%,#dfeaf3 0,#eef3f7 43%,#e9f0f6 78%)!important;color:#172535!important}'
+        + 'html[data-theme="light"] .login-card{border-color:#c7d4df!important;background:linear-gradient(180deg,#ffffff,#f4f8fb)!important;'
+        + 'box-shadow:0 20px 65px rgba(23,37,53,.10),0 2px 12px rgba(23,37,53,.06)!important}'
+        + 'html[data-theme="light"] .login-brand-logo,html[data-theme="light"] .login-brand-mark{border-color:#c7d4df!important;'
+        + 'background:#f2f6fa!important;box-shadow:0 2px 18px rgba(23,37,53,.08)!important}'
+        + 'html[data-theme="light"] .login-brand-mark{color:#0e6e57!important}'
+        + 'html[data-theme="light"] .login-brand h1{color:#172535!important}'
+        + 'html[data-theme="light"] .login-brand p{color:#5d7183!important}'
+        + 'html[data-theme="light"] .login-card label{color:#3f5365!important}'
+        + 'html[data-theme="light"] .login-card input{border-color:#9eb2c2!important;background:#ffffff!important;color:#172535!important;'
+        + '-webkit-text-fill-color:#172535;color-scheme:light}'
+        + 'html[data-theme="light"] .login-card input::placeholder{color:#5d7183!important}'
+        + 'html[data-theme="light"] .login-card input:focus-visible{border-color:#168f76!important;box-shadow:0 0 0 3px #168f7626!important}'
+        + 'html[data-theme="light"] .login-card input:-webkit-autofill,html[data-theme="light"] .login-card input:-webkit-autofill:hover,'
+        + 'html[data-theme="light"] .login-card input:-webkit-autofill:focus{box-shadow:0 0 0 1000px #ffffff inset!important;'
+        + '-webkit-box-shadow:0 0 0 1000px #ffffff inset!important;-webkit-text-fill-color:#172535!important;caret-color:#172535!important;border-color:#9eb2c2!important}'
+        + 'html[data-theme="light"] .login-card button{background:#168f76!important;border-color:#12866f!important;color:#ffffff!important}'
+        + 'html[data-theme="light"] .login-card button:hover{background:#0f7a64!important}'
+        + 'html[data-theme="light"] .login-card button:focus-visible{outline-color:#0f7a64!important}'
+        + 'html[data-theme="light"] .login-card .error{background:#fdeef0!important;border-color:#e4a3ac!important;color:#a3283c!important}'
+        + _NODE_THEME_TOGGLE_CSS
         + '</style></head><body>'
         + '<main class="login-card"><form method="post" action="' + html.escape(login_path, quote=True) + '" autocomplete="on">'
         + '<div class="login-brand">' + logo_html + '<h1>' + html.escape(manager.node_name or "Node") + '</h1><p>Sign in to the Node Panel</p></div>'
@@ -11362,7 +11399,7 @@ def node_panel_login_page(request: Request, error: str = ""):
         + '<label for="node-login-user">Username</label><input id="node-login-user" type="text" name="username" autocomplete="username" autocapitalize="off" spellcheck="false" maxlength="80" required>'
         + '<label for="node-login-password">Password</label><input id="node-login-password" type="password" name="password" autocomplete="current-password" required>'
         + '<button type="submit">Sign in</button></form></main>'
-        + canonical_script + '</body></html>'
+        + _node_theme_toggle_button() + canonical_script + '</body></html>'
     )
 
 
@@ -13227,6 +13264,135 @@ html body select[multiple]:not(#streamforge-dropdown-never) option{background:#0
   .form-actions button,.form-actions .btn{width:100%!important}
   .toolbar>.actions{width:100%!important}
 }
+/* STREAMFORGE_NODE_LIGHT_THEME_HARDCODED_COLORS_V1348: every light rule is scoped to
+   data-theme=light. v13.53: moved from the Categories-only stylesheet into the global
+   Node panel CSS so every page gets them. */
+:root[data-theme="light"] input[type=checkbox]{background:#f2f6fa!important}
+:root[data-theme="light"] input[type=checkbox]:checked::after{background:#071c18!important}
+:root[data-theme="light"] .nav-button:hover,:root[data-theme="light"] button:hover,:root[data-theme="light"] .btn:hover{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
+:root[data-theme="light"] .nav-button.active{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
+:root[data-theme="light"] .panel-user{background:#f2f6fa!important}
+:root[data-theme="light"] .viewer-link{color:var(--accent)!important}
+:root[data-theme="light"] .ok,:root[data-theme="light"] .msg{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important;border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important}
+:root[data-theme="light"] .err{background:color-mix(in srgb, var(--danger) 14%, #ffffff)!important}
+:root[data-theme="light"] .account-password-alert.danger{background:color-mix(in srgb, var(--danger) 14%, #ffffff)!important}
+:root[data-theme="light"] input[type=search]{background:#f2f6fa!important}
+:root[data-theme="light"] input[type=search]::placeholder{color:var(--muted)!important}
+:root[data-theme="light"] select option{background:#f2f6fa!important}
+:root[data-theme="light"] .source,:root[data-theme="light"] .mode-chip{border-color:color-mix(in srgb, var(--accent) 32%, #c9d6e0)!important}
+:root[data-theme="light"] .ownership-note{border-color:color-mix(in srgb, var(--accent) 32%, #c9d6e0)!important;background:#f2f6fa!important}
+:root[data-theme="light"] .selected-row{background:#f2f6fa!important}
+:root[data-theme="light"] .source-rank{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
+:root[data-theme="light"] .stream-source-info{color:var(--text)!important}
+:root[data-theme="light"] .node-channel-control-table th{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important;color:var(--muted)!important}
+:root[data-theme="light"] .node-channel-control-table td{background:#f2f6fa!important}
+:root[data-theme="light"] .node-channel-control-table tr:nth-child(even) td{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
+:root[data-theme="light"] .node-channel-control-table tr:hover td{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
+:root[data-theme="light"] .node-online-badge{color:var(--text)!important}
+:root[data-theme="light"] .node-runtime>span{color:var(--text)!important}
+:root[data-theme="light"] .node-runtime>b{color:var(--text)!important}
+:root[data-theme="light"] .compact-control{color:var(--text)!important}
+:root[data-theme="light"] .compact-control.stop{background:linear-gradient(180deg,#ffffff,#eef3f7)!important}
+:root[data-theme="light"] .compact-control.restart{background:linear-gradient(180deg,#ffffff,#eef3f7)!important}
+:root[data-theme="light"] .compact-control.http{background:linear-gradient(180deg,#ffffff,#eef3f7)!important}
+:root[data-theme="light"] .node-runtime-alert-dot{color:var(--text)!important}
+:root[data-theme="light"] .node-runtime-alert-dot.healthy{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
+:root[data-theme="light"] .node-runtime-alert-dot[data-tooltip]::after{background:#ffffff!important;color:var(--text)!important}
+:root[data-theme="light"] .node-runtime-status{background:color-mix(in srgb, var(--accent) 14%, #ffffff)!important;color:var(--text)!important}
+:root[data-theme="light"] .node-runtime-status.stopped,:root[data-theme="light"] .node-runtime-status.error{background:#f2f6fa!important;color:var(--text)!important}
+:root[data-theme="light"] .node-runtime-status.starting,:root[data-theme="light"] .node-runtime-status.restarting{background:color-mix(in srgb, var(--warning) 14%, #ffffff)!important;color:var(--warning)!important}
+:root[data-theme="light"] .node-runtime-status.stopped+ b,:root[data-theme="light"] .node-runtime-status.error+ b{background:#f2f6fa!important}
+:root[data-theme="light"] .node-runtime-error-popover{border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important;background:#f2f6fa!important}
+:root[data-theme="light"] .node-runtime-error-head{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
+:root[data-theme="light"] .node-runtime-error-entry{border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important;background:#f2f6fa!important}
+:root[data-theme="light"] .node-runtime-error-entry.active{background:color-mix(in srgb, var(--warning) 14%, #ffffff)!important}
+:root[data-theme="light"] .node-runtime-error-entry header b,:root[data-theme="light"] .node-runtime-error-entry>b{color:var(--warning)!important}
+:root[data-theme="light"] .node-runtime-error-entry p{color:var(--text)!important}
+:root[data-theme="light"] .node-runtime-error-entry pre{background:#ffffff!important;color:var(--text)!important}
+:root[data-theme="light"] .node-runtime-error-log-link{background:#f2f6fa!important;color:var(--accent)!important}
+:root[data-theme="light"] .node-metric-icon.audio{color:var(--blue, #2f7fbf)!important;background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important;border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important}
+:root[data-theme="light"] .node-metric-icon.speed{color:var(--text)!important;background:#f2f6fa!important;border-color:#c9d6e0!important}
+:root[data-theme="light"] .node-metric-icon.fps{color:var(--warning)!important;background:color-mix(in srgb, var(--warning) 14%, #ffffff)!important;border-color:color-mix(in srgb, var(--warning) 32%, #c9d6e0)!important}
+:root[data-theme="light"] .node-readonly-chip{border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important;color:var(--text)!important}
+:root[data-theme="light"] .node-more-popover{border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important;background:#f2f6fa!important}
+:root[data-theme="light"] .node-more-popover a:hover,:root[data-theme="light"] .node-more-popover button:hover{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
+:root[data-theme="light"] .node-more-popover .danger{color:var(--danger)!important}
+:root[data-theme="light"] .node-main-id{color:var(--text)!important}
+:root[data-theme="light"] .node-channel-control-table thead th{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
+:root[data-theme="light"] .node-channel-control-table tbody td{background:#f2f6fa!important}
+:root[data-theme="light"] .node-channel-control-table tbody tr:nth-child(even) td{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
+:root[data-theme="light"] .node-channel-control-table tbody tr:hover td{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
+:root[data-theme="light"] .node-runtime-error-head b{color:var(--text)!important}
+:root[data-theme="light"] .node-runtime-error-close{border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important;background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important;color:var(--text)!important}
+:root[data-theme="light"] .node-runtime-error-close:hover{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
+:root[data-theme="light"] .node-runtime-error-content{background:#f2f6fa!important}
+:root[data-theme="light"] .node-runtime-error-entry>b,:root[data-theme="light"] .node-runtime-error-entry header b{color:var(--warning)!important}
+:root[data-theme="light"] .compact-control.more{background:linear-gradient(180deg,#ffffff,#eef3f7)!important;border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important;color:var(--text)!important}
+:root[data-theme="light"] .compact-control.more:hover{background:linear-gradient(180deg,#ffffff,#eef3f7)!important}
+:root[data-theme="light"] .node-runtime-alert-menu>summary.node-runtime-alert-dot>span{color:var(--text)!important}
+:root[data-theme="light"] .node-runtime-alert-menu>summary.node-runtime-alert-dot.healthy,:root[data-theme="light"] .node-runtime-alert-menu>summary.node-runtime-alert-dot.idle{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
+:root[data-theme="light"] .node-runtime-alert-menu>summary.node-runtime-alert-dot.has-error>span{color:var(--text)!important}
+:root[data-theme="light"] .node-channel-log-dialog{border-color:#c9d6e0!important;background:#f2f6fa!important;color:var(--text)!important}
+:root[data-theme="light"] .node-channel-log-header{background:#f2f6fa!important}
+:root[data-theme="light"] .node-channel-log-header p{color:var(--text)!important}
+:root[data-theme="light"] .node-channel-log-header>button{color:var(--text)!important}
+:root[data-theme="light"] .node-channel-log-toolbar{background:#f2f6fa!important}
+:root[data-theme="light"] .node-channel-log-toolbar select{background:#f2f6fa!important}
+:root[data-theme="light"] .node-channel-log-toolbar>[data-node-channel-log-count]{color:var(--text)!important}
+:root[data-theme="light"] .node-channel-log-current{background:color-mix(in srgb, var(--danger) 14%, #ffffff)!important;color:var(--text)!important}
+:root[data-theme="light"] .node-channel-log-table-wrap{background:#f2f6fa!important}
+:root[data-theme="light"] .node-channel-log-table thead th{color:var(--text)!important}
+:root[data-theme="light"] .node-channel-log-table tbody td{background:#f2f6fa!important;color:var(--text)!important}
+:root[data-theme="light"] .node-channel-log-row:hover td{background:#f2f6fa!important}
+:root[data-theme="light"] .node-channel-log-action{color:var(--text)!important}
+:root[data-theme="light"] .node-channel-log-action.stopped,:root[data-theme="light"] .node-channel-log-action.info{background:#f2f6fa!important}
+:root[data-theme="light"] .node-channel-log-details td{background:#f2f6fa!important}
+:root[data-theme="light"] .node-channel-log-details pre{background:#f2f6fa!important;color:var(--text)!important}
+:root[data-theme="light"] .node-channel-log-loading{color:var(--text)!important}
+:root[data-theme="light"] .node-channel-log-footer{background:#f2f6fa!important;color:var(--text)!important}
+:root[data-theme="light"] .node-channel-log-footer nav button,:root[data-theme="light"] .node-channel-log-footer nav span{background:#f2f6fa!important;color:var(--text)!important}
+:root[data-theme="light"] .channel-editor-form input[type=file]::file-selector-button{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
+:root[data-theme="light"] .node-runtime-status.up{background:color-mix(in srgb, var(--accent) 14%, #ffffff)!important;color:var(--text)!important}
+:root[data-theme="light"] .node-runtime-status.waiting{background:color-mix(in srgb, var(--warning) 14%, #ffffff)!important;color:var(--warning)!important}
+:root[data-theme="light"] .node-runtime-status.down{background:#f2f6fa!important;color:var(--text)!important}
+:root[data-theme="light"] .node-runtime-status.down+b{background:#f2f6fa!important}
+:root[data-theme="light"] .node-log-tab:hover{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
+:root[data-theme="light"] .node-log-tab.active{color:var(--text)!important}
+:root[data-theme="light"] .node-log-table thead th{background:#f2f6fa!important;color:var(--text)!important}
+:root[data-theme="light"] .node-log-time{color:var(--text)!important}
+:root[data-theme="light"] .node-log-chip,:root[data-theme="light"] .node-log-scope{border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important;color:var(--text)!important}
+:root[data-theme="light"] .node-log-level-info{border-color:color-mix(in srgb, var(--accent) 32%, #c9d6e0)!important;color:var(--accent)!important;background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
+:root[data-theme="light"] .node-log-level-error,:root[data-theme="light"] .node-log-level-critical{color:var(--text)!important;background:color-mix(in srgb, var(--danger) 14%, #ffffff)!important}
+:root[data-theme="light"] .node-log-level-warning,:root[data-theme="light"] .node-log-level-warn{color:var(--warning)!important;background:color-mix(in srgb, var(--warning) 14%, #ffffff)!important}
+:root[data-theme="light"] .node-log-ip{color:var(--text)!important}
+:root[data-theme="light"] .node-log-user{color:var(--text)!important}
+:root[data-theme="light"] .node-log-session{color:var(--text)!important}
+:root[data-theme="light"] .node-log-duration{color:var(--accent)!important}
+:root[data-theme="light"] .node-log-details-direct{color:var(--text)!important}
+:root[data-theme="light"] .node-log-sort-button:hover,:root[data-theme="light"] .node-log-sort-button.active{color:var(--text)!important}
+:root[data-theme="light"] .node-log-page-numbers .active{color:var(--accent)!important}
+:root[data-theme="light"] .node-info-control{color:var(--text)!important;background:linear-gradient(180deg,#ffffff,#eef3f7)!important}
+:root[data-theme="light"] .node-log-control{color:var(--text)!important;background:linear-gradient(180deg,#ffffff,#eef3f7)!important}
+:root[data-theme="light"] .panel-nav-links .nav-button:hover{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
+:root[data-theme="light"] .panel-nav-links .nav-button.active{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important;border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important}
+:root[data-theme="light"] .panel-sidebar-footer .account:hover,:root[data-theme="light"] .panel-sidebar-footer .signout:hover{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
+:root[data-theme="light"] .node-nav-icon{color:var(--text)!important}
+:root[data-theme="light"] .node-signout-icon{color:var(--text)!important}
+:root[data-theme="light"] html body select:not([multiple]):not(#streamforge-dropdown-never){border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important;background-color:#ffffff!important}
+:root[data-theme="light"] html body select:not([multiple]):not(#streamforge-dropdown-never):hover:not(:disabled){border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important}
+:root[data-theme="light"] html body select:not([multiple]):not(#streamforge-dropdown-never):disabled{background-color:#f2f6fa!important;border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important}
+:root[data-theme="light"] html body select:not([multiple]):not(#streamforge-dropdown-never) option{background:#f2f6fa!important}
+:root[data-theme="light"] html body select[multiple]:not(#streamforge-dropdown-never){border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important;background-color:#ffffff!important}
+:root[data-theme="light"] html body select[multiple]:not(#streamforge-dropdown-never) option{background:#f2f6fa!important}
+:root[data-theme="light"] .node-category-order-list li>span:first-child>b{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
+
+/* STREAMFORGE_NODE_LIGHT_SURFACES_V1353: hardcoded dark surfaces get a light pass. */
+:root[data-theme="light"] .panel-logo,:root[data-theme="light"] .panel-mark{background:#f2f6fa!important}
+:root[data-theme="light"] .logo-preview img{background:#f2f6fa!important}
+:root[data-theme="light"] .node-channel-logo,:root[data-theme="light"] .node-channel-logo-fallback{background:#f2f6fa!important;border-color:#c9d6e0!important}
+:root[data-theme="light"] .node-metric-icon.video{color:#0e6e57!important;background:#e2f4ef!important;border-color:#9fd8c8!important}
+:root[data-theme="light"] .node-runtime-alert-dot.healthy>span::before{background:#0e8a5f!important;box-shadow:0 0 0 3px rgba(14,138,95,.15),0 0 10px rgba(14,138,95,.35)!important}
+
 
 </style>
 '''
@@ -13270,7 +13436,7 @@ def _node_panel_document(
         "document.addEventListener('submit',e=>{const f=e.target;if(!(f instanceof HTMLFormElement))return;const method=(f.getAttribute('method')||'get').toLowerCase();if(method!=='get'||f.target){loading(e.submitter||f);return}const b=e.submitter,raw=(b&&b.getAttribute('formaction'))||f.getAttribute('action')||base;const target=internal(raw);if(!target){loading(e.submitter||f);return}const u=new URL(target,location.origin),z=new URLSearchParams();for(const [n,v] of new FormData(f,b||undefined).entries())if(typeof v==='string'&&v!=='')z.append(n,v);u.search=z.toString();push(u.pathname+u.search);loading(e.submitter||f);e.preventDefault();e.stopImmediatePropagation();reload()},true);"
         "})();</script>"
     )
-    theme_script = '<script>/* STREAMFORGE_DEVICE_LOCAL_THEME_BOOTSTRAP_V1344 */(()=>{const k="streamforge.theme";let t="dark";try{t=localStorage.getItem(k)==="light"?"light":"dark"}catch(_){};document.documentElement.dataset.theme=t;const paint=()=>{const light=document.documentElement.dataset.theme==="light";document.querySelectorAll("[data-theme-toggle]").forEach(b=>{b.textContent=light?"\u263e":"\u263c";const label=light?"Switch to dark theme":"Switch to light theme";b.setAttribute("aria-label",label);b.title=label})};const ready=()=>{paint();document.querySelectorAll("[data-theme-toggle]").forEach(b=>b.addEventListener("click",()=>{const next=document.documentElement.dataset.theme==="light"?"dark":"light";document.documentElement.dataset.theme=next;try{localStorage.setItem(k,next)}catch(_){}paint();window.dispatchEvent(new CustomEvent("streamforge:themechange",{detail:{theme:next}}))}))};document.readyState==="loading"?document.addEventListener("DOMContentLoaded",ready,{once:true}):ready()})()</script>'
+    theme_script = _node_device_theme_script()
     document = f'''<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">{prehide_script}{theme_script}{_node_favicon_link(access_prefix)}{extra_head}<title>{html.escape(title)} - {html.escape(manager.node_name)}</title>{_node_panel_css()}</head><body>{_node_panel_header(user, active)}<main{main_attr}>{content}</main>{body_script}<script>(()=>{{const h=document.querySelector('.panel-header');const b=document.querySelector('[data-node-nav-toggle]');if(!h||!b)return;const desktop=()=>window.innerWidth>900;const applyDesktopState=()=>{{if(!desktop()){{document.body.classList.remove('node-sidebar-collapsed');return;}}const saved=localStorage.getItem('nodeSidebarCollapsed')==='1';document.body.classList.toggle('node-sidebar-collapsed',saved);b.setAttribute('aria-expanded',saved?'false':'true');b.setAttribute('aria-label',saved?'Expand sidebar':'Collapse sidebar');}};b.addEventListener('click',()=>{{if(desktop()){{const collapsed=document.body.classList.toggle('node-sidebar-collapsed');localStorage.setItem('nodeSidebarCollapsed',collapsed?'1':'0');b.setAttribute('aria-expanded',collapsed?'false':'true');b.setAttribute('aria-label',collapsed?'Expand sidebar':'Collapse sidebar');return;}}const open=h.classList.toggle('nav-open');b.setAttribute('aria-expanded',open?'true':'false');b.setAttribute('aria-label',open?'Close navigation':'Open navigation');}});document.addEventListener('click',e=>{{if(desktop()||!h.classList.contains('nav-open'))return;if(!h.contains(e.target)){{h.classList.remove('nav-open');b.setAttribute('aria-expanded','false');b.setAttribute('aria-label','Open navigation');}}}});window.addEventListener('resize',()=>{{if(desktop()){{h.classList.remove('nav-open');applyDesktopState();}}else{{document.body.classList.remove('node-sidebar-collapsed');b.setAttribute('aria-expanded','false');b.setAttribute('aria-label','Open navigation');}}}});applyDesktopState();}})();</script>{_node_runtime_error_script()}{_node_more_menu_script()}{fixed_address_script}</body></html>'''
     if matched_panel_prefix is not None:
         # Keep the configured Panel/API URL canonical: /admin is Dashboard,
@@ -14373,125 +14539,7 @@ def independent_categories(request: Request, message: str = '', error: str = '')
 /* v1.11.104 compact single-line Node category management table */
 .node-category-order-panel{margin-bottom:16px}.node-category-order-panel form{display:grid;gap:12px}.node-category-order-list{list-style:none;margin:0;padding:0;border:1px solid var(--line);border-radius:10px;overflow:hidden}.node-category-order-list li{display:grid;grid-template-columns:1fr auto;align-items:center;gap:12px;padding:11px 12px;border-top:1px solid var(--line);background:var(--surface-2)}.node-category-order-list li:first-child{border-top:0}.node-category-order-list li>span:first-child{display:flex;align-items:center;gap:10px}.node-category-order-list li>span:first-child>b{width:28px;height:28px;display:grid;place-items:center;border-radius:7px;background:#17352f;color:var(--accent)}.node-category-order-list strong,.node-category-order-list small{display:block}
 .node-category-table-wrap{overflow-x:auto}.node-category-table{min-width:940px;table-layout:fixed}.node-category-col-order{width:78px}.node-category-col-name{width:190px}.node-category-col-owner{width:300px}.node-category-col-count{width:110px}.node-category-col-actions{width:auto}.node-category-table th,.node-category-table td{vertical-align:middle}.node-category-order-cell,.node-category-count-cell{white-space:nowrap}.node-category-name-cell{font-weight:700}.node-category-owner-cell{color:var(--muted)}.node-category-actions-cell{min-width:0}.node-category-row-actions{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;min-width:0}.node-category-rename-form{display:flex!important;align-items:center;gap:8px;flex:1 1 auto;min-width:0;margin:0}.node-category-name-input{width:auto!important;min-width:150px;flex:1 1 210px;margin:0}.node-category-rename-button,.node-category-delete-form button{flex:0 0 auto}.node-category-delete-form{display:inline-flex!important;align-items:center;flex:0 0 auto;margin:0}.node-category-actions-cell>.badge{white-space:nowrap}@media(max-width:760px){.node-category-table{min-width:900px}.node-category-order-list li{grid-template-columns:minmax(0,1fr) auto}}
-/* STREAMFORGE_NODE_LIGHT_THEME_HARDCODED_COLORS_V1348: every late light rule is scoped to data-theme=light. */
-:root[data-theme="light"] input[type=checkbox]{background:#f2f6fa!important}
-:root[data-theme="light"] input[type=checkbox]:checked::after{background:#f2f6fa!important}
-:root[data-theme="light"] .nav-button:hover,:root[data-theme="light"] button:hover,:root[data-theme="light"] .btn:hover{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
-:root[data-theme="light"] .nav-button.active{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
-:root[data-theme="light"] .panel-user{background:#f2f6fa!important}
-:root[data-theme="light"] .viewer-link{color:var(--accent)!important}
-:root[data-theme="light"] .ok,:root[data-theme="light"] .msg{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important;border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important}
-:root[data-theme="light"] .err{background:color-mix(in srgb, var(--danger) 14%, #ffffff)!important}
-:root[data-theme="light"] .account-password-alert.danger{background:color-mix(in srgb, var(--danger) 14%, #ffffff)!important}
-:root[data-theme="light"] input[type=search]{background:#f2f6fa!important}
-:root[data-theme="light"] input[type=search]::placeholder{color:var(--muted)!important}
-:root[data-theme="light"] select option{background:#f2f6fa!important}
-:root[data-theme="light"] .source,:root[data-theme="light"] .mode-chip{border-color:color-mix(in srgb, var(--accent) 32%, #c9d6e0)!important}
-:root[data-theme="light"] .ownership-note{border-color:color-mix(in srgb, var(--accent) 32%, #c9d6e0)!important;background:#f2f6fa!important}
-:root[data-theme="light"] .selected-row{background:#f2f6fa!important}
-:root[data-theme="light"] .source-rank{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
-:root[data-theme="light"] .stream-source-info{color:var(--text)!important}
-:root[data-theme="light"] .node-channel-control-table th{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important;color:var(--muted)!important}
-:root[data-theme="light"] .node-channel-control-table td{background:#f2f6fa!important}
-:root[data-theme="light"] .node-channel-control-table tr:nth-child(even) td{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
-:root[data-theme="light"] .node-channel-control-table tr:hover td{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
-:root[data-theme="light"] .node-online-badge{color:var(--text)!important}
-:root[data-theme="light"] .node-runtime>span{color:var(--text)!important}
-:root[data-theme="light"] .node-runtime>b{color:var(--text)!important}
-:root[data-theme="light"] .compact-control{color:var(--text)!important}
-:root[data-theme="light"] .compact-control.stop{background:linear-gradient(180deg,#ffffff,#eef3f7)!important}
-:root[data-theme="light"] .compact-control.restart{background:linear-gradient(180deg,#ffffff,#eef3f7)!important}
-:root[data-theme="light"] .compact-control.http{background:linear-gradient(180deg,#ffffff,#eef3f7)!important}
-:root[data-theme="light"] .node-runtime-alert-dot{color:var(--text)!important}
-:root[data-theme="light"] .node-runtime-alert-dot.healthy{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
-:root[data-theme="light"] .node-runtime-alert-dot[data-tooltip]::after{background:#ffffff!important;color:var(--text)!important}
-:root[data-theme="light"] .node-runtime-status{background:color-mix(in srgb, var(--accent) 14%, #ffffff)!important;color:var(--text)!important}
-:root[data-theme="light"] .node-runtime-status.stopped,:root[data-theme="light"] .node-runtime-status.error{background:#f2f6fa!important;color:var(--text)!important}
-:root[data-theme="light"] .node-runtime-status.starting,:root[data-theme="light"] .node-runtime-status.restarting{background:color-mix(in srgb, var(--warning) 14%, #ffffff)!important;color:var(--warning)!important}
-:root[data-theme="light"] .node-runtime-status.stopped+ b,:root[data-theme="light"] .node-runtime-status.error+ b{background:#f2f6fa!important}
-:root[data-theme="light"] .node-runtime-error-popover{border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important;background:#f2f6fa!important}
-:root[data-theme="light"] .node-runtime-error-head{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
-:root[data-theme="light"] .node-runtime-error-entry{border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important;background:#f2f6fa!important}
-:root[data-theme="light"] .node-runtime-error-entry.active{background:color-mix(in srgb, var(--warning) 14%, #ffffff)!important}
-:root[data-theme="light"] .node-runtime-error-entry header b,:root[data-theme="light"] .node-runtime-error-entry>b{color:var(--warning)!important}
-:root[data-theme="light"] .node-runtime-error-entry p{color:var(--text)!important}
-:root[data-theme="light"] .node-runtime-error-entry pre{background:#ffffff!important;color:var(--text)!important}
-:root[data-theme="light"] .node-runtime-error-log-link{background:#f2f6fa!important;color:var(--accent)!important}
-:root[data-theme="light"] .node-metric-icon.audio{color:var(--blue, #2f7fbf)!important;background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important;border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important}
-:root[data-theme="light"] .node-metric-icon.speed{color:var(--text)!important;background:#f2f6fa!important;border-color:#c9d6e0!important}
-:root[data-theme="light"] .node-metric-icon.fps{color:var(--warning)!important;background:color-mix(in srgb, var(--warning) 14%, #ffffff)!important;border-color:color-mix(in srgb, var(--warning) 32%, #c9d6e0)!important}
-:root[data-theme="light"] .node-readonly-chip{border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important;color:var(--text)!important}
-:root[data-theme="light"] .node-more-popover{border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important;background:#f2f6fa!important}
-:root[data-theme="light"] .node-more-popover a:hover,:root[data-theme="light"] .node-more-popover button:hover{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
-:root[data-theme="light"] .node-more-popover .danger{color:var(--danger)!important}
-:root[data-theme="light"] .node-main-id{color:var(--text)!important}
-:root[data-theme="light"] .node-channel-control-table thead th{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
-:root[data-theme="light"] .node-channel-control-table tbody td{background:#f2f6fa!important}
-:root[data-theme="light"] .node-channel-control-table tbody tr:nth-child(even) td{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
-:root[data-theme="light"] .node-channel-control-table tbody tr:hover td{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
-:root[data-theme="light"] .node-runtime-error-head b{color:var(--text)!important}
-:root[data-theme="light"] .node-runtime-error-close{border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important;background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important;color:var(--text)!important}
-:root[data-theme="light"] .node-runtime-error-close:hover{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
-:root[data-theme="light"] .node-runtime-error-content{background:#f2f6fa!important}
-:root[data-theme="light"] .node-runtime-error-entry>b,:root[data-theme="light"] .node-runtime-error-entry header b{color:var(--warning)!important}
-:root[data-theme="light"] .compact-control.more{background:linear-gradient(180deg,#ffffff,#eef3f7)!important;border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important;color:var(--text)!important}
-:root[data-theme="light"] .compact-control.more:hover{background:linear-gradient(180deg,#ffffff,#eef3f7)!important}
-:root[data-theme="light"] .node-runtime-alert-menu>summary.node-runtime-alert-dot>span{color:var(--text)!important}
-:root[data-theme="light"] .node-runtime-alert-menu>summary.node-runtime-alert-dot.healthy,:root[data-theme="light"] .node-runtime-alert-menu>summary.node-runtime-alert-dot.idle{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
-:root[data-theme="light"] .node-runtime-alert-menu>summary.node-runtime-alert-dot.has-error>span{color:var(--text)!important}
-:root[data-theme="light"] .node-channel-log-dialog{border-color:#c9d6e0!important;background:#f2f6fa!important;color:var(--text)!important}
-:root[data-theme="light"] .node-channel-log-header{background:#f2f6fa!important}
-:root[data-theme="light"] .node-channel-log-header p{color:var(--text)!important}
-:root[data-theme="light"] .node-channel-log-header>button{color:var(--text)!important}
-:root[data-theme="light"] .node-channel-log-toolbar{background:#f2f6fa!important}
-:root[data-theme="light"] .node-channel-log-toolbar select{background:#f2f6fa!important}
-:root[data-theme="light"] .node-channel-log-toolbar>[data-node-channel-log-count]{color:var(--text)!important}
-:root[data-theme="light"] .node-channel-log-current{background:color-mix(in srgb, var(--danger) 14%, #ffffff)!important;color:var(--text)!important}
-:root[data-theme="light"] .node-channel-log-table-wrap{background:#f2f6fa!important}
-:root[data-theme="light"] .node-channel-log-table thead th{color:var(--text)!important}
-:root[data-theme="light"] .node-channel-log-table tbody td{background:#f2f6fa!important;color:var(--text)!important}
-:root[data-theme="light"] .node-channel-log-row:hover td{background:#f2f6fa!important}
-:root[data-theme="light"] .node-channel-log-action{color:var(--text)!important}
-:root[data-theme="light"] .node-channel-log-action.stopped,:root[data-theme="light"] .node-channel-log-action.info{background:#f2f6fa!important}
-:root[data-theme="light"] .node-channel-log-details td{background:#f2f6fa!important}
-:root[data-theme="light"] .node-channel-log-details pre{background:#f2f6fa!important;color:var(--text)!important}
-:root[data-theme="light"] .node-channel-log-loading{color:var(--text)!important}
-:root[data-theme="light"] .node-channel-log-footer{background:#f2f6fa!important;color:var(--text)!important}
-:root[data-theme="light"] .node-channel-log-footer nav button,:root[data-theme="light"] .node-channel-log-footer nav span{background:#f2f6fa!important;color:var(--text)!important}
-:root[data-theme="light"] .channel-editor-form input[type=file]::file-selector-button{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
-:root[data-theme="light"] .node-runtime-status.up{background:color-mix(in srgb, var(--accent) 14%, #ffffff)!important;color:var(--text)!important}
-:root[data-theme="light"] .node-runtime-status.waiting{background:color-mix(in srgb, var(--warning) 14%, #ffffff)!important;color:var(--warning)!important}
-:root[data-theme="light"] .node-runtime-status.down{background:#f2f6fa!important;color:var(--text)!important}
-:root[data-theme="light"] .node-runtime-status.down+b{background:#f2f6fa!important}
-:root[data-theme="light"] .node-log-tab:hover{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
-:root[data-theme="light"] .node-log-tab.active{color:var(--text)!important}
-:root[data-theme="light"] .node-log-table thead th{background:#f2f6fa!important;color:var(--text)!important}
-:root[data-theme="light"] .node-log-time{color:var(--text)!important}
-:root[data-theme="light"] .node-log-chip,:root[data-theme="light"] .node-log-scope{border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important;color:var(--text)!important}
-:root[data-theme="light"] .node-log-level-info{border-color:color-mix(in srgb, var(--accent) 32%, #c9d6e0)!important;color:var(--accent)!important;background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
-:root[data-theme="light"] .node-log-level-error,:root[data-theme="light"] .node-log-level-critical{color:var(--text)!important;background:color-mix(in srgb, var(--danger) 14%, #ffffff)!important}
-:root[data-theme="light"] .node-log-level-warning,:root[data-theme="light"] .node-log-level-warn{color:var(--warning)!important;background:color-mix(in srgb, var(--warning) 14%, #ffffff)!important}
-:root[data-theme="light"] .node-log-ip{color:var(--text)!important}
-:root[data-theme="light"] .node-log-user{color:var(--text)!important}
-:root[data-theme="light"] .node-log-session{color:var(--text)!important}
-:root[data-theme="light"] .node-log-duration{color:var(--accent)!important}
-:root[data-theme="light"] .node-log-details-direct{color:var(--text)!important}
-:root[data-theme="light"] .node-log-sort-button:hover,:root[data-theme="light"] .node-log-sort-button.active{color:var(--text)!important}
-:root[data-theme="light"] .node-log-page-numbers .active{color:var(--accent)!important}
-:root[data-theme="light"] .node-info-control{color:var(--text)!important;background:linear-gradient(180deg,#ffffff,#eef3f7)!important}
-:root[data-theme="light"] .node-log-control{color:var(--text)!important;background:linear-gradient(180deg,#ffffff,#eef3f7)!important}
-:root[data-theme="light"] .panel-nav-links .nav-button:hover{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
-:root[data-theme="light"] .panel-nav-links .nav-button.active{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important;border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important}
-:root[data-theme="light"] .panel-sidebar-footer .account:hover,:root[data-theme="light"] .panel-sidebar-footer .signout:hover{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
-:root[data-theme="light"] .node-nav-icon{color:var(--text)!important}
-:root[data-theme="light"] .node-signout-icon{color:var(--text)!important}
-:root[data-theme="light"] html body select:not([multiple]):not(#streamforge-dropdown-never){border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important;background-color:#ffffff!important}
-:root[data-theme="light"] html body select:not([multiple]):not(#streamforge-dropdown-never):hover:not(:disabled){border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important}
-:root[data-theme="light"] html body select:not([multiple]):not(#streamforge-dropdown-never):disabled{background-color:#f2f6fa!important;border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important}
-:root[data-theme="light"] html body select:not([multiple]):not(#streamforge-dropdown-never) option{background:#f2f6fa!important}
-:root[data-theme="light"] html body select[multiple]:not(#streamforge-dropdown-never){border-color:color-mix(in srgb, var(--blue, #2f7fbf) 32%, #c9d6e0)!important;background-color:#ffffff!important}
-:root[data-theme="light"] html body select[multiple]:not(#streamforge-dropdown-never) option{background:#f2f6fa!important}
-:root[data-theme="light"] .node-category-order-list li>span:first-child>b{background:color-mix(in srgb, var(--blue, #2f7fbf) 14%, #ffffff)!important}
+
 </style>'''
     return HTMLResponse(_node_panel_document(user, 'Categories', alerts + order_panel + '<h2>Channel categories</h2>' + note + table, active='categories', extra_head=css, body_script=order_script))
 
@@ -16417,6 +16465,74 @@ def _node_webplayer_update_theme_snapshot(request: Request | None = None) -> dic
     }
 
 
+def _node_device_theme_script() -> str:
+    # STREAMFORGE_NODE_DEVICE_THEME_SHARED_SCRIPT_V1353: one device-local
+    # Dark/Light bootstrap for the Node panel, the Node panel login and the
+    # public Node Web Player. Same key/behaviour as the Main Web Player
+    # (localStorage["streamforge.theme"], dark default, persists per device).
+    return '<script>/* STREAMFORGE_DEVICE_LOCAL_THEME_BOOTSTRAP_V1344 */(()=>{const k="streamforge.theme";let t="dark";try{t=localStorage.getItem(k)==="light"?"light":"dark"}catch(_){};document.documentElement.dataset.theme=t;const paint=()=>{const light=document.documentElement.dataset.theme==="light";document.querySelectorAll("[data-theme-toggle]").forEach(b=>{b.textContent=light?"\u263e":"\u263c";const label=light?"Switch to dark theme":"Switch to light theme";b.setAttribute("aria-label",label);b.title=label})};const ready=()=>{paint();document.querySelectorAll("[data-theme-toggle]").forEach(b=>b.addEventListener("click",()=>{const next=document.documentElement.dataset.theme==="light"?"dark":"light";document.documentElement.dataset.theme=next;try{localStorage.setItem(k,next)}catch(_){}paint();window.dispatchEvent(new CustomEvent("streamforge:themechange",{detail:{theme:next}}))}))};document.readyState==="loading"?document.addEventListener("DOMContentLoaded",ready,{once:true}):ready()})()</script>'
+
+
+def _node_theme_toggle_button(extra_class: str = '') -> str:
+    # STREAMFORGE_NODE_DEVICE_THEME_TOGGLE_MARKUP_V1353
+    cls = (' ' + extra_class) if extra_class else ''
+    return (
+        '<button class="theme-toggle' + cls + '" type="button" data-theme-toggle'
+        + ' aria-label="Switch theme" title="Switch theme">\u263c</button>'
+    )
+
+
+_NODE_THEME_TOGGLE_CSS = (
+    '/* STREAMFORGE_NODE_DEVICE_THEME_TOGGLE_CSS_V1353 */'
+    + '.theme-toggle{position:fixed;top:14px;right:14px;z-index:1000;width:42px;height:42px;padding:0;'
+    + 'border-radius:50%;border:1px solid #466078;background:#111821;color:#edf4fb;font-size:20px;line-height:1;'
+    + 'display:grid;place-items:center;cursor:pointer;box-shadow:0 8px 22px rgba(0,0,0,.30)}'
+    + '.theme-toggle:hover{border-color:#37c7a2}'
+    + '.theme-toggle.theme-toggle-inline{position:static;width:42px;height:42px;box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}'
+    + '.theme-toggle.theme-toggle-bottom{top:auto;bottom:16px;right:16px}'
+    + 'html[data-theme="light"] .theme-toggle{background:#ffffff;color:#172535;border-color:#9eb2c2;box-shadow:0 8px 22px rgba(23,37,53,.12)}'
+    + 'html[data-theme="light"] .theme-toggle.theme-toggle-inline{box-shadow:inset 0 1px 0 rgba(23,37,53,.04)}'
+)
+
+
+def _node_webplayer_device_theme_css() -> str:
+    # STREAMFORGE_NODE_WEBPLAYER_DEVICE_THEME_LIGHT_V1353: light overrides for
+    # the public Node Web Player login/home surfaces. Loaded after the managed
+    # theme tokens so a device light theme wins without touching per-host
+    # accent colours.
+    return (
+        '/* STREAMFORGE_NODE_WEBPLAYER_DEVICE_THEME_LIGHT_V1353 */'
+        + 'html[data-theme="light"]{color-scheme:light}'
+        + 'html[data-theme="light"] body{background:linear-gradient(180deg,#eef3f7,#e5edf4 45%,#eef3f7)!important;color:#172535!important}'
+        + 'html[data-theme="light"] .top,html[data-theme="light"] .toolbar,html[data-theme="light"] .login,'
+        + 'html[data-theme="light"] .card,html[data-theme="light"] .logout,html[data-theme="light"] .count,'
+        + 'html[data-theme="light"] .channel-library,html[data-theme="light"] .header-info-group,'
+        + 'html[data-theme="light"] .manual-login-toggle,html[data-theme="light"] .manual-login-back,'
+        + 'html[data-theme="light"] .category-strip{background:#ffffff!important;color:#172535!important;border-color:#c7d4df!important}'
+        + 'html[data-theme="light"] .top,html[data-theme="light"] .toolbar,html[data-theme="light"] .channel-library,'
+        + 'html[data-theme="light"] .login{box-shadow:0 10px 26px rgba(23,37,53,.10)!important}'
+        + 'html[data-theme="light"] input,html[data-theme="light"] select{background:#ffffff!important;color:#172535!important;border-color:#9eb2c2!important}'
+        + 'html[data-theme="light"] button[type=submit]{background:var(--sf-accent)!important;border-color:var(--sf-accent)!important;color:#ffffff!important}'
+        + 'html[data-theme="light"] .download-button{background:var(--sf-accent)!important;border-color:var(--sf-accent)!important;color:#ffffff!important}'
+        + 'html[data-theme="light"] .category-chip{background:#ffffff!important;color:#5d7183!important;border-color:#c7d4df!important}'
+        + 'html[data-theme="light"] .category-chip:hover{background:#e9f1f7!important;color:#172535!important;border-color:#9eb2c2!important}'
+        + 'html[data-theme="light"] .category-chip.active{background:var(--sf-accent)!important;border-color:var(--sf-accent)!important;color:#ffffff!important}'
+        + 'html[data-theme="light"] .brand-logo,html[data-theme="light"] .logo,html[data-theme="light"] .mark,html[data-theme="light"] .fallback'
+        + '{background:#f2f6fa!important;border-color:#c7d4df!important}'
+        + 'html[data-theme="light"] .brand b,html[data-theme="light"] .brand small,html[data-theme="light"] .brand-copy,'
+        + 'html[data-theme="light"] h1,html[data-theme="light"] .meta b,html[data-theme="light"] .count,'
+        + 'html[data-theme="light"] label,html[data-theme="light"] .header-info-group label,html[data-theme="light"] .header-info-group b'
+        + '{color:#172535!important}'
+        + 'html[data-theme="light"] .meta small,html[data-theme="light"] .empty{color:#5d7183!important}'
+        + 'html[data-theme="light"] .empty{border-color:#c7d4df!important}'
+        + 'html[data-theme="light"] .header-info-group .expiry{color:#0e6e57!important}'
+        + 'html[data-theme="light"] .alert{background:#fdeef0!important;border-color:#e4a3ac!important;color:#a3283c!important}'
+        + 'html[data-theme="light"] .login-divider{color:#5d7183!important}'
+        + 'html[data-theme="light"] .login-divider:before,html[data-theme="light"] .login-divider:after{background:#c7d4df!important}'
+        + 'html[data-theme="light"] .card:hover{border-color:var(--sf-accent)!important;box-shadow:0 16px 26px rgba(23,37,53,.14)!important}'
+    )
+
+
 def _node_webplayer_theme_css(request: Request | None = None) -> str:
     # STREAMFORGE_NODE_WEBPLAYER_THEME_CORE_V2229:
     # STREAMFORGE_NODE_VISUAL_BALANCE_V2235:
@@ -16468,7 +16584,7 @@ def _node_web_page(user: NodeUserConfig | None, request: Request, error: str = "
         return (
             '<!doctype html><html lang="en"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1">'
-            '<title>Subscription Expired</title><style>'
+            + _node_device_theme_script() + '<title>Subscription Expired</title><style>'
             'html,body{min-height:100%;margin:0}body{display:grid;place-items:center;padding:24px;'
             'box-sizing:border-box;background:linear-gradient(145deg,#09111b,#111923);'
             'color:#f4f7fb;font:16px system-ui,-apple-system,Segoe UI,sans-serif;text-align:center}'
@@ -16481,14 +16597,24 @@ def _node_web_page(user: NodeUserConfig | None, request: Request, error: str = "
             '.expired-brand{margin-top:22px;color:#8e9caf;font-size:13px}'
             '.expired-logo{display:block;width:auto;height:auto;max-width:min(190px,70%);max-height:72px;'
             'object-fit:contain;margin:0 auto 8px}'
-            '</style></head><body><main class="expired-card">'
+            '/* STREAMFORGE_NODE_EXPIRED_DEVICE_THEME_LIGHT_V1353 */'
+            'html[data-theme="light"]{color-scheme:light}'
+            'html[data-theme="light"] body{background:linear-gradient(145deg,#eef3f7,#e3ecf3)!important;color:#172535!important}'
+            'html[data-theme="light"] .expired-card{background:#ffffff!important;border-color:#e4a3ac!important;'
+            'box-shadow:0 24px 70px rgba(23,37,53,.12)!important}'
+            'html[data-theme="light"] .expired-card h1{color:#c83f50!important}'
+            'html[data-theme="light"] .expired-card p{color:#3f5365!important}'
+            'html[data-theme="light"] .expired-date{background:#fdeef0!important;border-color:#e4a3ac!important;color:#c83f50!important}'
+            'html[data-theme="light"] .expired-brand{color:#5d7183!important}'
+            'html[data-theme="light"] .expired-logo{background:#f2f6fa!important}'
+            + _NODE_THEME_TOGGLE_CSS + '</style></head><body><main class="expired-card">'
             '<div class="expired-icon" aria-hidden="true">&#128176;</div>'
             '<h1>Subscription Expired</h1>'
             '<p>This subscription has expired. The Web Player is unavailable until payment is made. '
             'Once payment is received, access will resume automatically.</p>'
             '<div class="expired-date">Expired: ' + html.escape(expiry_display) + '</div>'
             '<div class="expired-brand">' + logo_html + html.escape(brand_name) + '</div>'
-            '</main></body></html>'
+            '</main>' + _node_theme_toggle_button() + '</body></html>'
         )
     # STREAMFORGE_NODE_AUTO_LOGIN_HIDE_SIGNOUT_V2226:
     controls = _node_webplayer_effective_controls(request)
@@ -16571,11 +16697,12 @@ def _node_web_page(user: NodeUserConfig | None, request: Request, error: str = "
         )
         return (
             '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
-            + favicon + '<title>' + html.escape(brand_name) + ' · Web Player</title><style>' + _NODE_WEB_PLAYER_CSS + _node_webplayer_theme_css(request) + '</style></head><body class="login-screen">'
+            + _node_device_theme_script()
+            + favicon + '<title>' + html.escape(brand_name) + ' · Web Player</title><style>' + _NODE_WEB_PLAYER_CSS + _node_webplayer_theme_css(request) + _node_webplayer_device_theme_css() + _NODE_THEME_TOGGLE_CSS + '</style></head><body class="login-screen">'
             + '<section class="login"><div class="brand brand--login">' + login_visual + '<div class="brand-copy"><b>'
             + html.escape(brand_name)
             + '</b></div></div><h1>Sign in to watch</h1>'
-            + alert + quick_login_html + manual_login_html + '</section>' + quick_toggle_script
+            + alert + quick_login_html + manual_login_html + '</section>' + _node_theme_toggle_button() + quick_toggle_script
             + '<div style="position:fixed;right:10px;bottom:8px;color:#5f7186;font:10px system-ui">v' + html.escape(VERSION) + '</div>' + _node_web_hide_hover_script() + '</body></html>'
         )
     channels = _online_effective_user_channels(user)
@@ -16650,12 +16777,13 @@ def _node_web_page(user: NodeUserConfig | None, request: Request, error: str = "
     )
     return (
         '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
-        + favicon + '<title>' + html.escape(brand_name) + ' · Web Player</title><style>' + _NODE_WEB_PLAYER_CSS + '/* STREAMFORGE_NODE_PORTAL_THEME_APPLY_V2228 */' + _node_webplayer_theme_css(request) + '</style></head><body>'
+        + _node_device_theme_script()
+        + favicon + '<title>' + html.escape(brand_name) + ' · Web Player</title><style>' + _NODE_WEB_PLAYER_CSS + '/* STREAMFORGE_NODE_PORTAL_THEME_APPLY_V2228 */' + _node_webplayer_theme_css(request) + _node_webplayer_device_theme_css() + _NODE_THEME_TOGGLE_CSS + '</style></head><body>'
         + '<main class="shell"><header class="top"><div class="brand">'
         + (('<img class="brand-logo" src="' + html.escape(login_logo_url, quote=True) + '" alt="" loading="eager">') if login_logo_url else '<span class="mark">▶</span>')
         + '<div class="brand-copy"><b>'
         + html.escape(brand_name) + ' Web Player</b></div></div>'
-        + '<div class="header-actions">' + header_viewer_html + header_buttons_html + '</div></header>' 
+        + '<div class="header-actions">' + _node_theme_toggle_button('theme-toggle-inline') + header_viewer_html + header_buttons_html + '</div></header>' 
         + '<section class="toolbar"><input type="search" placeholder="Search channels…" data-search><span class="count"><span data-visible>' + str(len(channels)) + '</span> channel(s)</span></section>'
         + '<section class="channel-library"><nav class="category-strip" aria-label="Channel categories">' + chips + '</nav>'
         + '<section class="grid">' + ''.join(cards) + '</section></section></main><script>' + _NODE_WEB_PLAYER_FILTER_JS
@@ -16918,6 +17046,40 @@ def node_web_player_logout(request: Request):
 
 
 @app.get("/web-player/watch/{channel_key}", response_class=HTMLResponse)
+def _node_watch_device_theme_css() -> str:
+    # STREAMFORGE_NODE_WATCH_DEVICE_THEME_LIGHT_V1353: device light overrides
+    # for the public Node Web Player watch screen.
+    return (
+        '/* STREAMFORGE_NODE_WATCH_DEVICE_THEME_LIGHT_V1353 */'
+        + 'html[data-theme="light"]{color-scheme:light}'
+        + 'html[data-theme="light"]{background:#eef3f7!important}'
+        + 'html[data-theme="light"] body{background:linear-gradient(180deg,#eef3f7,#e3ecf3)!important;color:#172535!important}'
+        + 'html[data-theme="light"] .player-panel,html[data-theme="light"] .browser-panel,html[data-theme="light"] .now-card,'
+        + 'html[data-theme="light"] .channel-tile,html[data-theme="light"] .viewer-info-group'
+        + '{background:#ffffff!important;color:#172535!important;border-color:#c7d4df!important}'
+        + 'html[data-theme="light"] .player-top h1,html[data-theme="light"] .browser-head strong,html[data-theme="light"] .now-copy strong,'
+        + 'html[data-theme="light"] .channel-name,html[data-theme="light"] .viewer-info,html[data-theme="light"] .viewer-info b,'
+        + 'html[data-theme="light"] .viewer-info-group label,html[data-theme="light"] .viewer-info-group b{color:#172535!important}'
+        + 'html[data-theme="light"] .player-back{color:#0e6e57!important}'
+        + 'html[data-theme="light"] .viewer-info label{color:#5d7183!important}'
+        + 'html[data-theme="light"] .viewer-info .expiry,html[data-theme="light"] .now-copy span{color:#0e6e57!important}'
+        + 'html[data-theme="light"] .now-logo,html[data-theme="light"] .now-logo-fallback{background:#f2f6fa!important;border-color:#c7d4df!important}'
+        + 'html[data-theme="light"] .now-logo img{background:#ffffff!important}'
+        + 'html[data-theme="light"] .now-logo-fallback{color:#2f7fbf!important}'
+        + 'html[data-theme="light"] .channel-card{color:#172535!important}'
+        + 'html[data-theme="light"] .channel-thumb{background:#ffffff!important;border-color:#c7d4df!important}'
+        + 'html[data-theme="light"] .channel-thumb img{background:#ffffff!important}'
+        + 'html[data-theme="light"] .channel-thumb-fallback{background:#f2f6fa!important;color:#2f7fbf!important;border-color:#c7d4df!important}'
+        + 'html[data-theme="light"] .category-chip{background:#ffffff!important;color:#5d7183!important;border-color:#c7d4df!important}'
+        + 'html[data-theme="light"] .category-chip:hover{background:#e9f1f7!important;color:#172535!important;border-color:#9eb2c2!important}'
+        + 'html[data-theme="light"] .copy-row input{background:#ffffff!important;color:#172535!important;border-color:#c7d4df!important}'
+        + 'html[data-theme="light"] .copy-row button{background:#f2f6fa!important;color:#172535!important;border-color:#c7d4df!important}'
+        + 'html[data-theme="light"] .watch-empty{border-color:#c7d4df!important;color:#5d7183!important}'
+        + 'html[data-theme="light"] .browser-head::after{background:var(--sf-accent)!important}'
+        + 'html[data-theme="light"] .player-download-button{background:var(--sf-accent)!important;border-color:var(--sf-accent)!important;color:#ffffff!important}'
+    )
+
+
 def node_web_player_watch(channel_key: str, request: Request):
     user = _node_web_current_user(request)
     prefix = _node_web_prefix(request)
@@ -17032,7 +17194,7 @@ def node_web_player_watch(channel_key: str, request: Request):
         if viewer_info or player_download_html else ""
     )
     theme_snapshot = _node_webplayer_theme_snapshot(request)
-    page = """<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">{favicon}<title>{title}</title>
+    page = """<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">{theme_script}{favicon}<title>{title}</title>
 <style>
 /* STREAMFORGE_NODE_WEB_PLAYER_WATCH_SIDEBAR_V2206 */
 /* STREAMFORGE_NODE_WEB_PLAYER_CINEMA_LAYOUT_V2207 */
@@ -17069,6 +17231,7 @@ body{{background:var(--sf-page)!important;color:var(--sf-text)!important;min-hei
 .channel-card.active .channel-tile,.channel-card:hover .channel-tile{{border-color:var(--sf-accent)!important}}
 .browser-head::after{{background:var(--sf-accent)!important}}
 .player-download-button{{background:var(--sf-accent)!important;border-color:var(--sf-accent)!important;color:var(--sf-text)!important}}
+{device_theme_css}{theme_toggle_css}
 </style></head><body>
 <main class="wrap"><section class="watch-grid"><section class="player-panel"><div class="player-top"><div><a class="player-back" href="{canonical_player_url}">← All channels</a><h1 id="current-channel-title">{title}</h1></div><span id="state" class="status starting">loading</span></div><div class="watch-frame"><video id="video" controls autoplay playsinline{poster_attr}></video></div><div class="now-card"><div class="now-meta" id="current-now-meta">{now_visual}<div class="now-copy"><strong id="current-now-name">{title}</strong><span>Now Streaming</span></div></div>{player_info_actions}</div></section><aside class="browser-panel"><div class="browser-head"><strong>LIVE STREAMS</strong></div><div id="category-chips" class="category-chip-row"></div><div id="channel-grid" class="channel-grid">{cards_html}</div><div id="channel-empty" class="watch-empty" hidden>No channels in this category.</div></aside></section></main>
 <script>(()=>{{/* STREAMFORGE_NODE_PLAYER_CANONICAL_WEBPLAYER_URL_V2249 */const canonicalPlayerUrl={canonical_player_url_json};if(window.location.pathname!==canonicalPlayerUrl){{history.replaceState(null,'',canonicalPlayerUrl);}}const video=document.getElementById("video"),state=document.getElementById("state");let url={stream_url_json},youtubeLowLatency={youtube_low_latency_json},h=null,fallback=false,fatal=0,lastProgressAt=Date.now(),lastMediaTime=0,lastHlsDataAt=Date.now(),lastSoftRecoveryAt=0,engineLoading=false,engineRetry=null,switchGeneration=0;/* STREAMFORGE_NODE_WEBPLAYER_PROGRESS_WATCHDOG_V1163 *//* STREAMFORGE_NODE_WEBPLAYER_EVIDENCE_BASED_STALL_RECOVERY_V1167 *//* STREAMFORGE_NODE_WEBPLAYER_NON_DESTRUCTIVE_STALL_RECOVERY_V1167 */function noteProgress(force=false){{const t=Number(video.currentTime||0);if(force||Math.abs(t-lastMediaTime)>=0.15){{lastMediaTime=t;lastProgressAt=Date.now();lastHlsDataAt=Date.now()}}}}function noteHlsData(){{lastHlsDataAt=Date.now()}}function bufferedAhead(){{const t=Number(video.currentTime||0);try{{for(let i=0;i<video.buffered.length;i+=1){{const a=video.buffered.start(i),b=video.buffered.end(i);if(t+0.10>=a&&t<=b+0.10)return Math.max(0,b-t)}}}}catch(_){{}}return 0}}function softRecover(message='Buffering live stream…'){{if(video.paused||document.hidden)return;const now=Date.now();if(now-lastSoftRecoveryAt<8000)return;lastSoftRecoveryAt=now;setState('buffering','starting');setMsg(message);if(h){{try{{h.startLoad(-1)}}catch(_){{}}}}playAutoplaySafe().catch(()=>{{}})}}/* STREAMFORGE_NODE_WEB_PLAYER_NO_VIDEO_OVERLAY_V2209 */
@@ -17080,7 +17243,7 @@ function load(stable=false){{kill();const run=switchGeneration,currentUrl=url,in
 function updateNowLogo(logoUrl){{if(!nowMeta)return;const oldLogo=nowMeta.querySelector('.now-logo,.now-logo-fallback');if(!oldLogo)return;if(logoUrl){{const span=document.createElement('span');span.className='now-logo';const img=document.createElement('img');img.src=logoUrl;img.alt='';img.loading='lazy';span.appendChild(img);oldLogo.replaceWith(span);video.poster=logoUrl}}else{{const span=document.createElement('span');span.className='now-logo-fallback';span.textContent='▶';oldLogo.replaceWith(span);video.removeAttribute('poster')}}}}
 function switchChannel(card){{const next=card.dataset.streamUrl||'';if(!next||card.classList.contains('active'))return;url=next;youtubeLowLatency=card.dataset.youtubeSource==='1';fallback=false;fatal=0;cancelRetry();kill();lastProgressAt=Date.now();lastHlsDataAt=lastProgressAt;lastMediaTime=0;try{{video.pause()}}catch(_ ){{}}video.removeAttribute('src');video.load();const name=card.dataset.channelName||'';if(channelTitle)channelTitle.textContent=name;if(nowName)nowName.textContent=name;updateNowLogo(card.dataset.logoUrl||'');cards.forEach(item=>item.classList.toggle('active',item===card));/* STREAMFORGE_NODE_PLAYER_DIRECT_SWITCH_NO_URL_V2246 */document.title=name||document.title;start()}}
 cards.forEach(card=>card.addEventListener('click',event=>{{if(event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||event.button!==0)return;event.preventDefault();switchChannel(card)}}));
-const chipWrap=document.getElementById('category-chips');const empty=document.getElementById('channel-empty');const unique=new Set();cards.forEach(card=>{{(card.dataset.categories||'').split('|').map(name=>name.trim()).filter(Boolean).forEach(name=>unique.add(name));}});const categories=['All',...Array.from(unique)];function applyCategory(name){{let shown=0;cards.forEach(card=>{{const names=(card.dataset.categories||'').split('|').map(item=>item.trim()).filter(Boolean);const show=name==='All'||names.includes(name);card.hidden=!show;card.style.gridColumn=show?'span 3':'';if(show)shown+=1;}});/* STREAMFORGE_NODE_NORMAL_LAST_ROW_V2218 */cards.forEach(card=>{{if(!card.hidden)card.style.gridColumn='';}});empty.hidden=shown!==0;chipWrap.querySelectorAll('[data-chip]').forEach(chip=>chip.classList.toggle('active',chip.dataset.chip===name));}}categories.forEach(name=>{{const btn=document.createElement('button');btn.type='button';btn.className='category-chip';btn.textContent=name;btn.dataset.chip=name;btn.addEventListener('click',()=>applyCategory(name));chipWrap.appendChild(btn);}});applyCategory('All');/* STREAMFORGE_NODE_PLAYER_LIVE_ONLINE_V2246 */const onlineUseEl=document.getElementById('player-online-use'),onlineUseEndpoint={online_use_endpoint_json};let onlineUseBusy=false;async function refreshOnlineUse(){{if(!onlineUseEl||onlineUseBusy)return;onlineUseBusy=true;try{{const r=await fetch(onlineUseEndpoint,{{cache:'no-store',credentials:'same-origin',headers:{{'Accept':'application/json'}}}});if(r.ok){{const data=await r.json();if(Number.isFinite(Number(data.online_use)))onlineUseEl.textContent=String(Math.max(0,Number(data.online_use)))}}}}catch(_ ){{}}finally{{onlineUseBusy=false}}}}if(onlineUseEl){{refreshOnlineUse();setInterval(refreshOnlineUse,2000)}}/* STREAMFORGE_NODE_PANEL_HEIGHT_SYNC_V2218 */const playerPanel=document.querySelector('.player-panel'),browserPanel=document.querySelector('.browser-panel');const syncPanelHeight=()=>{{if(!playerPanel||!browserPanel)return;if(window.matchMedia('(max-width: 1060px)').matches){{browserPanel.style.removeProperty('--watch-panel-height');return}}browserPanel.style.setProperty('--watch-panel-height',`${{Math.ceil(playerPanel.getBoundingClientRect().height)}}px`)}};syncPanelHeight();window.addEventListener('resize',syncPanelHeight);if(window.ResizeObserver&&playerPanel)new ResizeObserver(syncPanelHeight).observe(playerPanel);ensureEngine();}})();</script></body></html>""".format(
+const chipWrap=document.getElementById('category-chips');const empty=document.getElementById('channel-empty');const unique=new Set();cards.forEach(card=>{{(card.dataset.categories||'').split('|').map(name=>name.trim()).filter(Boolean).forEach(name=>unique.add(name));}});const categories=['All',...Array.from(unique)];function applyCategory(name){{let shown=0;cards.forEach(card=>{{const names=(card.dataset.categories||'').split('|').map(item=>item.trim()).filter(Boolean);const show=name==='All'||names.includes(name);card.hidden=!show;card.style.gridColumn=show?'span 3':'';if(show)shown+=1;}});/* STREAMFORGE_NODE_NORMAL_LAST_ROW_V2218 */cards.forEach(card=>{{if(!card.hidden)card.style.gridColumn='';}});empty.hidden=shown!==0;chipWrap.querySelectorAll('[data-chip]').forEach(chip=>chip.classList.toggle('active',chip.dataset.chip===name));}}categories.forEach(name=>{{const btn=document.createElement('button');btn.type='button';btn.className='category-chip';btn.textContent=name;btn.dataset.chip=name;btn.addEventListener('click',()=>applyCategory(name));chipWrap.appendChild(btn);}});applyCategory('All');/* STREAMFORGE_NODE_PLAYER_LIVE_ONLINE_V2246 */const onlineUseEl=document.getElementById('player-online-use'),onlineUseEndpoint={online_use_endpoint_json};let onlineUseBusy=false;async function refreshOnlineUse(){{if(!onlineUseEl||onlineUseBusy)return;onlineUseBusy=true;try{{const r=await fetch(onlineUseEndpoint,{{cache:'no-store',credentials:'same-origin',headers:{{'Accept':'application/json'}}}});if(r.ok){{const data=await r.json();if(Number.isFinite(Number(data.online_use)))onlineUseEl.textContent=String(Math.max(0,Number(data.online_use)))}}}}catch(_ ){{}}finally{{onlineUseBusy=false}}}}if(onlineUseEl){{refreshOnlineUse();setInterval(refreshOnlineUse,2000)}}/* STREAMFORGE_NODE_PANEL_HEIGHT_SYNC_V2218 */const playerPanel=document.querySelector('.player-panel'),browserPanel=document.querySelector('.browser-panel');const syncPanelHeight=()=>{{if(!playerPanel||!browserPanel)return;if(window.matchMedia('(max-width: 1060px)').matches){{browserPanel.style.removeProperty('--watch-panel-height');return}}browserPanel.style.setProperty('--watch-panel-height',`${{Math.ceil(playerPanel.getBoundingClientRect().height)}}px`)}};syncPanelHeight();window.addEventListener('resize',syncPanelHeight);if(window.ResizeObserver&&playerPanel)new ResizeObserver(syncPanelHeight).observe(playerPanel);ensureEngine();}})();</script>{theme_toggle_button}</body></html>""".format(
         favicon=_node_web_favicon_link(prefix, request),
         title=html.escape(channel.name + " · " + _node_webplayer_brand_name(request)),
         prefix=html.escape(prefix),
@@ -17098,6 +17261,10 @@ const chipWrap=document.getElementById('category-chips');const empty=document.ge
         online_use_endpoint_json=json.dumps(f"{prefix}/web-player/online-use"),
         canonical_player_url_json=json.dumps(_node_web_home_url(request)),
         canonical_player_url=html.escape(_node_web_home_url(request), quote=True),
+        device_theme_css=_node_watch_device_theme_css(),
+        theme_toggle_css=_NODE_THEME_TOGGLE_CSS,
+        theme_toggle_button=_node_theme_toggle_button('theme-toggle-bottom'),
+        theme_script=_node_device_theme_script(),
     )
     if manager.hide_panel_hover_urls:
         page = page.replace("</body>", _node_web_hide_hover_script() + "</body>")

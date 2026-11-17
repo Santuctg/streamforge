@@ -1,3 +1,8 @@
+## 13.53 - 2026-11-17
+
+- Audited the Node Agent's Dark/Light theme and fixed every finding: the late light-theme overrides moved from the Categories-only stylesheet into the global Node panel CSS, and the light checkbox tick stays a dark centred mark instead of being painted near-white.
+- The Node panel login page, the Main-disconnected page, the public Web Player login/home/watch screens and the subscription-expired page now run the shared device-theme bootstrap in `<head>`, show a Dark/Light toggle and carry scoped light CSS; the saved choice follows the device/browser, dark stays the default.
+
 ## 13.52 - 2026-11-17
 
 - Fixed the Main Web Player watch screen staying dark forever: `app/templates/player.html` now reads `localStorage["streamforge.theme"]` in `<head>`, shows the same Dark/Light toggle as the home screen, and loads a scoped light-theme block. Dark remains the default and the saved choice follows the device/browser across reloads.

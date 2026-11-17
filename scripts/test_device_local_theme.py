@@ -48,6 +48,34 @@ assert "STREAMFORGE_NODE_LIGHT_THEME_HARDCODED_COLORS_V1348" in node, "Node hard
 assert ':root[data-theme="light"] .panel-user{' in node, "Node panel-user light override is missing"
 assert 'querySelectorAll("[data-theme-toggle]")' in node, "Node toggle must paint every theme button"
 
+# --- v13.53: the Node light pass is global, the light checkbox tick stays dark
+# --- and visible, and every Node public surface carries the device theme.
+assert (
+    node.index("def _node_panel_css()")
+    < node.index("STREAMFORGE_NODE_LIGHT_THEME_HARDCODED_COLORS_V1348")
+    < node.index("def _node_panel_document(")
+), "Node light overrides must live in the global _node_panel_css() stylesheet"
+assert (
+    ':root[data-theme="light"] input[type=checkbox]:checked::after{background:#071c18!important}' in node
+), "Node light checkbox tick must stay dark and visible"
+assert "STREAMFORGE_NODE_LIGHT_SURFACES_V1353" in node, "Node panel light surface overrides are missing"
+assert "STREAMFORGE_NODE_DEVICE_THEME_SHARED_SCRIPT_V1353" in node, "shared Node device theme script is missing"
+assert "STREAMFORGE_NODE_DEVICE_THEME_TOGGLE_CSS_V1353" in node, "Node theme toggle styling is missing"
+assert "STREAMFORGE_NODE_LOGIN_DEVICE_THEME_LIGHT_V1353" in node, "Node panel login light theme is missing"
+assert "STREAMFORGE_NODE_WEBPLAYER_DEVICE_THEME_LIGHT_V1353" in node, "Node Web Player login/home light theme is missing"
+assert "STREAMFORGE_NODE_WATCH_DEVICE_THEME_LIGHT_V1353" in node, "Node Web Player watch light theme is missing"
+assert "STREAMFORGE_NODE_EXPIRED_DEVICE_THEME_LIGHT_V1353" in node, "Node expired page light theme is missing"
+assert "STREAMFORGE_NODE_DISCONNECTED_DEVICE_THEME_LIGHT_V1353" in node, "Node disconnected page light theme is missing"
+# bootstrap runs in the head of: web login, web home, watch, expired, panel
+# login, main-disconnected (panel document keeps its own inline copy).
+assert node.count("_node_device_theme_script()") >= 6, (
+    "every Node public page must bootstrap the device theme in <head>"
+)
+assert node.count("_node_theme_toggle_button(") >= 7, "every Node public page must offer the theme toggle"
+assert (
+    "_node_webplayer_theme_css(request) + _node_webplayer_device_theme_css()" in node
+), "device light CSS must load after the managed theme tokens"
+
 # --- Page-level <style> blocks load after style.css, so the light overrides must
 # --- be a late stylesheet linked after {% block content %}.
 assert "STREAMFORGE_LIGHT_THEME_LATE_STYLESHEET_V1348" in base, "late light stylesheet link is missing"
