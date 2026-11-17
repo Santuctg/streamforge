@@ -4,6 +4,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 main_css = (ROOT / "app/static/style.css").read_text(encoding="utf-8")
+light_css = (ROOT / "app/static/theme-light.css").read_text(encoding="utf-8")
 node_source = (ROOT / "node_agent/app.py").read_text(encoding="utf-8")
 
 for source, name in ((main_css, "Main"), (node_source, "Node")):
@@ -22,5 +23,13 @@ assert "left:50%" in node_source and "top:50%" in node_source
 assert "transform:translate(-50%,-50%)" in node_source
 assert "transform:none" in main_css
 assert "transform:none" in node_source
+
+# In the light theme a checked box must stay visible: accent fill + dark tick.
+assert "STREAMFORGE_LIGHT_CHECKBOX_TICK_V1350" in light_css, "light checkbox tick fix is missing"
+assert 'input[type=checkbox]:checked{background:#37c7a2!important;border-color:#37c7a2!important}' in light_css
+assert 'input[type=checkbox]:checked::after{background:#071c18!important}' in light_css
+assert 'input[type=checkbox]:checked::after{background:#f2f6fa' not in light_css, (
+    "light theme paints the checkmark white, hiding it"
+)
 
 print("PASS: Main and Node checkbox theme contract")

@@ -11,7 +11,7 @@
 >
 > **Typical use:** One **Main Server** encodes every channel once; several **Remote Nodes** in other data centres relay those channels and serve the viewers, with per-user connection limits, IP/ASN access policies and automatic node selection.
 
-**v13.49:** The device-local light theme is now complete: neutral colours in the Main stylesheet and every page-level `<style>` block are theme tokens, so panels, tables, dialogs, forms and login fields flip together. Dark mode keeps its exact previous colours; the v13.18 panel help buttons remain included.
+**v13.50:** The Dark/Light switch now sits inside the signed-in name card, and a checked checkbox is visible again in the light theme (teal fill with a dark tick). Dark mode and the v13.49 tokenised palette are unchanged; the v13.18 panel help buttons remain included.
 
 > **v12.83 upgrade notes:** HTTPS connections to Remote Nodes now always verify
 > certificates; replace self-signed or name-mismatched certificates before
@@ -122,20 +122,20 @@ This is a **host-installed application**, **not a Docker Compose stack**. Review
 
 ### 1. Download the versioned package
 
-Download `streamforge-X.YY.zip` from **[Releases](https://github.com/Santuctg/streamforge/releases/tag/v13.49)** and check it:
+Download `streamforge-X.YY.zip` from **[Releases](https://github.com/Santuctg/streamforge/releases/tag/v13.50)** and check it:
 
 ```bash
 cd /root
-curl -fL -o streamforge-13.49.zip \
-  https://github.com/Santuctg/streamforge/releases/download/v13.49/streamforge-13.49.zip
-sha256sum streamforge-13.49.zip
+curl -fL -o streamforge-13.50.zip \
+  https://github.com/Santuctg/streamforge/releases/download/v13.50/streamforge-13.50.zip
+sha256sum streamforge-13.50.zip
 ```
 
 ### 2a. Fresh install (new server only)
 
 ```bash
-unzip -q streamforge-13.49.zip -d /root
-sudo bash /root/streamforge-13.49/scripts/install.sh
+unzip -q streamforge-13.50.zip -d /root
+sudo bash /root/streamforge-13.50/scripts/install.sh
 ```
 
 Open `http://SERVER_IP` and sign in as **`admin` / `ChangeMe123!`**. The Panel then requires a new password of at least 12 characters before anything else.
@@ -143,7 +143,7 @@ Open `http://SERVER_IP` and sign in as **`admin` / `ChangeMe123!`**. The Panel t
 ### 2b. Upgrade an existing server
 
 ```bash
-sudo streamforge-update --force /root/streamforge-13.49.zip
+sudo streamforge-update --force /root/streamforge-13.50.zip
 ```
 
 Releases are applied **in order** — each updater accepts only the previous version and rolls back automatically on failure. **Never run `install.sh` on an existing server.**

@@ -29,6 +29,18 @@ assert "data-theme-toggle" in webplayer, "Web Player theme toggle is missing"
 assert "[data-theme=\"light\"]" in main_css, "Main light variable overrides are missing"
 assert "topbar-actions" in base, "Main topbar theme toggle group is missing"
 assert "login-theme-toggle" in login, "Main login screen theme toggle is missing"
+# The signed-in theme switch sits inside the name card and stays usable on phones.
+assert "STREAMFORGE_MAIN_USER_CARD_THEME_TOGGLE_V1350" in main_css, (
+    "name-card theme toggle styling is missing"
+)
+assert 'class="admin-chip-id"' in base and "admin-chip-id" in main_css
+card = base.split('class="topbar-actions"', 1)[1].split("</header>", 1)[0]
+assert "admin-chip" in card and "data-theme-toggle" in card, (
+    "theme toggle must live inside the name card"
+)
+assert ".topbar .admin-chip-id{display:none}" in main_css, (
+    "phones must hide the name text but keep the theme switch"
+)
 assert "STREAMFORGE_LIGHT_LOGIN_AUTOFILL_V1348" in light_css, "light autofill override is missing"
 
 # --- Node panel: hardcoded (non-variable) dark colours get their own light pass.

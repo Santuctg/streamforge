@@ -333,10 +333,15 @@
 :root[data-theme="light"] .main-channel-control-table .channel-sort-button:hover,:root[data-theme="light"] .main-channel-control-table .channel-sort-button.active{color:var(--text)!important}
 :root[data-theme="light"] .main-channel-control-table .channel-sort-indicator{color:var(--muted)!important}
 :root[data-theme="light"] .main-channel-control-table .channel-sort-button.active .channel-sort-indicator{color:var(--blue)!important}
+/* STREAMFORGE_LIGHT_CHECKBOX_TICK_V1350: a checked box keeps the accent fill
+ * and the dark centred tick; the old light rules painted both white and made
+ * the tick invisible. */
 :root[data-theme="light"] .main-channel-control-table input[type=checkbox]{background:#f2f6fa!important}
-:root[data-theme="light"] .main-channel-control-table input[type=checkbox]:checked::after{background:#f2f6fa!important}
 :root[data-theme="light"] input[type=checkbox]{background:#f2f6fa!important}
-:root[data-theme="light"] input[type=checkbox]:checked::after{background:#f2f6fa!important}
+:root[data-theme="light"] .main-channel-control-table input[type=checkbox]:checked,
+:root[data-theme="light"] input[type=checkbox]:checked{background:#37c7a2!important;border-color:#37c7a2!important}
+:root[data-theme="light"] .main-channel-control-table input[type=checkbox]:checked::after,
+:root[data-theme="light"] input[type=checkbox]:checked::after{background:#071c18!important}
 :root[data-theme="light"] section.panel.main-log-panel .main-log-table-wrap table.log-table tbody tr td{border-bottom-color:color-mix(in srgb, var(--blue) 32%, #c9d6e0)!important}
 :root[data-theme="light"] .gpu-resource-name{color:var(--text)!important}
 :root[data-theme="light"] .sidebar .brand-copy small{color:var(--muted)!important}

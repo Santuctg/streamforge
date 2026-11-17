@@ -107,7 +107,7 @@
   <main class="main-content">
     <header class="topbar">
       <div>{% block heading %}{% endblock %}</div>
-      <div class="topbar-actions"><div class="admin-chip"><b>{{ admin.username }}</b><small>{{ admin.role.name if admin.role else 'No role' }}</small></div><button type="button" class="theme-toggle topbar-theme-toggle" data-theme-toggle aria-label="Switch to light theme" title="Switch theme">☼</button></div>
+      <div class="topbar-actions"><div class="admin-chip"><span class="admin-chip-id"><b>{{ admin.username }}</b><small>{{ admin.role.name if admin.role else 'No role' }}</small></span><button type="button" class="theme-toggle topbar-theme-toggle" data-theme-toggle aria-label="Switch to light theme" title="Switch theme">☼</button></div></div>
     </header>
     {% block content %}{% endblock %}
   </main>

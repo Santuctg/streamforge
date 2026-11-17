@@ -1,3 +1,8 @@
+## 13.50 - 2026-11-17
+
+- Moved the device-local Dark/Light switch inside the signed-in name card (name + role + switch); phones hide the name text but keep the switch.
+- Fixed the light theme checkmark: a checked box keeps the teal fill and a dark centred tick instead of being painted white and looking empty.
+
 ## 13.49 - 2026-11-17
 
 - Completed the device-local light theme by tokenising every neutral surface, border and text colour in `app/static/style.css` and the page-level `<style>` blocks (`--sf-bg-*`, `--sf-bd-*`, `--sf-fg-*`), so all panels, tables, dialogs, forms and login fields flip together. Dark theme computed colours are unchanged.
