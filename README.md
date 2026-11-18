@@ -11,7 +11,8 @@
 >
 > **Typical use:** One **Main Server** encodes every channel once; several **Remote Nodes** in other data centres relay those channels and serve the viewers, with per-user connection limits, IP/ASN access policies and automatic node selection.
 
-**v13.99:** Sidebar Theme button is full-width, same size and border as Change password / Sign out.
+**v14.00:** Removed the extra visible border from the sidebar bottom buttons (full-width sizing kept).
+>\n> **v13.99:** Sidebar Theme button is full-width, same size and border as Change password / Sign out.
 >\n> **v13.98:** Fixed the sidebar Theme button box so it truly matches Change password / Sign out.
 >\n> **v13.97:** Expanded sidebar Theme and Change password buttons now share the same box and font.
 >\n> **v13.96:** Collapsed sidebar scrollbar hidden so icons stay centered on every browser (scrolling still works).
@@ -194,20 +195,20 @@ This is a **host-installed application**, **not a Docker Compose stack**. Review
 
 ### 1. Download the versioned package
 
-Download `streamforge-X.YY.zip` from **[Releases](https://github.com/Santuctg/streamforge/releases/tag/v13.99)** and check it:
+Download `streamforge-X.YY.zip` from **[Releases](https://github.com/Santuctg/streamforge/releases/tag/v14.00)** and check it:
 
 ```bash
 cd /root
-curl -fL -o streamforge-13.99.zip \
-  https://github.com/Santuctg/streamforge/releases/download/v13.99/streamforge-13.99.zip
-sha256sum streamforge-13.99.zip
+curl -fL -o streamforge-14.00.zip \
+  https://github.com/Santuctg/streamforge/releases/download/v14.00/streamforge-14.00.zip
+sha256sum streamforge-14.00.zip
 ```
 
 ### 2a. Fresh install (new server only)
 
 ```bash
-unzip -q streamforge-13.99.zip -d /root
-sudo bash /root/streamforge-13.99/scripts/install.sh
+unzip -q streamforge-14.00.zip -d /root
+sudo bash /root/streamforge-14.00/scripts/install.sh
 ```
 
 Open `http://SERVER_IP` and sign in as **`admin` / `ChangeMe123!`**. The Panel then requires a new password of at least 12 characters before anything else.
@@ -215,7 +216,7 @@ Open `http://SERVER_IP` and sign in as **`admin` / `ChangeMe123!`**. The Panel t
 ### 2b. Upgrade an existing server
 
 ```bash
-sudo streamforge-update --force /root/streamforge-13.99.zip
+sudo streamforge-update --force /root/streamforge-14.00.zip
 ```
 
 Releases are applied **in order** — each updater accepts only the previous version and rolls back automatically on failure. **Never run `install.sh` on an existing server.**

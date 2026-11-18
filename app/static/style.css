@@ -3997,3 +3997,13 @@ body .sf-help-bubble.sf-help-bubble.sf-help-below::after{
     font-size:13px!important;
   }
 }
+
+/* STREAMFORGE_SIDEBAR_EXTRA_BORDER_REMOVED_V1400: the visible border added
+   in v13.99 is unwanted. Keep the full-width sizing but make the border
+   transparent again so the buttons look like the rest of the sidebar. */
+@media(min-width:761px){
+  .app-shell .sidebar .sidebar-bottom>button.theme-toggle,
+  .app-shell .sidebar .sidebar-bottom>form>.nav-button{
+    border-color:transparent!important;
+  }
+}

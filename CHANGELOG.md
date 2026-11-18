@@ -1,3 +1,7 @@
+## 14.00 - 2026-11-18
+
+- Removed the extra visible border from the expanded sidebar bottom buttons (Theme / Change password / Sign out). Full-width sizing from v13.99 is kept.
+
 ## 13.99 - 2026-11-18
 
 - Expanded Main sidebar: the Theme toggle now spans the full sidebar width, matching the size and border of Change password / Sign out.
