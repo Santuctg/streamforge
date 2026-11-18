@@ -3979,3 +3979,21 @@ body .sf-help-bubble.sf-help-bubble.sf-help-below::after{
     font-size:12px!important;
   }
 }
+
+/* STREAMFORGE_SIDEBAR_THEME_BUTTON_FULLWIDTH_V1399: the Theme toggle was a
+   grid item in the first (auto) column of .sidebar-bottom while the form
+   buttons span both columns, so it stayed narrower. Make it span the full
+   row and give all three buttons the same size and border. */
+@media(min-width:761px){
+  .app-shell .sidebar .sidebar-bottom>button.theme-toggle{grid-column:1/-1!important}
+  .app-shell .sidebar .sidebar-bottom>button.theme-toggle,
+  .app-shell .sidebar .sidebar-bottom>form>.nav-button{
+    height:44px!important;
+    min-height:44px!important;
+    padding:0 12px!important;
+    border:1px solid var(--sf-bd-40536a)!important;
+    background:var(--sf-bg-182331)!important;
+    color:var(--sf-fg-edf4fb)!important;
+    font-size:13px!important;
+  }
+}

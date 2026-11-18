@@ -1,3 +1,7 @@
+## 13.99 - 2026-11-18
+
+- Expanded Main sidebar: the Theme toggle now spans the full sidebar width, matching the size and border of Change password / Sign out.
+
 ## 13.98 - 2026-11-18
 
 - Fixed the v13.97 sidebar theme button styling: the old stronger selector was overriding the shared box, so the Theme toggle now truly matches Change password / Sign out in both themes.
