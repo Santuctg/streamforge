@@ -3931,3 +3931,37 @@ body .sf-help-bubble.sf-help-bubble.sf-help-below::after{
   .app-shell.sidebar-collapsed .sidebar{scrollbar-width:none!important;scrollbar-gutter:auto!important}
   .app-shell.sidebar-collapsed .sidebar::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}
 }
+
+/* STREAMFORGE_SIDEBAR_THEME_BUTTON_MATCH_V1397: in the expanded Main sidebar
+   the Theme toggle and the Change password / Sign out buttons should share
+   the same visible box and typography. Apply one shared rule to all three. */
+@media(min-width:761px){
+  .sidebar-bottom>button.theme-toggle,
+  .sidebar-bottom>form>.nav-button{
+    box-sizing:border-box!important;
+    display:flex!important;
+    width:100%!important;
+    min-width:0!important;
+    height:42px!important;
+    min-height:42px!important;
+    margin:0!important;
+    padding:0 11px!important;
+    align-items:center!important;
+    justify-content:flex-start!important;
+    gap:10px!important;
+    border:1px solid var(--sf-bd-304156)!important;
+    border-radius:8px!important;
+    background:var(--sf-bg-182331)!important;
+    color:var(--sf-fg-edf4fb)!important;
+    font:inherit!important;
+    line-height:1.2!important;
+    text-align:left!important;
+    cursor:pointer!important;
+  }
+  .sidebar-bottom>button.theme-toggle:hover,
+  .sidebar-bottom>form>.nav-button:hover{
+    border-color:var(--sf-bd-40536a)!important;
+    background:var(--sf-bg-1f2b39)!important;
+    color:var(--sf-fg-edf4fb)!important;
+  }
+}

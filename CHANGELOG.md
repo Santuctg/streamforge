@@ -1,3 +1,7 @@
+## 13.97 - 2026-11-18
+
+- Expanded Main sidebar: the Theme toggle and the Change password / Sign out buttons now share the same box, height and typography.
+
 ## 13.96 - 2026-11-18
 
 - Hide the collapsed sidebar scrollbar so it no longer consumes width and shifts icons off-center on browsers with native scrollbars. Wheel/touch scrolling is unchanged.
