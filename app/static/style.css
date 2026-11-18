@@ -3965,3 +3965,17 @@ body .sf-help-bubble.sf-help-bubble.sf-help-below::after{
     color:var(--sf-fg-edf4fb)!important;
   }
 }
+
+/* STREAMFORGE_SIDEBAR_THEME_BUTTON_MATCH_V1398: the earlier v1397 rule lost
+   to the stronger `.sidebar .sidebar-bottom .nav-button` selector, so the
+   Theme toggle stayed transparent. Use a higher-specificity selector so the
+   Theme toggle and the form buttons share the exact same box in both themes. */
+@media(min-width:761px){
+  .app-shell .sidebar .sidebar-bottom>button.theme-toggle,
+  .app-shell .sidebar .sidebar-bottom>form>.nav-button{
+    border:1px solid var(--sf-bd-304156)!important;
+    background:var(--sf-bg-182331)!important;
+    color:var(--sf-fg-edf4fb)!important;
+    font-size:12px!important;
+  }
+}
