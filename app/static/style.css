@@ -3913,3 +3913,12 @@ body .sf-help-bubble.sf-help-bubble.sf-help-below::after{
 @media(min-width:761px){
   .app-shell.sidebar-collapsed .sidebar #main-navigation{gap:5px!important}
 }
+
+/* STREAMFORGE_COLLAPSED_CENTER_GUTTER_V1395: on browsers with native
+   scrollbars (Firefox) the scrollbar consumes width on the right of the
+   collapsed sidebar, shifting every icon left of the rail center. Reserve a
+   stable gutter on both edges so nav icons, toggle and bottom actions stay
+   centered under the collapse control. */
+@media(min-width:761px){
+  .app-shell.sidebar-collapsed .sidebar{scrollbar-gutter:stable both-edges!important}
+}

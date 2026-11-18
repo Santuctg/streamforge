@@ -1,3 +1,7 @@
+## 13.95 - 2026-11-18
+
+- Collapsed sidebar icons stay centered on browsers with native scrollbars: reserve a stable gutter on both edges so the scrollbar no longer shifts the nav icons, toggle and bottom actions off-center.
+
 ## 13.94 - 2026-11-18
 
 - Added a small 5px gap between the last collapsed sidebar icon and the bottom actions (user-approved after a 0px / 5px demo).
