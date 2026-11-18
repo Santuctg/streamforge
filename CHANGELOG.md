@@ -1,3 +1,7 @@
+## 13.96 - 2026-11-18
+
+- Hide the collapsed sidebar scrollbar so it no longer consumes width and shifts icons off-center on browsers with native scrollbars. Wheel/touch scrolling is unchanged.
+
 ## 13.95 - 2026-11-18
 
 - Collapsed sidebar icons stay centered on browsers with native scrollbars: reserve a stable gutter on both edges so the scrollbar no longer shifts the nav icons, toggle and bottom actions off-center.

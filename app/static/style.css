@@ -3922,3 +3922,12 @@ body .sf-help-bubble.sf-help-bubble.sf-help-below::after{
 @media(min-width:761px){
   .app-shell.sidebar-collapsed .sidebar{scrollbar-gutter:stable both-edges!important}
 }
+
+/* STREAMFORGE_COLLAPSED_HIDE_SCROLLBAR_V1396: the stable both-edges gutter
+   pushed the icons further off-center on native-scrollbar browsers. Hide the
+   rail scrollbar instead so it consumes no width; wheel/touch scrolling still
+   works and every icon stays centered. */
+@media(min-width:761px){
+  .app-shell.sidebar-collapsed .sidebar{scrollbar-width:none!important;scrollbar-gutter:auto!important}
+  .app-shell.sidebar-collapsed .sidebar::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}
+}
